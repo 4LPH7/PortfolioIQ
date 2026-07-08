@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="PortfolioIQ — Real-time portfolio analytics, predictive analysis, and smart rebalancing for Indian equities." />
+  <title>PortfolioIQ — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+
+<!-- ── Sidebar ───────────────────────────────────────────────── -->
+<nav class="sidebar">
+  <div class="sidebar-logo">📈 PortfolioIQ</div>
+  <div class="sidebar-version">v2.0 · Analytics Engine</div>
+  <hr class="sidebar-divider" />
+  <div class="nav-section-label">Navigation</div>
+  <a class="nav-item active" href="index.html"><span class="nav-icon">🏠</span> Dashboard</a>
+  <a class="nav-item" href="analyzer.html"><span class="nav-icon">🔬</span> Stock Analyzer</a>
+  <a class="nav-item" href="rebalance.html"><span class="nav-icon">⚖️</span> Rebalance</a>
+  <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
+  <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
+  <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
+  <hr class="sidebar-divider" />
+  <div class="nav-section-label">Engine Status</div>
+  <div id="market-status" class="status-pill status-warn">🟡 Loading…</div>
+  <div id="db-status"     class="status-pill status-warn">🟡 Checking…</div>
+  <hr class="sidebar-divider" />
+  <div class="sidebar-version" style="color:var(--yellow)">⚠️ DRY RUN MODE</div>
+</nav>
+
+<!-- ── Main ──────────────────────────────────────────────────── -->
+<main class="main fade-in">
+  <h1 class="page-title">Portfolio Dashboard</h1>
+  <p class="page-subtitle" id="last-refresh">Loading portfolio data…</p>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid" id="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">Total AUM</div><div class="kpi-value" id="aum">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Unrealised P&amp;L</div><div class="kpi-value" id="pnl">—</div><div class="kpi-delta" id="pnl-pct">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Day Change</div><div class="kpi-value" id="day-chg">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Available Cash</div><div class="kpi-value" id="cash">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Net Worth</div><div class="kpi-value" id="networth">—</div></div>
+  </div>
+
+  <!-- Holdings Table -->
+  <div class="section-header">Holdings</div>
+  <div id="holdings-wrap">
+    <div class="loading-wrap"><div class="spinner"></div><span style="color:var(--text-muted)">Fetching portfolio…</span></div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="grid-2" style="margin-top:1.5rem">
+    <div class="card">
+      <div class="section-header" style="margin-top:0">Sector Allocation</div>
+      <div id="chart-sector" class="chart-box"></div>
+    </div>
+    <div class="card">
+      <div class="section-header" style="margin-top:0">Portfolio Treemap</div>
+      <div id="chart-treemap" class="chart-box"></div>
+    </div>
+  </div>
+
+  <!-- P&L Bar -->
+  <div class="card" style="margin-top:1.25rem">
+    <div class="section-header" style="margin-top:0">Unrealised P&amp;L by Holding</div>
+    <div id="chart-pnl" class="chart-box" style="min-height:240px"></div>
+  </div>
+
+  <p id="data-quality" style="color:var(--text-dim);font-size:0.78rem;text-align:right;margin-top:0.75rem"></p>
+</main>
+
+<div class="dry-run-notice">🛡️ DRY RUN — No real orders</div>
+
+<script src="js/api.js"></script>
+<script>
+(async () => {
+  try {
+    const r = await apiGet("/api/portfolio/summary");
+    if (!r.ok) throw new Error(r.error);
+    const d = r.data;
+
+    // KPIs
+    document.getElementById("last-refresh").textContent =
+      "Last updated: " + new Date().toLocaleTimeString("en-IN");
+    document.getElementById("aum").textContent = fmt(d.total_aum);
+    const pnlEl = document.getElementById("pnl");
+    pnlEl.textContent = fmt(d.total_pnl);
+    pnlEl.style.color = d.total_pnl >= 0 ? "var(--green)" : "var(--red)";
+    const pPct = document.getElementById("pnl-pct");
+    pPct.textContent = fmtPct(d.total_pnl_pct);
+    pPct.className = "kpi-delta " + (d.total_pnl_pct >= 0 ? "pos" : "neg");
+    const dayEl = document.getElementById("day-chg");
+    dayEl.textContent = fmt(d.total_day_change);
+    dayEl.style.color = d.total_day_change >= 0 ? "var(--green)" : "var(--red)";
+    document.getElementById("cash").textContent = fmt(d.available_cash);
+    document.getElementById("networth").textContent = fmt(d.net_worth);
+    document.getElementById("data-quality").textContent =
+      `Data: ${d.live_prices} live · ${d.stale_prices} broker/stale · ${d.holdings_count} holdings`;
+
+    // Holdings table
+    const holdings = d.holdings || [];
+    if (!holdings.length) {
+      document.getElementById("holdings-wrap").innerHTML =
+        '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No holdings found</div><div class="empty-desc">Sync with Kite from the Settings page.</div></div>';
+      return;
+    }
+
+    const rows = holdings.map(h => `
+      <tr>
+        <td class="td-main">${h.symbol}</td>
+        <td>${h.exchange}</td>
+        <td>${h.qty}</td>
+        <td>${fmt(h.avg_price)}</td>
+        <td>${fmt(h.current_price)}</td>
+        <td>${fmt(h.invested)}</td>
+        <td>${fmt(h.current_value)}</td>
+        <td class="${h.pnl >= 0 ? 'td-pos' : 'td-neg'}">${fmt(h.pnl)}</td>
+        <td class="${h.pnl_pct >= 0 ? 'td-pos' : 'td-neg'}">${fmtPct(h.pnl_pct)}</td>
+        <td>${h.weight_pct?.toFixed(1)}%</td>
+        <td class="td-dim">${h.price_source}</td>
+      </tr>`).join("");
+
+    document.getElementById("holdings-wrap").innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Symbol</th><th>Exchange</th><th>Qty</th>
+            <th>Avg Price</th><th>CMP</th><th>Invested</th>
+            <th>Value</th><th>P&amp;L</th><th>P&amp;L %</th>
+            <th>Weight</th><th>Source</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+
+    // Sector donut
+    const sectors = d.sector_weights || {};
+    if (Object.keys(sectors).length) {
+      Plotly.newPlot("chart-sector", [{
+        type: "pie", hole: 0.55,
+        labels: Object.keys(sectors), values: Object.values(sectors),
+        marker: { colors: ["#00d4ff","#00ff88","#ffd600","#ff6b35","#a78bfa","#f472b6","#34d399"] },
+        textfont: { size: 12, color: "#ccd6f6" },
+        hovertemplate: "<b>%{label}</b><br>%{value:.1f}%<extra></extra>",
+      }], { ...PLOTLY_LAYOUT, height: 320, showlegend: true,
+        annotations: [{ text: "SECTORS", x: 0.5, y: 0.5, showarrow: false, font: { size: 9, color: "#8892b0" } }]
+      }, PLOTLY_CONFIG);
+    }
+
+    // Treemap
+    Plotly.newPlot("chart-treemap", [{
+      type: "treemap",
+      labels: holdings.map(h => `${h.symbol}<br>₹${(h.current_value||0).toFixed(0)}`),
+      parents: holdings.map(() => ""),
+      values: holdings.map(h => h.current_value),
+      marker: {
+        colors: holdings.map(h => h.pnl_pct),
+        colorscale: [[0,"#ff3366"],[0.4,"#1a0a0e"],[0.5,"#0d1117"],[0.6,"#0a1a10"],[1,"#00ff88"]],
+        cmid: 0, showscale: true,
+        colorbar: { tickfont: { color: "#8892b0", size: 10 }, title: { text: "P&L %", font: { color: "#8892b0" } } },
+      },
+      textfont: { family: "Inter", size: 13, color: "white" },
+      hovertemplate: "<b>%{label}</b><br>Value: ₹%{value:,.0f}<extra></extra>",
+    }], { ...PLOTLY_LAYOUT, height: 320 }, PLOTLY_CONFIG);
+
+    // P&L bar
+    const sorted = [...holdings].sort((a, b) => a.pnl - b.pnl);
+    Plotly.newPlot("chart-pnl", [{
+      type: "bar", orientation: "h",
+      x: sorted.map(h => h.pnl), y: sorted.map(h => h.symbol),
+      marker: { color: sorted.map(h => h.pnl >= 0 ? "#00ff88" : "#ff3366"), opacity: 0.85 },
+      text: sorted.map(h => fmt(h.pnl, "₹", 0)), textposition: "auto",
+      textfont: { size: 11, color: "white" },
+      hovertemplate: "<b>%{y}</b><br>P&L: ₹%{x:,.2f}<extra></extra>",
+    }], { ...PLOTLY_LAYOUT, height: 260, shapes: [{ type: "line", x0: 0, x1: 0, y0: -0.5, y1: sorted.length - 0.5, line: { color: "rgba(255,255,255,0.15)", width: 1 } }] }, PLOTLY_CONFIG);
+
+  } catch (err) {
+    document.getElementById("holdings-wrap").innerHTML = errBox("Failed to load portfolio: " + err.message);
+  }
+})();
+</script>
+</body>
+</html>

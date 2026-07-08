@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PortfolioIQ — Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+<nav class="sidebar">
+  <div class="sidebar-logo">📈 PortfolioIQ</div>
+  <div class="sidebar-version">v2.0 · Analytics Engine</div>
+  <hr class="sidebar-divider" />
+  <a class="nav-item" href="index.html"><span class="nav-icon">🏠</span> Dashboard</a>
+  <a class="nav-item" href="analyzer.html"><span class="nav-icon">🔬</span> Stock Analyzer</a>
+  <a class="nav-item" href="rebalance.html"><span class="nav-icon">⚖️</span> Rebalance</a>
+  <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
+  <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
+  <a class="nav-item active" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
+  <hr class="sidebar-divider" />
+  <div id="market-status" class="status-pill status-warn">🟡 Loading…</div>
+  <div id="db-status"     class="status-pill status-warn">🟡 Checking…</div>
+</nav>
+<main class="main fade-in">
+  <h1 class="page-title">⚙️ Settings</h1>
+  <p class="page-subtitle">System configuration, manual operations, and database statistics.</p>
+
+  <div id="settings-tabs">
+    <div class="tabs">
+      <button class="tab-btn" data-tab="config">🔧 System Config</button>
+      <button class="tab-btn" data-tab="sync">🔄 Manual Sync</button>
+      <button class="tab-btn" data-tab="stats">📊 Database Stats</button>
+    </div>
+
+    <!-- Config Tab -->
+    <div class="tab-panel card" data-tab="config" style="margin-top:0.5rem">
+      <div class="section-header" style="margin-top:0">System Configuration</div>
+      <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem">Edit values and press Enter or click Save to apply immediately.</p>
+      <div id="config-area"><div class="loading-wrap"><div class="spinner"></div></div></div>
+      <div class="alert alert-err" style="margin-top:1rem">
+        <span class="alert-icon">⚠️</span>
+        <div class="alert-body">
+          <div class="alert-title">Live Trading Warning</div>
+          <div class="alert-text">Setting <code>dry_run_mode</code> to <code>false</code> enables real Zerodha order placement. Only do this after validating the system over multiple market sessions. All orders are CNC (delivery), Market order type.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sync Tab -->
+    <div class="tab-panel" data-tab="sync" style="margin-top:0.5rem">
+      <div class="grid-3" style="gap:1rem">
+        <div class="card" style="text-align:center">
+          <div style="font-size:2.5rem;margin-bottom:0.75rem">🔄</div>
+          <div style="color:var(--text);font-weight:700;font-size:1rem;margin-bottom:0.4rem">Sync Holdings</div>
+          <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem">Pull latest holdings &amp; margins from Kite Connect.</div>
+          <button class="btn btn-primary" style="width:100%" onclick="doSync()">Sync Now</button>
+          <div id="sync-result" style="margin-top:0.75rem;font-size:0.82rem"></div>
+        </div>
+        <div class="card" style="text-align:center">
+          <div style="font-size:2.5rem;margin-bottom:0.75rem">📡</div>
+          <div style="color:var(--text);font-weight:700;font-size:1rem;margin-bottom:0.4rem">Re-authenticate Kite</div>
+          <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem">The Kite access token expires daily at ~6 AM IST.</div>
+          <div class="alert alert-info" style="text-align:left">
+            <div class="alert-body"><div class="alert-text">Run in terminal:<br><code style="color:var(--green)">python -m src.ingestion.kite_auth</code></div></div>
+          </div>
+        </div>
+        <div class="card" style="text-align:center">
+          <div style="font-size:2.5rem;margin-bottom:0.75rem">▶️</div>
+          <div style="color:var(--text);font-weight:700;font-size:1rem;margin-bottom:0.4rem">Start Flask API</div>
+          <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem">Backend must be running for the dashboard to work.</div>
+          <div class="alert alert-info" style="text-align:left">
+            <div class="alert-body"><div class="alert-text">Run in terminal:<br><code style="color:var(--green)">python flask_app.py</code></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Tab -->
+    <div class="tab-panel" data-tab="stats" style="margin-top:0.5rem">
+      <div class="section-header" style="margin-top:0">Database Statistics</div>
+      <div class="kpi-grid" id="db-stats-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="loading-wrap" style="grid-column:1/-1"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+</main>
+<script src="js/api.js"></script>
+<script>
+initTabs("settings-tabs");
+
+// ── Config ────────────────────────────────────────────────────
+(async () => {
+  const r = await apiGet("/api/settings/config");
+  if (!r.ok) { document.getElementById("config-area").innerHTML = errBox(r.error); return; }
+  const items = r.data;
+  const DESCS = {
+    concentration_limit_pct:       "Max % of AUM a single holding can occupy",
+    dry_run_mode:                  "true = simulate orders only. false = LIVE orders placed on Kite",
+    duplicate_window_sec:          "Cooldown seconds before same order can repeat",
+    eod_export_time:               "Time to run EOD Tableau export (HH:MM IST)",
+    market_close_time:             "NSE market close time (HH:MM IST)",
+    market_open_time:              "NSE market open time (HH:MM IST)",
+    max_rebalance_orders:          "Max orders per rebalance cycle",
+    polling_interval_sec:          "Yahoo Finance polling interval in seconds",
+    price_staleness_threshold_sec: "Seconds after which a price is considered stale",
+    slippage_bound_pct:            "Max allowed slippage % before rejecting an order",
+  };
+  document.getElementById("config-area").innerHTML = items.map(row => `
+    <div style="display:grid;grid-template-columns:200px 180px 1fr;gap:0.75rem;align-items:center;padding:0.6rem 0;border-bottom:1px solid rgba(255,255,255,0.03)">
+      <code style="color:var(--accent);font-size:0.82rem">${row.key}</code>
+      <input type="text" id="cfg-${row.key}" value="${row.value}" style="width:100%"
+        onkeydown="if(event.key==='Enter') saveCfg('${row.key}')" />
+      <span style="color:var(--text-dim);font-size:0.8rem">${DESCS[row.key]||row.description||""}</span>
+    </div>`).join("") +
+    `<button class="btn btn-primary" style="margin-top:1rem" onclick="saveAllCfg(${JSON.stringify(items.map(r=>r.key))})">💾 Save All</button>
+     <span id="cfg-save-msg" style="margin-left:1rem;font-size:0.82rem;color:var(--green)"></span>`;
+})();
+
+async function saveCfg(key) {
+  const val = document.getElementById(`cfg-${key}`)?.value;
+  const r = await apiPatch("/api/settings/config", { key, value: val });
+  const msg = document.getElementById("cfg-save-msg");
+  if (msg) { msg.textContent = r.ok ? `✓ Saved ${key}` : `✗ ${r.error}`; msg.style.color = r.ok ? "var(--green)" : "var(--red)"; setTimeout(() => msg.textContent="", 3000); }
+}
+
+function saveAllCfg(keys) { keys.forEach(k => saveCfg(k)); }
+
+// ── Sync ──────────────────────────────────────────────────────
+async function doSync() {
+  const el = document.getElementById("sync-result");
+  el.style.color = "var(--text-muted)"; el.textContent = "Syncing…";
+  const r = await apiPost("/api/settings/sync");
+  if (r.ok) {
+    el.style.color = "var(--green)";
+    el.textContent = `✓ Synced ${r.data?.holdings_upserted||0} holdings. Cash: ₹${(r.data?.available_cash||0).toFixed(2)}`;
+  } else {
+    el.style.color = "var(--red)"; el.textContent = "✗ " + r.error;
+  }
+}
+
+// ── DB Stats ──────────────────────────────────────────────────
+(async () => {
+  const r = await apiGet("/api/settings/db-stats");
+  if (!r.ok) return;
+  const s = r.data;
+  const grid = document.getElementById("db-stats-grid");
+  grid.innerHTML = [
+    ["Instruments (Active)", s.instruments],
+    ["Holdings",             s.holdings],
+    ["Live Prices Cached",   s.live_prices],
+    ["Price History Rows",   s.price_history],
+    ["Audit Trail Entries",  s.audit_entries],
+    ["Validation Log",       s.validation_entries],
+    ["Open Tax Lots",        s.tax_lots],
+    ["NSE Holidays (2026)",  s.holidays],
+  ].map(([l,v]) => `<div class="kpi-card"><div class="kpi-label">${l}</div><div class="kpi-value">${Number(v||0).toLocaleString()}</div></div>`).join("");
+})();
+</script>
+</body>
+</html>

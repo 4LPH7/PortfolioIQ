@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PortfolioIQ — Rebalance Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+<nav class="sidebar">
+  <div class="sidebar-logo">📈 PortfolioIQ</div>
+  <div class="sidebar-version">v2.0 · Analytics Engine</div>
+  <hr class="sidebar-divider" />
+  <a class="nav-item" href="index.html"><span class="nav-icon">🏠</span> Dashboard</a>
+  <a class="nav-item" href="analyzer.html"><span class="nav-icon">🔬</span> Stock Analyzer</a>
+  <a class="nav-item active" href="rebalance.html"><span class="nav-icon">⚖️</span> Rebalance</a>
+  <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
+  <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
+  <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
+  <hr class="sidebar-divider" />
+  <div id="market-status" class="status-pill status-warn">🟡 Loading…</div>
+  <div id="db-status"     class="status-pill status-warn">🟡 Checking…</div>
+</nav>
+<main class="main fade-in">
+  <h1 class="page-title">⚖️ Rebalance Engine</h1>
+  <p class="page-subtitle">Portfolio drift detection and order generation.</p>
+
+  <div id="banner-area"></div>
+
+  <div class="kpi-grid" id="rebalance-kpis" style="margin-top:1rem">
+    <div class="kpi-card"><div class="kpi-label">Total Signals</div><div class="kpi-value" id="k-total">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Actionable</div><div class="kpi-value" id="k-action">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Proposed Orders</div><div class="kpi-value" id="k-orders">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Tax Warnings</div><div class="kpi-value" id="k-tax">—</div></div>
+  </div>
+
+  <div class="section-header">Drift Signals</div>
+  <div id="drift-area"><div class="loading-wrap"><div class="spinner"></div><span style="color:var(--text-muted)">Analysing portfolio drift…</span></div></div>
+
+  <div class="section-header">Proposed Orders</div>
+  <div id="orders-area"><div class="loading-wrap"><div class="spinner"></div></div></div>
+
+  <div class="alert alert-info" style="margin-top:1.5rem">
+    <span class="alert-icon">🛡️</span>
+    <div class="alert-body">
+      <div class="alert-title">Dry Run Mode is Active</div>
+      <div class="alert-text">Orders shown are simulated only. Enable live execution in ⚙️ Settings only after verifying the system over multiple market sessions.</div>
+    </div>
+  </div>
+</main>
+<div class="dry-run-notice">🛡️ DRY RUN — No real orders</div>
+<script src="js/api.js"></script>
+<script>
+(async () => {
+  try {
+    const [dr, or] = await Promise.all([apiGet("/api/rebalance/drift"), apiGet("/api/rebalance/orders")]);
+    const drift = dr.ok ? dr.data : { total_signals: 0, actionable_signals: 0, signals: [] };
+    const rebal = or.ok ? or.data : { total_orders: 0, orders: [] };
+
+    // Banner
+    const banner = document.getElementById("banner-area");
+    if (drift.actionable_signals > 0) {
+      banner.innerHTML = `<div class="banner banner-warn"><div class="banner-emoji">⚠️</div><div><div class="banner-title" style="color:var(--orange)">${drift.actionable_signals} actionable drift signal${drift.actionable_signals!==1?"s":""} detected</div><div class="banner-body">Rebalance orders generated. Review below before enabling live execution.</div></div></div>`;
+    } else {
+      banner.innerHTML = `<div class="banner banner-ok"><div class="banner-emoji">✅</div><div><div class="banner-title" style="color:var(--green)">Portfolio is balanced</div><div class="banner-body">No actionable drift signals detected. All allocations within thresholds.</div></div></div>`;
+    }
+
+    // KPIs
+    document.getElementById("k-total").textContent = drift.total_signals ?? "0";
+    document.getElementById("k-action").textContent = drift.actionable_signals ?? "0";
+    document.getElementById("k-orders").textContent = rebal.total_orders ?? "0";
+    document.getElementById("k-tax").textContent = rebal.tax_warnings ?? "0";
+
+    // Drift signals table
+    const signals = drift.signals || [];
+    if (signals.length) {
+      const sevColor = { HIGH: "var(--red)", MEDIUM: "var(--orange)", LOW: "var(--yellow)" };
+      const rows = signals.map(s => {
+        const dc = parseFloat(s.drift_pct) >= 0 ? "td-pos" : "td-neg";
+        const sc = sevColor[s.severity] || "var(--text-muted)";
+        return `<tr>
+          <td class="td-main">${s.name} <span style="color:var(--text-dim);font-size:0.75rem">${s.type}</span></td>
+          <td>${parseFloat(s.current_weight).toFixed(1)}%</td>
+          <td>${parseFloat(s.target_weight).toFixed(1)}%</td>
+          <td class="${dc}">${parseFloat(s.drift_pct)>=0?"+":""}${parseFloat(s.drift_pct).toFixed(2)}%</td>
+          <td><span style="background:${sc}22;color:${sc};border:1px solid ${sc}44;border-radius:12px;padding:0.2rem 0.6rem;font-size:0.7rem;font-weight:700">${s.severity}</span></td>
+          <td>${s.actionable?"🔴 Actionable":"🟡 Within threshold"}</td>
+        </tr>`;
+      }).join("");
+      document.getElementById("drift-area").innerHTML = `<div class="table-wrap"><table><thead><tr><th>Name</th><th>Current</th><th>Target</th><th>Drift</th><th>Severity</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    } else {
+      document.getElementById("drift-area").innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">No drift signals</div><div class="empty-desc">Set up target allocations to enable drift detection.</div></div>`;
+    }
+
+    // Orders
+    const orders = rebal.orders || [];
+    if (orders.length) {
+      const rows = orders.map(o => {
+        const sc = o.side === "SELL" ? "var(--red)" : "var(--green)";
+        const taxWarn = o.has_tax_warning ? '<span style="color:var(--yellow)">⚠️</span>' : "";
+        return `<tr>
+          <td><span style="color:${sc};font-weight:700">${o.side}</span></td>
+          <td class="td-main">${o.symbol} ${taxWarn}</td>
+          <td>${o.exchange}</td>
+          <td>${o.quantity}</td>
+          <td>${fmt(o.price)}</td>
+          <td>${fmt(o.value)}</td>
+          <td class="td-dim">${o.reason}</td>
+        </tr>`;
+      }).join("");
+      document.getElementById("orders-area").innerHTML = `<div class="table-wrap"><table><thead><tr><th>Side</th><th>Symbol</th><th>Exchange</th><th>Qty</th><th>Est. Price</th><th>Est. Value</th><th>Reason</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    } else {
+      document.getElementById("orders-area").innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">No orders generated</div><div class="empty-desc">Portfolio is within drift thresholds.</div></div>`;
+    }
+  } catch (err) {
+    document.getElementById("drift-area").innerHTML = errBox("Load failed: " + err.message);
+  }
+})();
+</script>
+</body>
+</html>

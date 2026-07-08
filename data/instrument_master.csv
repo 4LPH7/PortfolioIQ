@@ -1,0 +1,101 @@
+tradingsymbol,exchange,yf_ticker,sector,industry,market_cap_category
+RELIANCE,NSE,RELIANCE.NS,Energy,Oil & Gas - Integrated,LARGE
+TCS,NSE,TCS.NS,IT,Software Services,LARGE
+INFY,NSE,INFY.NS,IT,Software Services,LARGE
+HDFCBANK,NSE,HDFCBANK.NS,Financials,Private Banks,LARGE
+ICICIBANK,NSE,ICICIBANK.NS,Financials,Private Banks,LARGE
+HINDUNILVR,NSE,HINDUNILVR.NS,FMCG,Personal Products,LARGE
+SBIN,NSE,SBIN.NS,Financials,Public Banks,LARGE
+BAJFINANCE,NSE,BAJFINANCE.NS,Financials,NBFC,LARGE
+BHARTIARTL,NSE,BHARTIARTL.NS,Telecom,Telecom Services,LARGE
+KOTAKBANK,NSE,KOTAKBANK.NS,Financials,Private Banks,LARGE
+LT,NSE,LT.NS,Industrials,Construction & Engineering,LARGE
+WIPRO,NSE,WIPRO.NS,IT,Software Services,LARGE
+ASIANPAINT,NSE,ASIANPAINT.NS,Materials,Paints,LARGE
+MARUTI,NSE,MARUTI.NS,Consumer Discretionary,Automobiles,LARGE
+HCLTECH,NSE,HCLTECH.NS,IT,Software Services,LARGE
+AXISBANK,NSE,AXISBANK.NS,Financials,Private Banks,LARGE
+ONGC,NSE,ONGC.NS,Energy,Oil & Gas - E&P,LARGE
+ULTRACEMCO,NSE,ULTRACEMCO.NS,Materials,Cement,LARGE
+TITAN,NSE,TITAN.NS,Consumer Discretionary,Jewellery,LARGE
+SUNPHARMA,NSE,SUNPHARMA.NS,Healthcare,Pharmaceuticals,LARGE
+BAJAJFINSV,NSE,BAJAJFINSV.NS,Financials,Financial Services,LARGE
+NTPC,NSE,NTPC.NS,Utilities,Power Generation,LARGE
+POWERGRID,NSE,POWERGRID.NS,Utilities,Power Transmission,LARGE
+M&M,NSE,M&M.NS,Consumer Discretionary,Automobiles,LARGE
+ADANIENT,NSE,ADANIENT.NS,Industrials,Conglomerate,LARGE
+ADANIPORTS,NSE,ADANIPORTS.NS,Industrials,Ports & Logistics,LARGE
+TATAMOTORS,NSE,TATAMOTORS.NS,Consumer Discretionary,Automobiles,LARGE
+TATASTEEL,NSE,TATASTEEL.NS,Materials,Steel,LARGE
+JSWSTEEL,NSE,JSWSTEEL.NS,Materials,Steel,LARGE
+INDUSINDBK,NSE,INDUSINDBK.NS,Financials,Private Banks,MID
+BAJAJ-AUTO,NSE,BAJAJ-AUTO.NS,Consumer Discretionary,Two-Wheelers,LARGE
+DRREDDY,NSE,DRREDDY.NS,Healthcare,Pharmaceuticals,LARGE
+CIPLA,NSE,CIPLA.NS,Healthcare,Pharmaceuticals,LARGE
+GRASIM,NSE,GRASIM.NS,Materials,Diversified Materials,LARGE
+HEROMOTOCO,NSE,HEROMOTOCO.NS,Consumer Discretionary,Two-Wheelers,LARGE
+BRITANNIA,NSE,BRITANNIA.NS,FMCG,Food Products,LARGE
+DIVISLAB,NSE,DIVISLAB.NS,Healthcare,Pharmaceuticals,LARGE
+BPCL,NSE,BPCL.NS,Energy,Oil & Gas - Refining,LARGE
+TATACONSUM,NSE,TATACONSUM.NS,FMCG,Food & Beverages,LARGE
+APOLLOHOSP,NSE,APOLLOHOSP.NS,Healthcare,Hospitals,LARGE
+NESTLEIND,NSE,NESTLEIND.NS,FMCG,Food Products,LARGE
+EICHERMOT,NSE,EICHERMOT.NS,Consumer Discretionary,Commercial Vehicles,LARGE
+SHREECEM,NSE,SHREECEM.NS,Materials,Cement,LARGE
+COALINDIA,NSE,COALINDIA.NS,Energy,Coal Mining,LARGE
+HINDALCO,NSE,HINDALCO.NS,Materials,Aluminium,LARGE
+ITC,NSE,ITC.NS,FMCG,Tobacco & FMCG,LARGE
+SBILIFE,NSE,SBILIFE.NS,Financials,Insurance,LARGE
+HDFCLIFE,NSE,HDFCLIFE.NS,Financials,Insurance,LARGE
+ICICIlombard,NSE,ICICIlombard.NS,Financials,Insurance,LARGE
+VEDL,NSE,VEDL.NS,Materials,Diversified Metals,MID
+TECHM,NSE,TECHM.NS,IT,Software Services,LARGE
+PIDILITIND,NSE,PIDILITIND.NS,Materials,Specialty Chemicals,LARGE
+HAL,NSE,HAL.NS,Industrials,Aerospace & Defense,LARGE
+SIEMENS,NSE,SIEMENS.NS,Industrials,Capital Goods,LARGE
+ICICIPRU,NSE,ICICIPRU.NS,Financials,Insurance,LARGE
+MUTHOOTFIN,NSE,MUTHOOTFIN.NS,Financials,Gold Finance NBFC,MID
+GODREJCP,NSE,GODREJCP.NS,FMCG,Personal Products,LARGE
+DABUR,NSE,DABUR.NS,FMCG,Personal Products,LARGE
+MARICO,NSE,MARICO.NS,FMCG,Personal Products,LARGE
+HAVELLS,NSE,HAVELLS.NS,Industrials,Consumer Electricals,LARGE
+LICHSGFIN,NSE,LICHSGFIN.NS,Financials,Housing Finance,MID
+PFC,NSE,PFC.NS,Financials,Power Finance,LARGE
+RECLTD,NSE,RECLTD.NS,Financials,Power Finance,LARGE
+IOC,NSE,IOC.NS,Energy,Oil & Gas - Refining,LARGE
+ZOMATO,NSE,ZOMATO.NS,Consumer Discretionary,Food Delivery,LARGE
+NYKAA,NSE,NYKAA.NS,Consumer Discretionary,E-Commerce,MID
+PAYTM,NSE,PAYTM.NS,Financials,Payments,MID
+DMART,NSE,DMART.NS,Consumer Staples,Retail,LARGE
+IRCTC,NSE,IRCTC.NS,Industrials,Railway Catering,MID
+BANDHANBNK,NSE,BANDHANBNK.NS,Financials,Private Banks,MID
+IDFCFIRSTB,NSE,IDFCFIRSTB.NS,Financials,Private Banks,MID
+CANBK,NSE,CANBK.NS,Financials,Public Banks,MID
+PNB,NSE,PNB.NS,Financials,Public Banks,MID
+BANKBARODA,NSE,BANKBARODA.NS,Financials,Public Banks,LARGE
+CONCOR,NSE,CONCOR.NS,Industrials,Logistics,LARGE
+AMBUJACEM,NSE,AMBUJACEM.NS,Materials,Cement,LARGE
+ACC,NSE,ACC.NS,Materials,Cement,MID
+VOLTAS,NSE,VOLTAS.NS,Industrials,Consumer Electricals,MID
+OBEROIRLTY,NSE,OBEROIRLTY.NS,Real Estate,Premium Real Estate,MID
+GODREJPROP,NSE,GODREJPROP.NS,Real Estate,Real Estate Development,LARGE
+PRESTIGE,NSE,PRESTIGE.NS,Real Estate,Real Estate Development,MID
+PHOENIXLTD,NSE,PHOENIXLTD.NS,Real Estate,Retail Real Estate,MID
+ABCAPITAL,NSE,ABCAPITAL.NS,Financials,NBFC,MID
+TATAELXSI,NSE,TATAELXSI.NS,IT,Technology Services,MID
+PERSISTENT,NSE,PERSISTENT.NS,IT,Software Services,MID
+LTIM,NSE,LTIM.NS,IT,Software Services,LARGE
+MPHASIS,NSE,MPHASIS.NS,IT,Software Services,MID
+COFORGE,NSE,COFORGE.NS,IT,Software Services,MID
+KPITTECH,NSE,KPITTECH.NS,IT,Automotive Software,MID
+TANLA,NSE,TANLA.NS,IT,Cloud Communications,MID
+ROUTE,NSE,ROUTE.NS,IT,SMS/Communication,MID
+FINOLEXIND,NSE,FINOLEXIND.NS,Industrials,Cables & Wires,MID
+POLYCAB,NSE,POLYCAB.NS,Industrials,Cables & Wires,LARGE
+SUPREMEIND,NSE,SUPREMEIND.NS,Materials,Plastics,MID
+BATAINDIA,NSE,BATAINDIA.NS,Consumer Discretionary,Footwear,MID
+PAGEIND,NSE,PAGEIND.NS,Consumer Discretionary,Apparel,LARGE
+RELAXO,NSE,RELAXO.NS,Consumer Discretionary,Footwear,MID
+SUNTV,NSE,SUNTV.NS,Communication,Media,MID
+ZEEL,NSE,ZEEL.NS,Communication,Media,MID
+PVRINOX,NSE,PVRINOX.NS,Consumer Discretionary,Film Exhibition,MID

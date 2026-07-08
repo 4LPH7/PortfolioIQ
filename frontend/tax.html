@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PortfolioIQ — Tax Guard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+<nav class="sidebar">
+  <div class="sidebar-logo">📈 PortfolioIQ</div>
+  <div class="sidebar-version">v2.0 · Analytics Engine</div>
+  <hr class="sidebar-divider" />
+  <a class="nav-item" href="index.html"><span class="nav-icon">🏠</span> Dashboard</a>
+  <a class="nav-item" href="analyzer.html"><span class="nav-icon">🔬</span> Stock Analyzer</a>
+  <a class="nav-item" href="rebalance.html"><span class="nav-icon">⚖️</span> Rebalance</a>
+  <a class="nav-item active" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
+  <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
+  <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
+  <hr class="sidebar-divider" />
+  <div id="market-status" class="status-pill status-warn">🟡 Loading…</div>
+  <div id="db-status"     class="status-pill status-warn">🟡 Checking…</div>
+</nav>
+<main class="main fade-in">
+  <h1 class="page-title">🛡️ Tax Guard</h1>
+  <p class="page-subtitle">STCG / LTCG classification · Sell-impact analysis · Near-conversion alerts</p>
+
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">LTCG Qty (&gt;12 months)</div><div class="kpi-value" id="ltcg-qty">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">STCG Qty (≤12 months)</div><div class="kpi-value" id="stcg-qty">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Est. Tax Liability</div><div class="kpi-value" id="tax-total">—</div></div>
+  </div>
+
+  <!-- Near-LTCG alerts -->
+  <div id="near-ltcg-area"></div>
+
+  <!-- Tax rate reference -->
+  <div class="section-header">Indian Equity Tax Rates (FY 2025-26)</div>
+  <div class="grid-2" style="margin-bottom:1.25rem">
+    <div class="rate-card" style="background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.18)">
+      <div class="kpi-label">LTCG — Long Term Capital Gain</div>
+      <div class="rate-pct" style="color:var(--green)">12.5%</div>
+      <div class="rate-note" style="color:var(--text-muted)">Held &gt;12 months · ₹1.25L exemption per FY</div>
+    </div>
+    <div class="rate-card" style="background:rgba(255,51,102,0.06);border:1px solid rgba(255,51,102,0.18)">
+      <div class="kpi-label">STCG — Short Term Capital Gain</div>
+      <div class="rate-pct" style="color:var(--red)">20%</div>
+      <div class="rate-note" style="color:var(--text-muted)">Held ≤12 months · No exemption</div>
+    </div>
+  </div>
+
+  <div class="section-header">Tax Lot Summary by Holding</div>
+  <div id="tax-table-area">
+    <div class="loading-wrap"><div class="spinner"></div><span style="color:var(--text-muted)">Loading tax data…</span></div>
+  </div>
+
+  <p style="color:var(--text-dim);font-size:0.78rem;margin-top:1rem">
+    Tax rates: STCG @ 20% | LTCG @ 12.5% above ₹1.25L exemption | Holding period &gt;12 months = LTCG.
+    Data is approximate — consult a Chartered Accountant for filing.
+  </p>
+</main>
+<script src="js/api.js"></script>
+<script>
+(async () => {
+  try {
+    const r = await apiGet("/api/tax/summary");
+    if (!r.ok) throw new Error(r.error);
+    const d = r.data;
+
+    document.getElementById("ltcg-qty").textContent = d.total_ltcg_quantity ?? 0;
+    document.getElementById("stcg-qty").textContent = d.total_stcg_quantity ?? 0;
+    document.getElementById("tax-total").textContent = fmt(d.total_tax_liability ?? 0);
+
+    // Near-LTCG alerts
+    const nearEl = document.getElementById("near-ltcg-area");
+    const near = d.near_ltcg_holdings || [];
+    if (near.length) {
+      nearEl.innerHTML = `<div class="section-header">⏰ Near LTCG Conversion (within 30 days)</div>` +
+        near.map(h => `<div class="alert alert-warn"><span class="alert-icon">⚠️</span><div class="alert-body"><div class="alert-title">${h.symbol} — ${h.quantity} shares</div><div class="alert-text">Convert to LTCG on <strong>${h.next_ltcg_date}</strong>. Consider waiting before selling to save STCG tax (20% → 12.5%).</div></div></div>`).join("");
+    }
+
+    // Tax lot table
+    const holdings = d.holdings || [];
+    if (holdings.length) {
+      const rows = holdings.map(h => `<tr>
+        <td class="td-main">${h.symbol}</td>
+        <td>${h.ltcg_qty ?? 0}</td>
+        <td>${fmt(h.ltcg_cost_basis ?? 0)}</td>
+        <td>${h.stcg_qty ?? 0}</td>
+        <td>${fmt(h.stcg_cost_basis ?? 0)}</td>
+        <td>${fmt(h.estimated_stcg_tax ?? 0)}</td>
+        <td>${fmt(h.estimated_ltcg_tax ?? 0)}</td>
+        <td class="td-pos">${fmt(h.total_tax ?? 0)}</td>
+        <td>${h.next_ltcg_date ?? "—"}</td>
+      </tr>`).join("");
+      document.getElementById("tax-table-area").innerHTML = `<div class="table-wrap"><table><thead><tr>
+        <th>Symbol</th><th>LTCG Qty</th><th>LTCG Cost</th><th>STCG Qty</th><th>STCG Cost</th>
+        <th>STCG Tax</th><th>LTCG Tax</th><th>Total Tax</th><th>Next LTCG Date</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>`;
+    } else {
+      document.getElementById("tax-table-area").innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">No tax lots recorded</div><div class="empty-desc">Insert historical purchase data into <code>holding_tax_lots</code> to enable FIFO STCG/LTCG tracking.</div></div>`;
+    }
+  } catch (err) {
+    document.getElementById("tax-table-area").innerHTML = errBox("Tax data unavailable: " + err.message);
+  }
+})();
+</script>
+</body>
+</html>

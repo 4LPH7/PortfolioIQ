@@ -1,0 +1,56 @@
+# PortfolioIQ — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# ---- Zerodha Kite Connect ----
+kiteconnect==5.0.1          # Official Kite Connect Python client
+
+# ---- Yahoo Finance ----
+yfinance==0.2.55            # Yahoo Finance market data
+pandas==2.2.3               # DataFrame operations
+numpy==2.1.3                # Numerical computing
+
+# ---- Database ----
+sqlalchemy==2.0.36          # ORM + connection pooling
+psycopg2-binary==2.9.10     # PostgreSQL adapter
+alembic==1.14.0             # Database migrations (optional, we use raw SQL)
+
+# ---- Configuration ----
+pydantic==2.10.3            # Settings validation
+pydantic-settings==2.7.0    # .env loading for Pydantic v2
+python-dotenv==1.0.1        # .env file support
+
+# ---- Web Server (Kite OAuth callback) ----
+flask==3.1.0                # Lightweight callback server for token exchange
+
+# ---- Scheduling ----
+apscheduler==3.11.0         # Job scheduling (SOD sync, EOD export)
+pytz==2024.2                # Timezone handling
+
+# ---- Streamlit UI ----
+streamlit==1.41.1           # Dashboard framework
+plotly==5.24.1              # Charts and visualisations
+streamlit-aggrid==1.0.5     # Interactive tables
+
+# ---- HTTP & Retry ----
+requests==2.32.3            # HTTP client
+tenacity==9.0.0             # Retry with exponential backoff
+
+# ---- Tableau Export ----
+tableauhyperapi==0.0.20348  # Tableau Hyper file format (optional)
+
+# ---- Utilities ----
+loguru==0.7.3               # Structured logging
+rich==13.9.4                # Beautiful terminal output
+click==8.1.8                # CLI commands
+python-dateutil==2.9.0      # Date utilities
+
+# ---- Testing ----
+pytest==8.3.4
+pytest-mock==3.14.0
+pytest-asyncio==0.25.0
+freezegun==1.5.1            # Time mocking for market hours tests
+
+# ---- Development ----
+black==24.10.0              # Code formatting
+ruff==0.8.4                 # Fast linting
+ipython==8.30.0             # REPL for debugging
