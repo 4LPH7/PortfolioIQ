@@ -1,65 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <meta name="description" content="PortfolioIQ Stock Analyzer — RSI, MACD, Bollinger Bands, Linear Regression, Monte Carlo predictions on your holdings." />
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="description" content="PortfolioIQ Stock Analyzer — 5-method quantitative predictions on your NSE holdings."/>
   <title>PortfolioIQ — Stock Analyzer</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
 <nav class="sidebar">
-  <div class="sidebar-logo">📈 PortfolioIQ</div>
-  <div class="sidebar-version">v2.0 · Analytics Engine</div>
-  <hr class="sidebar-divider" />
-  <div class="nav-section-label">Navigation</div>
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">📈</div>
+      <div><div class="sidebar-logo-text">PortfolioIQ</div><div class="sidebar-badge">v3.0 LIVE</div></div>
+    </div>
+  </div>
+  <div class="nav-label">Main</div>
   <a class="nav-item" href="index.html"><span class="nav-icon">🏠</span> Dashboard</a>
   <a class="nav-item active" href="analyzer.html"><span class="nav-icon">🔬</span> Stock Analyzer</a>
   <a class="nav-item" href="rebalance.html"><span class="nav-icon">⚖️</span> Rebalance</a>
   <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
   <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
   <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
-  <hr class="sidebar-divider" />
-  <div id="market-status" class="status-pill status-warn">🟡 Loading…</div>
-  <div id="db-status"     class="status-pill status-warn">🟡 Checking…</div>
+  <hr class="sidebar-divider"/>
+  <div id="market-status" class="status-pill status-warn"><div class="status-dot"></div><span>Loading…</span></div>
+  <div id="db-status" class="status-pill status-warn"><div class="status-dot"></div><span>Checking…</span></div>
 </nav>
 
-<main class="main fade-in">
-  <h1 class="page-title">🔬 Stock Analyzer</h1>
-  <p class="page-subtitle">5-method quantitative analysis on your holdings using 1-year daily market data.</p>
+<div class="topbar">
+  <div class="topbar-breadcrumb">
+    <span>PortfolioIQ</span><span class="sep">/</span><span class="crumb-current">Stock Analyzer</span>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-time" id="clock">—</div>
+  </div>
+</div>
 
-  <div class="alert alert-warn">
-    <span class="alert-icon">⚠️</span>
-    <div class="alert-body">
-      <div class="alert-title">Disclaimer</div>
-      <div class="alert-text">Predictions are based on historical price patterns and statistical models. They are NOT financial advice. Past performance is not indicative of future results.</div>
+<main class="main fade-in">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Stock <span>Analyzer</span></h1>
+      <p class="page-subtitle">5-method quantitative analysis on your holdings · 1-year daily data · Composite AI signal</p>
     </div>
   </div>
 
-  <!-- Symbol Selector -->
-  <div style="display:flex;gap:1rem;align-items:flex-end;margin:1.25rem 0">
-    <div class="form-group" style="flex:1;max-width:320px">
-      <label class="form-label">Select Holding</label>
-      <select id="symbol-select"><option value="">Loading holdings…</option></select>
+  <!-- Disclaimer -->
+  <div class="alert alert-warn">
+    <span class="alert-icon">⚖️</span>
+    <div class="alert-body">
+      <div class="alert-title">Research Tool Only</div>
+      <div class="alert-text">All predictions are based on historical price patterns and statistical models. They do <strong>NOT</strong> constitute financial advice. Past performance ≠ future results.</div>
     </div>
-    <button class="btn btn-primary" id="run-btn" onclick="runAnalysis()">▶ Run Analysis</button>
+  </div>
+
+  <!-- Controls -->
+  <div class="card mt-sm" style="padding:1.25rem 1.5rem">
+    <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap">
+      <div class="form-group" style="flex:1;max-width:340px">
+        <label class="form-label">Select Holding to Analyze</label>
+        <select id="symbol-select"><option value="">Loading holdings…</option></select>
+      </div>
+      <button class="btn btn-primary btn-lg" id="run-btn" onclick="runAnalysis()">
+        <span class="btn-text">▶ Run Full Analysis</span>
+      </button>
+      <div id="run-status" class="text-sm text-dim" style="align-self:center"></div>
+    </div>
   </div>
 
   <div id="result-area"></div>
 </main>
 
-<div class="dry-run-notice">🛡️ DRY RUN — No real orders</div>
+<div class="dry-run-notice"><div class="dry-run-dot"></div>DRY RUN — No real orders</div>
 <script src="js/api.js"></script>
 <script>
-// Load symbols
+setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " IST"; }, 1000);
+
+// Pre-select from URL params
+const urlSym = new URLSearchParams(location.search).get("sym");
+
 (async () => {
   try {
     const r = await apiGet("/api/holdings/symbols");
     if (r.ok) {
       const sel = document.getElementById("symbol-select");
-      sel.innerHTML = r.data.map(s => `<option value="${s.symbol}">${s.symbol} (avg ₹${s.avg_price?.toFixed(2)})</option>`).join("");
+      sel.innerHTML = `<option value="">— Pick a holding —</option>` +
+        r.data.map(s => `<option value="${s.symbol}" ${s.symbol===urlSym?"selected":""}>${s.symbol} &nbsp;·&nbsp; avg ₹${(s.avg_price||0).toFixed(2)}</option>`).join("");
+      if (urlSym) runAnalysis();
     }
   } catch {}
 })();
@@ -68,105 +95,126 @@ async function runAnalysis() {
   const symbol = document.getElementById("symbol-select").value;
   if (!symbol) return;
   const area = document.getElementById("result-area");
-  area.innerHTML = loading(`Fetching 1-year data & running 5 models for ${symbol}…`);
-  document.getElementById("run-btn").disabled = true;
-
+  const btn  = document.getElementById("run-btn");
+  const status = document.getElementById("run-status");
+  area.innerHTML = `<div class="loading-wrap"><div class="spinner"></div><span>Fetching 1-year data &amp; running 5 models for <strong>${symbol}</strong>…</span></div>`;
+  btn.disabled = true;
+  status.textContent = "";
+  const t0 = Date.now();
   try {
     const r = await apiGet(`/api/analysis/${symbol}`);
-    document.getElementById("run-btn").disabled = false;
+    btn.disabled = false;
+    status.textContent = `Completed in ${((Date.now()-t0)/1000).toFixed(1)}s`;
     if (!r.ok) { area.innerHTML = errBox(r.error); return; }
     renderResult(r.data);
-  } catch (err) {
-    document.getElementById("run-btn").disabled = false;
+  } catch(err) {
+    btn.disabled = false;
     area.innerHTML = errBox("Analysis failed: " + err.message);
   }
 }
 
 function renderResult(d) {
-  const pnlPct = d.avg_buy_price ? ((d.current_price - d.avg_buy_price) / d.avg_buy_price * 100) : 0;
-  const pnlCol = pnlPct >= 0 ? "var(--green)" : "var(--red)";
   const comp = d.composite || {};
+  const pnlPct = d.avg_buy_price ? ((d.current_price - d.avg_buy_price) / d.avg_buy_price * 100) : 0;
   const sigCol = sigColor(comp.signal);
+  const score  = comp.score || 0;
+
+  // Score ring circumference: r=54, C=2πr≈339
+  const C = 339.3;
+  const dashVal = (score / 100) * C;
 
   document.getElementById("result-area").innerHTML = `
-    <!-- Header strip -->
-    <div style="display:flex;gap:2rem;flex-wrap:wrap;padding:1rem 0 0.5rem;border-bottom:1px solid var(--border);margin-bottom:1rem">
-      <div><div class="kpi-label">Current Price</div><div class="kpi-value">${fmt(d.current_price)}</div></div>
-      <div><div class="kpi-label">Avg Buy Price</div><div class="kpi-value">${fmt(d.avg_buy_price)}</div></div>
-      <div><div class="kpi-label">Holding P&L</div><div class="kpi-value" style="color:${pnlCol}">${fmtPct(pnlPct)}</div></div>
-      <div><div class="kpi-label">Data Range</div><div style="color:var(--text-muted);font-size:0.95rem;margin-top:0.35rem">${d.data_start} → ${d.data_end}</div></div>
-      <div><div class="kpi-label">Data Points</div><div style="color:var(--text-muted);font-size:0.95rem;margin-top:0.35rem">${d.data_points} trading days</div></div>
+  <!-- Summary header -->
+  <div class="card mt-md fade-in">
+    <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:center;justify-content:space-between">
+      <div style="display:flex;gap:2.5rem;flex-wrap:wrap">
+        ${[
+          ["Symbol", `<span class="text-mono font-bold" style="font-size:1.3rem;color:var(--accent)">${d.symbol}</span>`],
+          ["Current Price", `<span class="text-mono font-bold" style="font-size:1.2rem">${fmt(d.current_price)}</span>`],
+          ["Avg Buy Price", fmt(d.avg_buy_price)],
+          ["Return", `<span style="color:${pnlPct>=0?'var(--green)':'var(--red)'};font-weight:700;font-size:1.1rem">${pnlPct>=0?"+":""}${pnlPct.toFixed(2)}%</span>`],
+          ["Data Range", `<span class="text-dim text-sm">${d.data_start} → ${d.data_end}</span>`],
+          ["Data Points", `<span class="text-dim text-sm">${d.data_points} trading days</span>`],
+        ].map(([l,v])=>`<div><div class="kpi-label">${l}</div><div style="margin-top:0.3rem">${v}</div></div>`).join("")}
+      </div>
     </div>
+  </div>
 
-    <!-- Composite score -->
-    <div class="grid-2" style="margin-bottom:1.25rem">
-      <div class="card" style="display:flex;align-items:center;justify-content:center">
-        <div class="score-wrap">
-          <div class="score-num" style="background:linear-gradient(135deg,${sigCol},var(--green));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">${comp.score?.toFixed(1) || "—"}</div>
-          <div class="score-label">Composite Score / 100</div>
-          <div style="margin-top:0.75rem">${signalBadge(comp.signal)}</div>
+  <!-- Composite Score + 5 signals -->
+  <div class="grid-2 mt-md">
+    <!-- Score Ring -->
+    <div class="card flex items-center justify-between gap-md" style="flex-direction:row;flex-wrap:wrap">
+      <div class="score-ring" style="flex-shrink:0">
+        <svg viewBox="0 0 120 120">
+          <circle class="score-ring-bg" cx="60" cy="60" r="54"/>
+          <circle class="score-ring-val" cx="60" cy="60" r="54"
+            stroke="${sigCol}"
+            stroke-dasharray="${C}"
+            stroke-dashoffset="${C - dashVal}"
+            style="filter:drop-shadow(0 0 8px ${sigCol}66)"/>
+        </svg>
+        <div class="score-center">
+          <div class="score-num" style="color:${sigCol};-webkit-text-fill-color:${sigCol}">${score.toFixed(0)}</div>
+          <div class="score-denom">/100</div>
         </div>
       </div>
-      <div class="card">
-        <div class="kpi-label" style="margin-bottom:0.6rem">Composite Analysis</div>
-        <p style="color:var(--text);font-size:0.95rem;line-height:1.6;margin-bottom:1rem">${comp.summary || "—"}</p>
+      <div style="flex:1;min-width:200px">
+        <div class="kpi-label mb-sm">Composite Signal</div>
+        <div style="font-size:1.4rem;font-weight:800;color:${sigCol};margin-bottom:0.6rem">
+          ${sigIcon(comp.signal)} ${comp.signal || "—"}
+        </div>
+        <p class="text-sm text-muted" style="line-height:1.6;margin-bottom:1rem">${comp.summary || "—"}</p>
         <div class="grid-2" style="gap:0.5rem">
           ${[["RSI (20%)",comp.rsi_score],["MACD (25%)",comp.macd_score],["Bollinger (20%)",comp.bollinger_score],["Lin. Reg (20%)",comp.lr_score]].map(([l,v])=>`
-          <div class="metric-sm"><div class="metric-sm-label">${l}</div><div class="metric-sm-val">${v?.toFixed(0) || "—"}/100</div></div>`).join("")}
+          <div class="metric-sm">
+            <div class="metric-sm-label">${l}</div>
+            <div class="metric-sm-val">${v!=null?v.toFixed(0):"—"}<span class="text-dim" style="font-size:0.7rem">/100</span></div>
+            <div class="progress-bar" style="margin-top:4px">
+              <div class="progress-fill" style="width:${v||0}%;background:linear-gradient(90deg,${sigCol}88,${sigCol})"></div>
+            </div>
+          </div>`).join("")}
         </div>
       </div>
     </div>
 
-    <!-- 5 Signal Cards -->
-    <div class="section-header">Signal Summary</div>
-    <div class="grid-5" id="signal-cards"></div>
+    <!-- 5 Method Signal Cards -->
+    <div class="grid-5" style="grid-template-columns:repeat(1,1fr);gap:0.75rem" id="signal-cards"></div>
+  </div>
 
-    <!-- Charts Tabs -->
-    <div class="section-header">Detailed Analysis</div>
-    <div id="charts-tabs">
-      <div class="tabs">
-        <button class="tab-btn" data-tab="rsi">📊 RSI</button>
-        <button class="tab-btn" data-tab="macd">〽️ MACD</button>
-        <button class="tab-btn" data-tab="bb">📉 Bollinger Bands</button>
-        <button class="tab-btn" data-tab="lr">📐 Linear Regression</button>
-        <button class="tab-btn" data-tab="mc">🎲 Monte Carlo</button>
-      </div>
-      <div class="tab-panel card" data-tab="rsi" style="margin-top:0.5rem">
-        <div id="tab-rsi"></div>
-      </div>
-      <div class="tab-panel card" data-tab="macd" style="margin-top:0.5rem">
-        <div id="tab-macd"></div>
-      </div>
-      <div class="tab-panel card" data-tab="bb" style="margin-top:0.5rem">
-        <div id="tab-bb"></div>
-      </div>
-      <div class="tab-panel card" data-tab="lr" style="margin-top:0.5rem">
-        <div id="tab-lr"></div>
-      </div>
-      <div class="tab-panel card" data-tab="mc" style="margin-top:0.5rem">
-        <div id="tab-mc"></div>
-      </div>
+  <!-- Tabbed Charts -->
+  <div class="section-header">Detailed Analysis</div>
+  <div id="charts-tabs">
+    <div class="tabs">
+      <button class="tab-btn" data-tab="rsi">📊 RSI</button>
+      <button class="tab-btn" data-tab="macd">〽️ MACD</button>
+      <button class="tab-btn" data-tab="bb">📉 Bollinger</button>
+      <button class="tab-btn" data-tab="lr">📐 Linear Reg</button>
+      <button class="tab-btn" data-tab="mc">🎲 Monte Carlo</button>
     </div>
-  `;
+    <div class="tab-panel card" data-tab="rsi" style="margin-top:0"><div id="tab-rsi"></div></div>
+    <div class="tab-panel card" data-tab="macd" style="margin-top:0"><div id="tab-macd"></div></div>
+    <div class="tab-panel card" data-tab="bb" style="margin-top:0"><div id="tab-bb"></div></div>
+    <div class="tab-panel card" data-tab="lr" style="margin-top:0"><div id="tab-lr"></div></div>
+    <div class="tab-panel card" data-tab="mc" style="margin-top:0"><div id="tab-mc"></div></div>
+  </div>`;
 
-  // Signal method cards
+  // Signal cards
   const methods = [
-    { label: "RSI", icon: "📊", res: d.rsi,
-      detail: d.rsi ? `RSI: ${d.rsi.current_rsi?.toFixed(1)} · ${d.rsi.overbought?"Overbought":d.rsi.oversold?"Oversold":"Neutral"}` : "—" },
-    { label: "MACD", icon: "〽️", res: d.macd,
-      detail: d.macd ? `MACD: ${d.macd.macd_line?.toFixed(4)} · Signal: ${d.macd.signal_line?.toFixed(4)}` : "—" },
-    { label: "Bollinger", icon: "📉", res: d.bollinger,
-      detail: d.bollinger ? `%B: ${d.bollinger.percent_b?.toFixed(3)} · BW: ${d.bollinger.bandwidth?.toFixed(3)}` : "—" },
-    { label: "Lin. Regression", icon: "📐", res: d.linear_regression,
-      detail: d.linear_regression ? `Slope: ${d.linear_regression.slope_pct?.toFixed(3)}%/day · R²: ${d.linear_regression.r_squared?.toFixed(2)}` : "—" },
-    { label: "Monte Carlo", icon: "🎲", res: d.monte_carlo,
-      detail: d.monte_carlo ? `P(profit): ${d.monte_carlo.prob_profit?.toFixed(0)}% · Median: ₹${d.monte_carlo.p50?.toFixed(2)}` : "—" },
+    { label:"RSI", icon:"📊", res:d.rsi,
+      detail: d.rsi ? `RSI ${d.rsi.current_rsi?.toFixed(1)} · ${d.rsi.overbought?"Overbought":d.rsi.oversold?"Oversold":"Neutral"}` : "—" },
+    { label:"MACD", icon:"〽️", res:d.macd,
+      detail: d.macd ? `${d.macd.is_crossover?"🚀 Bullish crossover! ":""}MACD ${d.macd.macd_line?.toFixed(3)} · Sig ${d.macd.signal_line?.toFixed(3)}` : "—" },
+    { label:"Bollinger", icon:"📉", res:d.bollinger,
+      detail: d.bollinger ? `%B ${d.bollinger.percent_b?.toFixed(3)} · BW ${d.bollinger.bandwidth?.toFixed(3)}` : "—" },
+    { label:"Lin. Regression", icon:"📐", res:d.linear_regression,
+      detail: d.linear_regression ? `Slope ${d.linear_regression.slope_pct?.toFixed(3)}%/day · R² ${d.linear_regression.r_squared?.toFixed(3)}` : "—" },
+    { label:"Monte Carlo", icon:"🎲", res:d.monte_carlo,
+      detail: d.monte_carlo ? `P(profit) ${d.monte_carlo.prob_profit?.toFixed(0)}% · Median ${fmt(d.monte_carlo.p50)}` : "—" },
   ];
-  const cardsEl = document.getElementById("signal-cards");
-  cardsEl.innerHTML = methods.map(m => {
+  document.getElementById("signal-cards").innerHTML = methods.map(m => {
     const sig = m.res?.signal || "HOLD";
     const col = sigColor(sig);
-    return `<div class="method-card" style="border-color:${col}33;color:${col}">
+    return `<div class="method-card fade-in" style="border-color:${col}33;color:${col}">
       <div class="method-label">${m.icon} ${m.label}</div>
       <div class="method-signal">${sigIcon(sig)} ${sig}</div>
       <div class="method-detail" style="color:var(--text-muted)">${m.detail}</div>
@@ -175,131 +223,141 @@ function renderResult(d) {
 
   initTabs("charts-tabs");
 
-  // RSI Chart
+  // ── RSI ──
   if (d.rsi) {
-    const rsi = d.rsi;
+    const rsi = d.rsi; const col = rsi.overbought?"#ff3366":rsi.oversold?"#00ff88":"#00d4ff";
     document.getElementById("tab-rsi").innerHTML = `
-      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem">RSI (14-day Wilder's) = <strong style="color:var(--accent)">${rsi.current_rsi?.toFixed(2)}</strong> — ${signalBadge(rsi.signal)}
-      <br><small>RSI measures price momentum. Below 30 = oversold (potential bounce). Above 70 = overbought (potential pullback).</small></p>
-      <div class="grid-2" style="gap:1rem;margin-bottom:0.75rem">
-        <div class="metric-sm"><div class="metric-sm-label">Current RSI</div><div class="metric-sm-val">${rsi.current_rsi?.toFixed(2)}</div></div>
-        <div class="metric-sm"><div class="metric-sm-label">Zone</div><div class="metric-sm-val">${rsi.overbought?"🔴 Overbought":rsi.oversold?"🟢 Oversold":"🟡 Neutral"}</div></div>
+      <div class="flex items-center gap-md mb-sm flex-wrap">
+        <div><span class="kpi-label">Current RSI</span><div style="font-size:1.6rem;font-weight:800;color:${col};margin-top:0.2rem">${rsi.current_rsi?.toFixed(2)}</div></div>
+        <div><span class="kpi-label">Zone</span><div style="margin-top:0.4rem">${signalBadge(rsi.signal)}</div></div>
+        <div><span class="kpi-label">Status</span><div style="margin-top:0.3rem;font-weight:600;color:${col}">${rsi.overbought?"🔴 Overbought — potential reversal":rsi.oversold?"🟢 Oversold — potential bounce":"🟡 Neutral momentum"}</div></div>
       </div>
-      <div id="rsi-chart" style="height:240px"></div>`;
+      <p class="text-sm text-muted mb-sm">RSI (14-day Wilder's) measures price momentum. &lt;30 = oversold, &gt;70 = overbought.</p>
+      <div id="rsi-chart" class="chart-box"></div>`;
     Plotly.newPlot("rsi-chart", [
-      { type:"scatter", x: rsi.dates, y: rsi.rsi_series, name:"RSI", fill:"tozeroy", fillcolor:"rgba(0,212,255,0.04)", line:{color:"#00d4ff",width:2} }
-    ], { ...PLOTLY_LAYOUT, height: 240, yaxis:{...PLOTLY_LAYOUT.yaxis,range:[0,100]},
+      {type:"scatter",x:rsi.dates,y:rsi.rsi_series,name:"RSI (14)",
+        fill:"tozeroy",fillcolor:"rgba(0,212,255,0.04)",
+        line:{color:"#00d4ff",width:2.5},
+        hovertemplate:"<b>RSI</b>: %{y:.2f}<br>%{x}<extra></extra>"},
+    ], {
+      ...PLOTLY_LAYOUT, height:260,
+      yaxis:{...PLOTLY_LAYOUT.yaxis,range:[0,100],tickvals:[0,30,50,70,100]},
       shapes:[
-        {type:"rect",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:70,y1:100,fillcolor:"rgba(255,51,102,0.05)",line:{width:0}},
-        {type:"rect",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:0,y1:30,fillcolor:"rgba(0,255,136,0.05)",line:{width:0}},
-        {type:"line",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:70,y1:70,line:{color:"rgba(255,51,102,0.4)",width:1,dash:"dash"}},
-        {type:"line",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:30,y1:30,line:{color:"rgba(0,255,136,0.4)",width:1,dash:"dash"}},
+        {type:"rect",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:70,y1:100,fillcolor:"rgba(255,51,102,0.06)",line:{width:0}},
+        {type:"rect",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:0,y1:30,fillcolor:"rgba(0,255,136,0.06)",line:{width:0}},
+        {type:"line",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:70,y1:70,line:{color:"rgba(255,51,102,0.35)",width:1,dash:"dash"}},
+        {type:"line",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:50,y1:50,line:{color:"rgba(255,255,255,0.1)",width:1,dash:"dot"}},
+        {type:"line",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:30,y1:30,line:{color:"rgba(0,255,136,0.35)",width:1,dash:"dash"}},
+      ],
+      annotations:[
+        {x:rsi.dates[0],y:70,text:"Overbought",showarrow:false,xanchor:"left",font:{color:"rgba(255,51,102,0.6)",size:10}},
+        {x:rsi.dates[0],y:30,text:"Oversold",showarrow:false,xanchor:"left",font:{color:"rgba(0,255,136,0.6)",size:10}},
       ]
     }, PLOTLY_CONFIG);
   }
 
-  // MACD Chart
+  // ── MACD ──
   if (d.macd) {
     const m = d.macd;
     document.getElementById("tab-macd").innerHTML = `
-      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem">MACD (12/26/9) — ${signalBadge(m.signal)}
-      ${m.is_crossover?"<span style='color:var(--green);font-weight:700;margin-left:0.5rem'>🚀 Bullish Crossover!</span>":""}
-      ${m.is_crossunder?"<span style='color:var(--red);font-weight:700;margin-left:0.5rem'>🔻 Bearish Crossunder!</span>":""}
-      <br><small>MACD = 12-day EMA minus 26-day EMA. Bullish when MACD crosses above Signal line.</small></p>
-      <div class="grid-3" style="gap:0.75rem;margin-bottom:0.75rem">
-        <div class="metric-sm"><div class="metric-sm-label">MACD Line</div><div class="metric-sm-val">${m.macd_line?.toFixed(4)}</div></div>
-        <div class="metric-sm"><div class="metric-sm-label">Signal Line</div><div class="metric-sm-val">${m.signal_line?.toFixed(4)}</div></div>
-        <div class="metric-sm"><div class="metric-sm-label">Histogram</div><div class="metric-sm-val">${m.histogram?.toFixed(4)}</div></div>
+      <div class="flex items-center gap-md mb-sm flex-wrap">
+        ${[["MACD Line",m.macd_line?.toFixed(4),m.macd_line>=0?"var(--green)":"var(--red)"],
+           ["Signal Line",m.signal_line?.toFixed(4),"var(--text)"],
+           ["Histogram",m.histogram?.toFixed(4),m.histogram>=0?"var(--green)":"var(--red)"]].map(([l,v,c])=>`
+        <div><span class="kpi-label">${l}</span><div class="text-mono font-bold" style="font-size:1.1rem;color:${c};margin-top:0.3rem">${v||"—"}</div></div>`).join("")}
+        <div style="margin-left:auto">${signalBadge(m.signal)}${m.is_crossover?` <span style="color:var(--green);font-weight:700;margin-left:0.5rem">🚀 Bullish Crossover!</span>`:""}${m.is_crossunder?` <span style="color:var(--red);font-weight:700;margin-left:0.5rem">🔻 Bearish Crossunder!</span>`:""}</div>
       </div>
-      <div id="macd-chart" style="height:280px"></div>`;
+      <p class="text-sm text-muted mb-sm">MACD = 12-day EMA − 26-day EMA. Signal = 9-day EMA of MACD. Histogram = MACD − Signal.</p>
+      <div id="macd-chart" class="chart-box"></div>`;
     Plotly.newPlot("macd-chart", [
-      { type:"bar", x:m.dates, y:m.hist_series, name:"Histogram", marker:{color:m.hist_series.map(v=>v>=0?"#00ff88":"#ff3366"),opacity:0.7} },
-      { type:"scatter", x:m.dates, y:m.macd_series, name:"MACD", line:{color:"#00d4ff",width:2} },
-      { type:"scatter", x:m.dates, y:m.signal_series, name:"Signal", line:{color:"#ff6b35",width:1.5,dash:"dot"} },
-    ], { ...PLOTLY_LAYOUT, height: 280, barmode:"overlay" }, PLOTLY_CONFIG);
+      {type:"bar",x:m.dates,y:m.hist_series,name:"Histogram",
+        marker:{color:m.hist_series.map(v=>v>=0?"rgba(0,255,136,0.65)":"rgba(255,51,102,0.65)"),
+          line:{color:m.hist_series.map(v=>v>=0?"#00ff88":"#ff3366"),width:1}},
+        hovertemplate:"Histogram: %{y:.5f}<br>%{x}<extra></extra>"},
+      {type:"scatter",x:m.dates,y:m.macd_series,name:"MACD",line:{color:"#00d4ff",width:2.5}},
+      {type:"scatter",x:m.dates,y:m.signal_series,name:"Signal",line:{color:"#ff6b35",width:1.5,dash:"dot"}},
+    ], {...PLOTLY_LAYOUT,height:280,barmode:"overlay"}, PLOTLY_CONFIG);
   }
 
-  // Bollinger
+  // ── Bollinger ──
   if (d.bollinger) {
     const b = d.bollinger;
     document.getElementById("tab-bb").innerHTML = `
-      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem">Bollinger Bands (20-day SMA ± 2σ) — ${signalBadge(b.signal)}
-      <br><small>Price near upper band = overbought. Near lower band = oversold. %B &lt; 0.05 → strong buy signal.</small></p>
-      <div class="grid-4" style="gap:0.75rem;margin-bottom:0.75rem">
-        <div class="metric-sm"><div class="metric-sm-label">Upper Band</div><div class="metric-sm-val">${fmt(b.upper_band)}</div></div>
-        <div class="metric-sm"><div class="metric-sm-label">Middle (SMA20)</div><div class="metric-sm-val">${fmt(b.middle_band)}</div></div>
-        <div class="metric-sm"><div class="metric-sm-label">Lower Band</div><div class="metric-sm-val">${fmt(b.lower_band)}</div></div>
-        <div class="metric-sm"><div class="metric-sm-label">%B (0–1)</div><div class="metric-sm-val">${b.percent_b?.toFixed(3)}</div></div>
+      <div class="grid-4 mb-sm" style="gap:0.75rem">
+        ${[["Upper Band",fmt(b.upper_band)],["SMA 20",fmt(b.middle_band)],["Lower Band",fmt(b.lower_band)],["%B (0–1)",b.percent_b?.toFixed(4)]].map(([l,v])=>`
+        <div class="metric-sm"><div class="metric-sm-label">${l}</div><div class="metric-sm-val">${v||"—"}</div></div>`).join("")}
       </div>
-      <div id="bb-chart" style="height:300px"></div>`;
+      <p class="text-sm text-muted mb-sm">Bollinger Bands: 20-day SMA ± 2σ. %B &lt; 0.05 → strong buy zone. %B &gt; 0.95 → strong sell zone.</p>
+      <div id="bb-chart" class="chart-box"></div>`;
     Plotly.newPlot("bb-chart", [
-      { type:"scatter", x:b.dates, y:b.upper_series, name:"Upper BB", line:{color:"rgba(0,212,255,0.5)",width:1,dash:"dot"} },
-      { type:"scatter", x:b.dates, y:b.middle_series, name:"SMA 20", line:{color:"rgba(255,214,0,0.6)",width:1.5} },
-      { type:"scatter", x:b.dates, y:b.lower_series, name:"Lower BB", line:{color:"rgba(0,212,255,0.5)",width:1,dash:"dot"}, fill:"tonexty", fillcolor:"rgba(0,212,255,0.03)" },
-      { type:"scatter", x:b.dates, y:b.price_series, name:"Price", line:{color:"#e6f1ff",width:2} },
-    ], { ...PLOTLY_LAYOUT, height: 300 }, PLOTLY_CONFIG);
+      {type:"scatter",x:b.dates,y:b.upper_series,name:"Upper",line:{color:"rgba(0,212,255,0.4)",width:1,dash:"dot"},hovertemplate:"Upper: %{y:.2f}<extra></extra>"},
+      {type:"scatter",x:b.dates,y:b.middle_series,name:"SMA 20",line:{color:"rgba(255,214,0,0.6)",width:1.5},hovertemplate:"SMA: %{y:.2f}<extra></extra>"},
+      {type:"scatter",x:b.dates,y:b.lower_series,name:"Lower",line:{color:"rgba(0,212,255,0.4)",width:1,dash:"dot"},fill:"tonexty",fillcolor:"rgba(0,212,255,0.04)",hovertemplate:"Lower: %{y:.2f}<extra></extra>"},
+      {type:"scatter",x:b.dates,y:b.price_series,name:"Price",line:{color:"#e8f0fe",width:2.5},hovertemplate:"Price: %{y:.2f}<extra></extra>"},
+    ], {...PLOTLY_LAYOUT,height:300}, PLOTLY_CONFIG);
   }
 
-  // Linear Regression
+  // ── Linear Regression ──
   if (d.linear_regression) {
     const lr = d.linear_regression;
-    const slopeCol = lr.slope > 0 ? "var(--green)" : "var(--red)";
+    const sc = lr.slope >= 0 ? "var(--green)" : "var(--red)";
     document.getElementById("tab-lr").innerHTML = `
-      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem">Linear Regression (30-day OLS) — ${signalBadge(lr.signal)}
-      <br><small>OLS fits a straight line to 30 days of price. Positive slope = uptrend. R² measures reliability.</small></p>
-      <div class="grid-4" style="gap:0.75rem;margin-bottom:0.75rem">
-        <div class="metric-sm"><div class="metric-sm-label">Slope/Day</div><div class="metric-sm-val" style="color:${slopeCol}">${lr.slope?.toFixed(4)}</div></div>
-        <div class="metric-sm"><div class="metric-sm-label">%/Day</div><div class="metric-sm-val" style="color:${slopeCol}">${(lr.slope_pct>=0?"+":"")+lr.slope_pct?.toFixed(4)}%</div></div>
-        <div class="metric-sm"><div class="metric-sm-label">R² Fit</div><div class="metric-sm-val">${lr.r_squared?.toFixed(4)}</div></div>
-        <div class="metric-sm"><div class="metric-sm-label">30-Day Forecast</div><div class="metric-sm-val">${fmt(lr.predicted_30d)}</div></div>
+      <div class="grid-4 mb-sm" style="gap:0.75rem">
+        ${[["Slope/Day",`${lr.slope?.toFixed(4)}`,sc],["% / Day",`${lr.slope_pct>=0?"+":""}${lr.slope_pct?.toFixed(4)}%`,sc],["R² Fit",lr.r_squared?.toFixed(4),"var(--text)"],["30-Day Target",fmt(lr.predicted_30d),"var(--accent)"]].map(([l,v,c])=>`
+        <div class="metric-sm"><div class="metric-sm-label">${l}</div><div class="metric-sm-val" style="color:${c}">${v||"—"}</div></div>`).join("")}
       </div>
-      <div id="lr-chart" style="height:280px"></div>`;
-    Plotly.newPlot("lr-chart", [
-      { type:"scatter", x:lr.dates, y:lr.price_series, name:"Price", line:{color:"#00d4ff",width:2} },
-      { type:"scatter", x:lr.dates, y:lr.regression_series, name:"Regression", line:{color:"#ffd600",width:2,dash:"dash"} },
-    ], { ...PLOTLY_LAYOUT, height: 280 }, PLOTLY_CONFIG);
+      <p class="text-sm text-muted mb-sm">OLS regression on 30 days of price. Positive slope = uptrend. R² ∈ [0,1] — higher = stronger fit.</p>
+      <div id="lr-chart" class="chart-box"></div>`;
+    Plotly.newPlot("lr-chart",[
+      {type:"scatter",x:lr.dates,y:lr.price_series,name:"Price",line:{color:"#00d4ff",width:2.5}},
+      {type:"scatter",x:lr.dates,y:lr.regression_series,name:"Regression",line:{color:"#ffd600",width:2,dash:"dash"}},
+    ],{...PLOTLY_LAYOUT,height:280},PLOTLY_CONFIG);
   }
 
-  // Monte Carlo
+  // ── Monte Carlo ──
   if (d.monte_carlo) {
     const mc = d.monte_carlo;
-    const expCol = mc.expected_return_pct >= 0 ? "var(--green)" : "var(--red)";
+    const ec = mc.expected_return_pct >= 0 ? "var(--green)" : "var(--red)";
     document.getElementById("tab-mc").innerHTML = `
-      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem">Monte Carlo GBM — ${mc.simulations?.toLocaleString()} simulations · ${mc.horizon_days}-day horizon — ${signalBadge(mc.signal)}
-      <br><small>Geometric Brownian Motion using historical volatility (${(mc.annual_volatility*100).toFixed(1)}% annualised). Shows price probability distribution over ${mc.horizon_days} trading days.</small></p>
-      <div id="mc-chart" style="height:360px;margin-bottom:1rem"></div>
-      <div class="section-header" style="margin-top:0">30-Day Price Distribution</div>
-      <div class="grid-5" style="gap:0.75rem;margin-bottom:1rem">
-        ${[["P10 (Pessimistic)",mc.p10],["P25",mc.p25],["P50 (Median)",mc.p50],["P75",mc.p75],["P90 (Optimistic)",mc.p90]].map(([l,v])=>`
-        <div class="metric-sm"><div class="metric-sm-label">${l}</div>
-          <div class="metric-sm-val">${fmt(v)}</div>
-          <div style="font-size:0.72rem;color:${v>=mc.current_price?"var(--green)":"var(--red)"}">${v!=null?fmtPct((v-mc.current_price)/mc.current_price*100):""}</div>
-        </div>`).join("")}
-      </div>
-      <div class="grid-3" style="gap:0.75rem">
-        <div class="metric-sm"><div class="metric-sm-label">Probability of Profit</div><div class="metric-sm-val">${mc.prob_profit?.toFixed(1)}%</div></div>
-        <div class="metric-sm"><div class="metric-sm-label">Expected Return (Median)</div><div class="metric-sm-val" style="color:${expCol}">${(mc.expected_return_pct>=0?"+":"")+mc.expected_return_pct?.toFixed(2)}%</div></div>
+      <div class="grid-3 mb-sm" style="gap:0.75rem">
+        <div class="metric-sm"><div class="metric-sm-label">P(Profit) ${mc.horizon_days}d</div><div class="metric-sm-val" style="color:var(--green)">${mc.prob_profit?.toFixed(1)}%</div></div>
+        <div class="metric-sm"><div class="metric-sm-label">Expected Return (P50)</div><div class="metric-sm-val" style="color:${ec}">${mc.expected_return_pct>=0?"+":""}${mc.expected_return_pct?.toFixed(2)}%</div></div>
         <div class="metric-sm"><div class="metric-sm-label">Annual Volatility</div><div class="metric-sm-val">${(mc.annual_volatility*100).toFixed(1)}%</div></div>
       </div>
-      <p style="color:var(--text-dim);font-size:0.75rem;margin-top:0.75rem">⚠️ Monte Carlo uses Geometric Brownian Motion with historical drift & volatility. Not financial advice.</p>`;
+      <div id="mc-chart" class="chart-box" style="min-height:340px;margin-bottom:1rem"></div>
+      <div class="section-header mt-0">30-Day Price Percentiles</div>
+      <div class="grid-5" style="gap:0.75rem;margin-bottom:0.75rem">
+        ${[["P10 Pessimistic",mc.p10,"var(--red)"],["P25",mc.p25,"var(--orange)"],["P50 Median",mc.p50,"var(--accent)"],["P75",mc.p75,"var(--green)"],["P90 Optimistic",mc.p90,"#00ff88"]].map(([l,v,c])=>`
+        <div class="metric-sm">
+          <div class="metric-sm-label">${l}</div>
+          <div class="metric-sm-val" style="color:${c}">${fmt(v)}</div>
+          <div style="font-size:0.7rem;color:${v>=mc.current_price?"var(--green)":"var(--red)"};margin-top:0.2rem;font-weight:600">
+            ${v!=null?((v-mc.current_price)/mc.current_price*100>=0?"+":"")+ ((v-mc.current_price)/mc.current_price*100).toFixed(1)+"%":""}
+          </div>
+        </div>`).join("")}
+      </div>
+      <p class="text-xs text-dim">GBM simulation: ${mc.simulations?.toLocaleString()} paths · Historical drift + volatility · Not financial advice.</p>`;
 
-    const allDates = [mc.fan_dates[0], ...mc.fan_dates];
-    const p10all = [mc.current_price, ...mc.fan_p10];
-    const p25all = [mc.current_price, ...mc.fan_p25];
-    const p50all = [mc.current_price, ...mc.fan_p50];
-    const p75all = [mc.current_price, ...mc.fan_p75];
-    const p90all = [mc.current_price, ...mc.fan_p90];
+    const all = [mc.current_price,...mc.fan_p50||[]];
+    const dates = [mc.fan_dates[0],...mc.fan_dates||[]];
+    const p10 = [mc.current_price,...mc.fan_p10||[]];
+    const p25 = [mc.current_price,...mc.fan_p25||[]];
+    const p75 = [mc.current_price,...mc.fan_p75||[]];
+    const p90 = [mc.current_price,...mc.fan_p90||[]];
 
-    Plotly.newPlot("mc-chart", [
-      { type:"scatter", x:[...allDates,...allDates.slice().reverse()], y:[...p90all,...p10all.slice().reverse()], fill:"toself", fillcolor:"rgba(0,212,255,0.04)", line:{width:0}, name:"10–90th pct" },
-      { type:"scatter", x:[...allDates,...allDates.slice().reverse()], y:[...p75all,...p25all.slice().reverse()], fill:"toself", fillcolor:"rgba(0,212,255,0.09)", line:{width:0}, name:"25–75th pct" },
-      { type:"scatter", x:allDates, y:p90all, name:"P90 (Optimistic)", line:{color:"rgba(0,255,136,0.5)",width:1,dash:"dot"} },
-      { type:"scatter", x:allDates, y:p50all, name:"P50 (Median)",     line:{color:"#00d4ff",width:2.5} },
-      { type:"scatter", x:allDates, y:p10all, name:"P10 (Pessimistic)", line:{color:"rgba(255,51,102,0.5)",width:1,dash:"dot"} },
-    ], { ...PLOTLY_LAYOUT, height:360,
-      shapes:[{type:"line",x0:allDates[0],x1:allDates.at(-1),y0:mc.current_price,y1:mc.current_price,line:{color:"rgba(255,255,255,0.2)",width:1,dash:"dash"}}],
-      annotations:[{x:allDates.at(-1),y:mc.current_price,text:` Current ₹${mc.current_price}`,showarrow:false,font:{color:"#ccd6f6",size:11},xanchor:"left"}]
-    }, PLOTLY_CONFIG);
+    Plotly.newPlot("mc-chart",[
+      {type:"scatter",x:[...dates,...dates.slice().reverse()],y:[...p90,...p10.slice().reverse()],fill:"toself",fillcolor:"rgba(0,212,255,0.04)",line:{width:0},name:"10–90th %ile",showlegend:true},
+      {type:"scatter",x:[...dates,...dates.slice().reverse()],y:[...p75,...p25.slice().reverse()],fill:"toself",fillcolor:"rgba(0,212,255,0.09)",line:{width:0},name:"25–75th %ile",showlegend:true},
+      {type:"scatter",x:dates,y:p90,name:"P90",line:{color:"rgba(0,255,136,0.45)",width:1,dash:"dot"},showlegend:true},
+      {type:"scatter",x:dates,y:all,name:"P50 Median",line:{color:"#00d4ff",width:3},showlegend:true},
+      {type:"scatter",x:dates,y:p10,name:"P10",line:{color:"rgba(255,51,102,0.45)",width:1,dash:"dot"},showlegend:true},
+    ],{
+      ...PLOTLY_LAYOUT,height:340,
+      shapes:[{type:"line",x0:dates[0],x1:dates.at(-1),y0:mc.current_price,y1:mc.current_price,
+        line:{color:"rgba(255,255,255,0.15)",width:1,dash:"dash"}}],
+      annotations:[{x:dates.at(-1),y:mc.current_price,text:`₹${mc.current_price?.toFixed(2)} today`,
+        showarrow:false,xanchor:"right",font:{color:"#8892b0",size:10}}]
+    },PLOTLY_CONFIG);
   }
 }
 </script>

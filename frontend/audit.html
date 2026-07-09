@@ -1,71 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>PortfolioIQ — Audit Log</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/main.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
 <nav class="sidebar">
-  <div class="sidebar-logo">📈 PortfolioIQ</div>
-  <div class="sidebar-version">v2.0 · Analytics Engine</div>
-  <hr class="sidebar-divider" />
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">📈</div>
+      <div><div class="sidebar-logo-text">PortfolioIQ</div><div class="sidebar-badge">v3.0 LIVE</div></div>
+    </div>
+  </div>
+  <div class="nav-label">Main</div>
   <a class="nav-item" href="index.html"><span class="nav-icon">🏠</span> Dashboard</a>
   <a class="nav-item" href="analyzer.html"><span class="nav-icon">🔬</span> Stock Analyzer</a>
   <a class="nav-item" href="rebalance.html"><span class="nav-icon">⚖️</span> Rebalance</a>
   <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
   <a class="nav-item active" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
   <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
-  <hr class="sidebar-divider" />
-  <div id="market-status" class="status-pill status-warn">🟡 Loading…</div>
-  <div id="db-status"     class="status-pill status-warn">🟡 Checking…</div>
+  <hr class="sidebar-divider"/>
+  <div id="market-status" class="status-pill status-warn"><div class="status-dot"></div><span>Loading…</span></div>
+  <div id="db-status" class="status-pill status-warn"><div class="status-dot"></div><span>Checking…</span></div>
 </nav>
+<div class="topbar">
+  <div class="topbar-breadcrumb"><span>PortfolioIQ</span><span class="sep">/</span><span class="crumb-current">Audit Log</span></div>
+  <div class="topbar-right"><div class="topbar-time" id="clock">—</div></div>
+</div>
 <main class="main fade-in">
-  <h1 class="page-title">📋 Order Audit Trail</h1>
-  <p class="page-subtitle">Immutable order history — all entries are append-only and tamper-proof.</p>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Order <span>Audit Trail</span></h1>
+      <p class="page-subtitle">Immutable order history · append-only · tamper-proof · PostgreSQL triggers</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="loadAudit()">↻ Refresh</button>
+    </div>
+  </div>
 
   <!-- Filters -->
-  <div class="card" style="margin-bottom:1.25rem">
-    <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end">
-      <div class="form-group" style="min-width:140px">
+  <div class="card" style="padding:1.1rem 1.4rem">
+    <div style="display:flex;gap:0.85rem;flex-wrap:wrap;align-items:flex-end">
+      <div class="form-group" style="min-width:130px">
         <label class="form-label">Status</label>
         <select id="f-status"><option>ALL</option><option>PLACED</option><option>COMPLETE</option><option>FAILED</option><option>DRY_RUN</option><option>CANCELLED</option></select>
       </div>
-      <div class="form-group" style="min-width:120px">
+      <div class="form-group" style="min-width:110px">
         <label class="form-label">Side</label>
         <select id="f-side"><option>ALL</option><option>BUY</option><option>SELL</option></select>
       </div>
       <div class="form-group" style="min-width:100px">
-        <label class="form-label">Show Last</label>
+        <label class="form-label">Show</label>
         <select id="f-limit"><option>25</option><option selected>50</option><option>100</option><option>200</option></select>
       </div>
-      <button class="btn btn-primary" onclick="loadAudit()">🔎 Apply</button>
+      <button class="btn btn-primary" onclick="loadAudit()">🔎 Filter</button>
     </div>
   </div>
 
-  <div class="kpi-grid" id="audit-kpis" style="grid-template-columns:repeat(4,1fr)">
-    <div class="kpi-card"><div class="kpi-label">Total Orders</div><div class="kpi-value" id="k-total">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">Live Placed</div><div class="kpi-value" id="k-placed">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">Dry Run</div><div class="kpi-value" id="k-dry">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">Failed</div><div class="kpi-value" id="k-failed">—</div></div>
+  <!-- KPIs -->
+  <div class="kpi-grid stagger" style="grid-template-columns:repeat(4,1fr);margin-top:1rem">
+    <div class="kpi-card"><span class="kpi-icon">📊</span><div class="kpi-label">Total Orders</div><div class="kpi-value" id="k-total">—</div></div>
+    <div class="kpi-card positive"><span class="kpi-icon">✅</span><div class="kpi-label">Completed</div><div class="kpi-value" id="k-complete">—</div></div>
+    <div class="kpi-card"><span class="kpi-icon">🛡️</span><div class="kpi-label">Dry Run</div><div class="kpi-value" id="k-dry">—</div></div>
+    <div class="kpi-card negative"><span class="kpi-icon">❌</span><div class="kpi-label">Failed</div><div class="kpi-value" id="k-failed">—</div></div>
   </div>
 
   <div class="section-header">Order History</div>
-  <div id="orders-area"><div class="loading-wrap"><div class="spinner"></div></div></div>
+  <div id="orders-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div></div></div></div>
 
   <div class="section-header">Validation Log</div>
-  <div id="val-area"><div class="loading-wrap"><div class="spinner"></div></div></div>
+  <div id="val-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div></div></div></div>
 
-  <p style="color:var(--text-dim);font-size:0.78rem;margin-top:1rem">
-    🔒 These tables are protected by immutability triggers. Records cannot be modified or deleted.
-  </p>
+  <div class="alert alert-info mt-md">
+    <span class="alert-icon">🔒</span>
+    <div class="alert-body">
+      <div class="alert-title">Immutable Records</div>
+      <div class="alert-text">All entries in <code>order_audit_trail</code> and <code>order_validation_log</code> are protected by PostgreSQL triggers that prevent updates and deletes. Records cannot be modified or removed.</div>
+    </div>
+  </div>
 </main>
 <script src="js/api.js"></script>
 <script>
+setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " IST"; }, 1000);
+
 const statusBadge = s => {
-  const map = { PLACED:"badge-placed", COMPLETE:"badge-complete", FAILED:"badge-failed", DRY_RUN:"badge-dry-run" };
+  const map = { PLACED:"badge-placed", COMPLETE:"badge-complete", FAILED:"badge-failed", DRY_RUN:"badge-dry-run", CANCELLED:"badge-hold" };
   return `<span class="badge ${map[s]||"badge-hold"}">${s||"—"}</span>`;
 };
 
@@ -73,7 +94,6 @@ async function loadAudit() {
   const status = document.getElementById("f-status").value;
   const side   = document.getElementById("f-side").value;
   const limit  = document.getElementById("f-limit").value;
-
   try {
     const [or, vr] = await Promise.all([
       apiGet("/api/audit/orders", { status, side, limit }),
@@ -81,58 +101,61 @@ async function loadAudit() {
     ]);
 
     const orders = or.ok ? or.data : [];
-    document.getElementById("k-total").textContent  = orders.length;
-    document.getElementById("k-placed").textContent = orders.filter(o=>o.status==="PLACED").length;
-    document.getElementById("k-dry").textContent    = orders.filter(o=>o.is_dry_run).length;
-    document.getElementById("k-failed").textContent = orders.filter(o=>o.status==="FAILED").length;
+    document.getElementById("k-total").textContent    = orders.length;
+    document.getElementById("k-complete").textContent = orders.filter(o=>o.status==="COMPLETE").length;
+    document.getElementById("k-dry").textContent      = orders.filter(o=>o.is_dry_run).length;
+    document.getElementById("k-failed").textContent   = orders.filter(o=>o.status==="FAILED").length;
 
     if (orders.length) {
       const rows = orders.map(o => {
         const sc = o.transaction_type === "SELL" ? "var(--red)" : "var(--green)";
+        const ts = (o.placed_at||"").replace("T"," ").substring(0,19);
         return `<tr>
-          <td class="td-dim">${o.id}</td>
-          <td class="td-main">${o.tradingsymbol}</td>
-          <td>${o.exchange}</td>
-          <td><span style="color:${sc};font-weight:700">${o.transaction_type}</span></td>
-          <td>${o.quantity}</td>
-          <td>${fmt(o.price)}</td>
+          <td class="td-dim td-mono" style="font-size:0.7rem">#${o.id||"—"}</td>
+          <td class="td-main"><a class="td-link" href="analyzer.html?sym=${o.tradingsymbol}">${o.tradingsymbol}</a></td>
+          <td><span class="badge badge-hold" style="font-size:0.6rem">${o.exchange}</span></td>
+          <td><span style="color:${sc};font-weight:800">${o.transaction_type}</span></td>
+          <td class="td-mono">${o.quantity}</td>
+          <td class="td-mono">${fmt(o.price)}</td>
           <td>${statusBadge(o.status)}</td>
           <td class="td-dim">${o.reason||"—"}</td>
-          <td class="td-dim">${o.is_dry_run?"✓ DRY":""}</td>
-          <td class="td-dim" style="font-size:0.72rem">${(o.placed_at||"").substring(0,19)}</td>
+          <td>${o.is_dry_run?'<span class="badge badge-dry-run" style="font-size:0.6rem">DRY</span>':""}</td>
+          <td class="td-dim td-mono" style="font-size:0.72rem">${ts}</td>
         </tr>`;
       }).join("");
       document.getElementById("orders-area").innerHTML = `<div class="table-wrap"><table><thead><tr>
         <th>ID</th><th>Symbol</th><th>Exchange</th><th>Side</th><th>Qty</th>
-        <th>Price</th><th>Status</th><th>Reason</th><th>Dry Run</th><th>Time</th>
+        <th>Price</th><th>Status</th><th>Reason</th><th>Mode</th><th>Time</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;
     } else {
-      document.getElementById("orders-area").innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No orders yet</div><div class="empty-desc">Orders appear here once the rebalancer runs (even in dry-run mode).</div></div>`;
+      document.getElementById("orders-area").innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No orders yet</div><div class="empty-desc">Orders appear here once the rebalancer runs — even in dry-run mode.</div></div>`;
     }
 
     const vals = vr.ok ? vr.data : [];
     if (vals.length) {
       const vrows = vals.map(v => {
-        const rc = v.validation_result === "APPROVED" ? "td-pos" : v.validation_result === "REJECTED" ? "td-neg" : "";
+        const rc = v.validation_result==="APPROVED"?"badge-approved":v.validation_result==="REJECTED"?"badge-rejected":"badge-hold";
+        const ts = (v.validated_at||"").replace("T"," ").substring(0,19);
         return `<tr>
-          <td class="td-main">${v.tradingsymbol}</td>
-          <td>${v.transaction_type}</td><td>${v.quantity}</td>
-          <td class="${rc}">${v.validation_result}</td>
+          <td class="td-main"><a class="td-link" href="analyzer.html?sym=${v.tradingsymbol}">${v.tradingsymbol}</a></td>
+          <td style="font-weight:700">${v.transaction_type}</td>
+          <td class="td-mono">${v.quantity}</td>
+          <td class="td-mono">${fmt(v.price)}</td>
+          <td><span class="badge ${rc}">${v.validation_result}</span></td>
           <td class="td-dim">${v.failure_reason||"—"}</td>
-          <td class="td-dim" style="font-size:0.72rem">${(v.validated_at||"").substring(0,19)}</td>
+          <td class="td-dim td-mono" style="font-size:0.72rem">${ts}</td>
         </tr>`;
       }).join("");
       document.getElementById("val-area").innerHTML = `<div class="table-wrap"><table><thead><tr>
-        <th>Symbol</th><th>Side</th><th>Qty</th><th>Result</th><th>Failure Reason</th><th>Time</th>
+        <th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Result</th><th>Failure Reason</th><th>Time</th>
       </tr></thead><tbody>${vrows}</tbody></table></div>`;
     } else {
-      document.getElementById("val-area").innerHTML = `<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">No validation entries yet</div></div>`;
+      document.getElementById("val-area").innerHTML = `<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">No validation entries</div></div>`;
     }
-  } catch (err) {
+  } catch(err) {
     document.getElementById("orders-area").innerHTML = errBox("Load failed: " + err.message);
   }
 }
-
 loadAudit();
 </script>
 </body>

@@ -1,160 +1,229 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>PortfolioIQ — Settings</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/main.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
 <nav class="sidebar">
-  <div class="sidebar-logo">📈 PortfolioIQ</div>
-  <div class="sidebar-version">v2.0 · Analytics Engine</div>
-  <hr class="sidebar-divider" />
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">📈</div>
+      <div><div class="sidebar-logo-text">PortfolioIQ</div><div class="sidebar-badge">v3.0 LIVE</div></div>
+    </div>
+  </div>
+  <div class="nav-label">Main</div>
   <a class="nav-item" href="index.html"><span class="nav-icon">🏠</span> Dashboard</a>
   <a class="nav-item" href="analyzer.html"><span class="nav-icon">🔬</span> Stock Analyzer</a>
   <a class="nav-item" href="rebalance.html"><span class="nav-icon">⚖️</span> Rebalance</a>
   <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
   <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
   <a class="nav-item active" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
-  <hr class="sidebar-divider" />
-  <div id="market-status" class="status-pill status-warn">🟡 Loading…</div>
-  <div id="db-status"     class="status-pill status-warn">🟡 Checking…</div>
+  <hr class="sidebar-divider"/>
+  <div id="market-status" class="status-pill status-warn"><div class="status-dot"></div><span>Loading…</span></div>
+  <div id="db-status" class="status-pill status-warn"><div class="status-dot"></div><span>Checking…</span></div>
 </nav>
+<div class="topbar">
+  <div class="topbar-breadcrumb"><span>PortfolioIQ</span><span class="sep">/</span><span class="crumb-current">Settings</span></div>
+  <div class="topbar-right"><div class="topbar-time" id="clock">—</div></div>
+</div>
 <main class="main fade-in">
-  <h1 class="page-title">⚙️ Settings</h1>
-  <p class="page-subtitle">System configuration, manual operations, and database statistics.</p>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">System <span>Settings</span></h1>
+      <p class="page-subtitle">Engine configuration · Manual sync · Database health · Deployment status</p>
+    </div>
+  </div>
 
   <div id="settings-tabs">
     <div class="tabs">
-      <button class="tab-btn" data-tab="config">🔧 System Config</button>
-      <button class="tab-btn" data-tab="sync">🔄 Manual Sync</button>
+      <button class="tab-btn" data-tab="config">🔧 Configuration</button>
+      <button class="tab-btn" data-tab="sync">🔄 Manual Operations</button>
       <button class="tab-btn" data-tab="stats">📊 Database Stats</button>
+      <button class="tab-btn" data-tab="deploy">🚀 Deployment</button>
     </div>
 
-    <!-- Config Tab -->
-    <div class="tab-panel card" data-tab="config" style="margin-top:0.5rem">
-      <div class="section-header" style="margin-top:0">System Configuration</div>
-      <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem">Edit values and press Enter or click Save to apply immediately.</p>
-      <div id="config-area"><div class="loading-wrap"><div class="spinner"></div></div></div>
-      <div class="alert alert-err" style="margin-top:1rem">
-        <span class="alert-icon">⚠️</span>
-        <div class="alert-body">
-          <div class="alert-title">Live Trading Warning</div>
-          <div class="alert-text">Setting <code>dry_run_mode</code> to <code>false</code> enables real Zerodha order placement. Only do this after validating the system over multiple market sessions. All orders are CNC (delivery), Market order type.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Sync Tab -->
-    <div class="tab-panel" data-tab="sync" style="margin-top:0.5rem">
-      <div class="grid-3" style="gap:1rem">
-        <div class="card" style="text-align:center">
-          <div style="font-size:2.5rem;margin-bottom:0.75rem">🔄</div>
-          <div style="color:var(--text);font-weight:700;font-size:1rem;margin-bottom:0.4rem">Sync Holdings</div>
-          <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem">Pull latest holdings &amp; margins from Kite Connect.</div>
-          <button class="btn btn-primary" style="width:100%" onclick="doSync()">Sync Now</button>
-          <div id="sync-result" style="margin-top:0.75rem;font-size:0.82rem"></div>
-        </div>
-        <div class="card" style="text-align:center">
-          <div style="font-size:2.5rem;margin-bottom:0.75rem">📡</div>
-          <div style="color:var(--text);font-weight:700;font-size:1rem;margin-bottom:0.4rem">Re-authenticate Kite</div>
-          <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem">The Kite access token expires daily at ~6 AM IST.</div>
-          <div class="alert alert-info" style="text-align:left">
-            <div class="alert-body"><div class="alert-text">Run in terminal:<br><code style="color:var(--green)">python -m src.ingestion.kite_auth</code></div></div>
-          </div>
-        </div>
-        <div class="card" style="text-align:center">
-          <div style="font-size:2.5rem;margin-bottom:0.75rem">▶️</div>
-          <div style="color:var(--text);font-weight:700;font-size:1rem;margin-bottom:0.4rem">Start Flask API</div>
-          <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem">Backend must be running for the dashboard to work.</div>
-          <div class="alert alert-info" style="text-align:left">
-            <div class="alert-body"><div class="alert-text">Run in terminal:<br><code style="color:var(--green)">python flask_app.py</code></div></div>
+    <!-- ── Config Tab ── -->
+    <div class="tab-panel" data-tab="config">
+      <div class="card">
+        <div class="section-header mt-0">System Configuration</div>
+        <p class="text-sm text-muted mb-md">Edit values inline and press <code>Enter</code> or click Save to apply immediately.</p>
+        <div id="config-area"><div class="loading-wrap"><div class="spinner"></div></div></div>
+        <div class="alert alert-err mt-md">
+          <span class="alert-icon">💀</span>
+          <div class="alert-body">
+            <div class="alert-title">Live Trading Warning</div>
+            <div class="alert-text">Setting <code>dry_run_mode = false</code> enables <strong>real Zerodha CNC order placement</strong>. Do this ONLY after validating the system over ≥5 market sessions. Every trade will use your real money and cannot be reversed instantly.</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Stats Tab -->
-    <div class="tab-panel" data-tab="stats" style="margin-top:0.5rem">
-      <div class="section-header" style="margin-top:0">Database Statistics</div>
-      <div class="kpi-grid" id="db-stats-grid" style="grid-template-columns:repeat(4,1fr)">
+    <!-- ── Sync Tab ── -->
+    <div class="tab-panel" data-tab="sync">
+      <div class="grid-3" style="gap:1.1rem">
+        <div class="card" style="text-align:center">
+          <div style="font-size:3rem;margin-bottom:1rem">🔄</div>
+          <div class="font-heavy" style="font-size:1.05rem;margin-bottom:0.4rem">Sync Holdings</div>
+          <div class="text-sm text-muted mb-md">Pull latest holdings, positions &amp; cash margins from Zerodha Kite Connect.</div>
+          <button class="btn btn-primary" style="width:100%" onclick="doSync()"><span class="btn-text">Sync Now</span></button>
+          <div id="sync-result" class="text-sm mt-sm"></div>
+        </div>
+        <div class="card" style="text-align:center">
+          <div style="font-size:3rem;margin-bottom:1rem">🔑</div>
+          <div class="font-heavy" style="font-size:1.05rem;margin-bottom:0.4rem">Kite Re-auth</div>
+          <div class="text-sm text-muted mb-md">Access token expires daily at ~6 AM IST. Run auth module to renew.</div>
+          <div class="alert alert-info" style="text-align:left;margin-bottom:0">
+            <div class="alert-body"><div class="alert-text">Run in terminal:<br><code>python -m src.ingestion.kite_auth</code></div></div>
+          </div>
+        </div>
+        <div class="card" style="text-align:center">
+          <div style="font-size:3rem;margin-bottom:1rem">🐍</div>
+          <div class="font-heavy" style="font-size:1.05rem;margin-bottom:0.4rem">Start API Server</div>
+          <div class="text-sm text-muted mb-md">Flask backend must be running for the dashboard to serve live data.</div>
+          <div class="alert alert-info" style="text-align:left;margin-bottom:0">
+            <div class="alert-body"><div class="alert-text">Run in terminal:<br><code>python flask_app.py</code><br><span class="text-dim" style="font-size:0.75rem">Runs on http://localhost:5000</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Stats Tab ── -->
+    <div class="tab-panel" data-tab="stats">
+      <div class="section-header mt-0">Live Database Statistics</div>
+      <div class="kpi-grid stagger" id="db-stats-grid" style="grid-template-columns:repeat(4,1fr)">
         <div class="loading-wrap" style="grid-column:1/-1"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- ── Deployment Tab ── -->
+    <div class="tab-panel" data-tab="deploy">
+      <div class="grid-2">
+        <div class="card">
+          <div class="section-header mt-0">🌐 Netlify Frontend</div>
+          <div style="display:flex;flex-direction:column;gap:0.75rem">
+            <div class="metric-sm"><div class="metric-sm-label">Live URL</div><div style="margin-top:0.25rem"><a href="https://portfolioiq-4lph7.netlify.app" target="_blank" class="text-accent">portfolioiq-4lph7.netlify.app ↗</a></div></div>
+            <div class="metric-sm"><div class="metric-sm-label">Admin</div><div style="margin-top:0.25rem"><a href="https://app.netlify.com/projects/portfolioiq-4lph7" target="_blank" class="text-accent">app.netlify.com ↗</a></div></div>
+            <div class="metric-sm"><div class="metric-sm-label">Build</div><div class="metric-sm-val text-green mt-sm">✅ Static · No build step</div></div>
+            <div class="metric-sm"><div class="metric-sm-label">Pages Deployed</div><div class="metric-sm-val mt-sm">6 pages</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-header mt-0">📦 GitHub Repository</div>
+          <div style="display:flex;flex-direction:column;gap:0.75rem">
+            <div class="metric-sm"><div class="metric-sm-label">Repository</div><div style="margin-top:0.25rem"><a href="https://github.com/4LPH7/PortfolioIQ" target="_blank" class="text-accent">4LPH7/PortfolioIQ ↗</a></div></div>
+            <div class="metric-sm"><div class="metric-sm-label">Branch</div><div class="metric-sm-val mt-sm">main</div></div>
+            <div class="metric-sm"><div class="metric-sm-label">CI/CD</div><div class="metric-sm-val mt-sm text-green">✅ GitHub Actions</div></div>
+            <div class="metric-sm"><div class="metric-sm-label">Auto-deploy</div><div class="metric-sm-val mt-sm text-muted">Push to main → Netlify</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card mt-md">
+        <div class="section-header mt-0">🔑 Environment Variables Required</div>
+        <div class="table-wrap" style="margin-top:0">
+          <table><thead><tr><th>Variable</th><th>Value</th><th>Notes</th></tr></thead><tbody>
+            ${[
+              ["DATABASE_URL","postgresql://…","PostgreSQL connection string"],
+              ["KITE_API_KEY","41l2keyw0ncub7fa","From Kite Connect app"],
+              ["KITE_API_SECRET","xceqrdfhv72o2t7…","From Kite Connect app"],
+              ["KITE_CLIENT_ID","WJU490","Your Zerodha client ID"],
+              ["FLASK_SECRET_KEY","random 32-char hex","Generate with secrets.token_hex(32)"],
+              ["DRY_RUN_MODE","true","Set false for LIVE trading"],
+            ].map(([k,v,n])=>`<tr><td><code>${k}</code></td><td class="td-dim td-mono">${v}</td><td class="td-dim text-sm">${n}</td></tr>`).join("")}
+          </tbody></table>
+        </div>
       </div>
     </div>
   </div>
 </main>
+<div class="dry-run-notice"><div class="dry-run-dot"></div>DRY RUN — No real orders</div>
 <script src="js/api.js"></script>
 <script>
+setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " IST"; }, 1000);
+
 initTabs("settings-tabs");
 
-// ── Config ────────────────────────────────────────────────────
+const CONFIG_DESCS = {
+  concentration_limit_pct:       "Max % of AUM a single holding can occupy before rebalance triggers",
+  dry_run_mode:                  "⚠️ true = simulate only · false = LIVE orders on Zerodha",
+  duplicate_window_sec:          "Cooldown (seconds) before same order can repeat",
+  eod_export_time:               "Time to run end-of-day export (HH:MM IST)",
+  market_close_time:             "NSE close time (HH:MM IST)",
+  market_open_time:              "NSE open time (HH:MM IST)",
+  max_rebalance_orders:          "Maximum orders per single rebalance cycle",
+  polling_interval_sec:          "Yahoo Finance price polling interval in seconds",
+  price_staleness_threshold_sec: "Age (seconds) after which a cached price is considered stale",
+  slippage_bound_pct:            "Max allowed slippage % before rejecting an order",
+};
+
+// Load config
 (async () => {
-  const r = await apiGet("/api/settings/config");
+  const r = await apiGet("/api/settings/config").catch(()=>({ok:false,error:"API offline"}));
   if (!r.ok) { document.getElementById("config-area").innerHTML = errBox(r.error); return; }
   const items = r.data;
-  const DESCS = {
-    concentration_limit_pct:       "Max % of AUM a single holding can occupy",
-    dry_run_mode:                  "true = simulate orders only. false = LIVE orders placed on Kite",
-    duplicate_window_sec:          "Cooldown seconds before same order can repeat",
-    eod_export_time:               "Time to run EOD Tableau export (HH:MM IST)",
-    market_close_time:             "NSE market close time (HH:MM IST)",
-    market_open_time:              "NSE market open time (HH:MM IST)",
-    max_rebalance_orders:          "Max orders per rebalance cycle",
-    polling_interval_sec:          "Yahoo Finance polling interval in seconds",
-    price_staleness_threshold_sec: "Seconds after which a price is considered stale",
-    slippage_bound_pct:            "Max allowed slippage % before rejecting an order",
-  };
-  document.getElementById("config-area").innerHTML = items.map(row => `
-    <div style="display:grid;grid-template-columns:200px 180px 1fr;gap:0.75rem;align-items:center;padding:0.6rem 0;border-bottom:1px solid rgba(255,255,255,0.03)">
-      <code style="color:var(--accent);font-size:0.82rem">${row.key}</code>
-      <input type="text" id="cfg-${row.key}" value="${row.value}" style="width:100%"
-        onkeydown="if(event.key==='Enter') saveCfg('${row.key}')" />
-      <span style="color:var(--text-dim);font-size:0.8rem">${DESCS[row.key]||row.description||""}</span>
-    </div>`).join("") +
-    `<button class="btn btn-primary" style="margin-top:1rem" onclick="saveAllCfg(${JSON.stringify(items.map(r=>r.key))})">💾 Save All</button>
-     <span id="cfg-save-msg" style="margin-left:1rem;font-size:0.82rem;color:var(--green)"></span>`;
+  document.getElementById("config-area").innerHTML = `
+    <div style="display:grid;gap:0">
+      ${items.map(row => `
+      <div style="display:grid;grid-template-columns:220px 200px 1fr;gap:0.75rem;align-items:center;padding:0.75rem 0;border-bottom:1px solid rgba(255,255,255,0.03)">
+        <code style="font-size:0.8rem;color:var(--accent)">${row.key}</code>
+        <input type="text" id="cfg-${row.key}" value="${row.value||""}"
+          style="font-family:'JetBrains Mono',monospace;font-size:0.85rem"
+          onkeydown="if(event.key==='Enter') saveCfg('${row.key}')"/>
+        <span class="text-dim text-sm">${CONFIG_DESCS[row.key]||row.description||""}</span>
+      </div>`).join("")}
+    </div>
+    <div style="display:flex;align-items:center;gap:1rem;margin-top:1.25rem">
+      <button class="btn btn-primary" onclick="saveAllCfg(${JSON.stringify(items.map(r=>r.key))})">💾 Save All Changes</button>
+      <span id="cfg-save-msg" class="text-sm"></span>
+    </div>`;
 })();
 
 async function saveCfg(key) {
   const val = document.getElementById(`cfg-${key}`)?.value;
-  const r = await apiPatch("/api/settings/config", { key, value: val });
+  const r = await apiPatch("/api/settings/config", { key, value:val });
   const msg = document.getElementById("cfg-save-msg");
-  if (msg) { msg.textContent = r.ok ? `✓ Saved ${key}` : `✗ ${r.error}`; msg.style.color = r.ok ? "var(--green)" : "var(--red)"; setTimeout(() => msg.textContent="", 3000); }
+  if (!msg) return;
+  msg.textContent = r.ok ? `✓ Saved ${key}` : `✗ ${r.error}`;
+  msg.style.color = r.ok ? "var(--green)" : "var(--red)";
+  setTimeout(() => { if(msg) msg.textContent=""; }, 3000);
 }
-
 function saveAllCfg(keys) { keys.forEach(k => saveCfg(k)); }
 
-// ── Sync ──────────────────────────────────────────────────────
 async function doSync() {
   const el = document.getElementById("sync-result");
-  el.style.color = "var(--text-muted)"; el.textContent = "Syncing…";
-  const r = await apiPost("/api/settings/sync");
+  el.style.color = "var(--text-muted)"; el.textContent = "⟳ Syncing with Kite…";
+  const r = await apiPost("/api/settings/sync").catch(e=>({ok:false,error:e.message}));
   if (r.ok) {
     el.style.color = "var(--green)";
-    el.textContent = `✓ Synced ${r.data?.holdings_upserted||0} holdings. Cash: ₹${(r.data?.available_cash||0).toFixed(2)}`;
+    el.textContent = `✓ Synced ${r.data?.holdings_upserted||0} holdings · Cash ₹${(r.data?.available_cash||0).toFixed(2)}`;
   } else {
     el.style.color = "var(--red)"; el.textContent = "✗ " + r.error;
   }
 }
 
-// ── DB Stats ──────────────────────────────────────────────────
+// DB Stats
 (async () => {
-  const r = await apiGet("/api/settings/db-stats");
+  const r = await apiGet("/api/settings/db-stats").catch(()=>({ok:false}));
   if (!r.ok) return;
   const s = r.data;
-  const grid = document.getElementById("db-stats-grid");
-  grid.innerHTML = [
-    ["Instruments (Active)", s.instruments],
-    ["Holdings",             s.holdings],
-    ["Live Prices Cached",   s.live_prices],
-    ["Price History Rows",   s.price_history],
-    ["Audit Trail Entries",  s.audit_entries],
-    ["Validation Log",       s.validation_entries],
-    ["Open Tax Lots",        s.tax_lots],
-    ["NSE Holidays (2026)",  s.holidays],
-  ].map(([l,v]) => `<div class="kpi-card"><div class="kpi-label">${l}</div><div class="kpi-value">${Number(v||0).toLocaleString()}</div></div>`).join("");
+  const stats = [
+    ["🔧","Instruments (Active)", s.instruments],
+    ["💼","Holdings",             s.holdings],
+    ["📡","Live Prices Cached",   s.live_prices],
+    ["📈","Price History Rows",   s.price_history],
+    ["📋","Audit Trail Entries",  s.audit_entries],
+    ["✅","Validation Log",       s.validation_entries],
+    ["💰","Open Tax Lots",        s.tax_lots],
+    ["📅","NSE Holidays (2026)",  s.holidays],
+  ];
+  document.getElementById("db-stats-grid").innerHTML = stats.map(([icon,label,val])=>`
+    <div class="kpi-card">
+      <span class="kpi-icon">${icon}</span>
+      <div class="kpi-label">${label}</div>
+      <div class="kpi-value">${Number(val||0).toLocaleString("en-IN")}</div>
+    </div>`).join("");
 })();
 </script>
 </body>

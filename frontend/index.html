@@ -1,185 +1,350 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="PortfolioIQ — Real-time portfolio analytics, predictive analysis, and smart rebalancing for Indian equities." />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="description" content="PortfolioIQ — Real-time portfolio analytics and smart rebalancing for Indian equities."/>
   <title>PortfolioIQ — Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
 
-<!-- ── Sidebar ───────────────────────────────────────────────── -->
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
 <nav class="sidebar">
-  <div class="sidebar-logo">📈 PortfolioIQ</div>
-  <div class="sidebar-version">v2.0 · Analytics Engine</div>
-  <hr class="sidebar-divider" />
-  <div class="nav-section-label">Navigation</div>
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">📈</div>
+      <div>
+        <div class="sidebar-logo-text">PortfolioIQ</div>
+        <div class="sidebar-badge">v3.0 LIVE</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-label">Main</div>
   <a class="nav-item active" href="index.html"><span class="nav-icon">🏠</span> Dashboard</a>
   <a class="nav-item" href="analyzer.html"><span class="nav-icon">🔬</span> Stock Analyzer</a>
   <a class="nav-item" href="rebalance.html"><span class="nav-icon">⚖️</span> Rebalance</a>
   <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
   <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
   <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
-  <hr class="sidebar-divider" />
-  <div class="nav-section-label">Engine Status</div>
-  <div id="market-status" class="status-pill status-warn">🟡 Loading…</div>
-  <div id="db-status"     class="status-pill status-warn">🟡 Checking…</div>
-  <hr class="sidebar-divider" />
-  <div class="sidebar-version" style="color:var(--yellow)">⚠️ DRY RUN MODE</div>
+
+  <hr class="sidebar-divider"/>
+  <div class="nav-label">Engine Status</div>
+  <div id="market-status" class="status-pill status-warn">
+    <div class="status-dot"></div><span>Loading…</span>
+  </div>
+  <div id="db-status" class="status-pill status-warn">
+    <div class="status-dot"></div><span>Checking…</span>
+  </div>
+  <hr class="sidebar-divider"/>
+  <div class="dry-run-notice" style="position:static;margin:0.5rem 0;font-size:0.65rem;border-radius:8px;padding:0.4rem 0.7rem">
+    <div class="dry-run-dot"></div> DRY RUN ACTIVE
+  </div>
 </nav>
 
-<!-- ── Main ──────────────────────────────────────────────────── -->
+<!-- ── Top Bar ─────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-breadcrumb">
+    <span>PortfolioIQ</span>
+    <span class="sep">/</span>
+    <span class="crumb-current">Dashboard</span>
+  </div>
+  <div id="ticker-area" class="ticker-strip" style="flex:1;margin:0 1.5rem"></div>
+  <div class="topbar-right">
+    <div class="topbar-time" id="clock">—</div>
+    <div class="topbar-refresh" onclick="location.reload()">
+      <span class="spin-icon">↻</span> Refresh
+    </div>
+  </div>
+</div>
+
+<!-- ── Main Content ────────────────────────────────────────── -->
 <main class="main fade-in">
-  <h1 class="page-title">Portfolio Dashboard</h1>
-  <p class="page-subtitle" id="last-refresh">Loading portfolio data…</p>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Portfolio <span>Dashboard</span></h1>
+      <p class="page-subtitle" id="last-refresh">Fetching live portfolio data…</p>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-primary" href="analyzer.html">🔬 Analyze Holdings</a>
+    </div>
+  </div>
 
   <!-- KPI Cards -->
-  <div class="kpi-grid" id="kpi-grid">
-    <div class="kpi-card"><div class="kpi-label">Total AUM</div><div class="kpi-value" id="aum">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">Unrealised P&amp;L</div><div class="kpi-value" id="pnl">—</div><div class="kpi-delta" id="pnl-pct">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">Day Change</div><div class="kpi-value" id="day-chg">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">Available Cash</div><div class="kpi-value" id="cash">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">Net Worth</div><div class="kpi-value" id="networth">—</div></div>
+  <div class="kpi-grid stagger" id="kpi-grid">
+    <div class="kpi-card">
+      <span class="kpi-icon">💼</span>
+      <div class="kpi-label" data-tip="Total market value of all holdings">Total AUM</div>
+      <div class="kpi-value" id="aum">—</div>
+      <div class="kpi-delta" id="aum-sub" style="color:var(--text-dim);font-size:0.72rem;margin-top:0.3rem"></div>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-icon">📊</span>
+      <div class="kpi-label" data-tip="Total unrealised profit / loss">Unrealised P&amp;L</div>
+      <div class="kpi-value" id="pnl">—</div>
+      <div class="kpi-delta" id="pnl-pct">—</div>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-icon">📅</span>
+      <div class="kpi-label" data-tip="Change in portfolio value today">Day Change</div>
+      <div class="kpi-value" id="day-chg">—</div>
+      <div class="kpi-delta" id="day-chg-pct" style="color:var(--text-dim)"></div>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-icon">💰</span>
+      <div class="kpi-label" data-tip="Available cash in Zerodha">Available Cash</div>
+      <div class="kpi-value" id="cash">—</div>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-icon">🏦</span>
+      <div class="kpi-label" data-tip="AUM + Cash">Net Worth</div>
+      <div class="kpi-value" id="networth">—</div>
+    </div>
   </div>
 
   <!-- Holdings Table -->
   <div class="section-header">Holdings</div>
   <div id="holdings-wrap">
-    <div class="loading-wrap"><div class="spinner"></div><span style="color:var(--text-muted)">Fetching portfolio…</span></div>
+    <div class="card">
+      <div class="loading-wrap"><div class="spinner"></div><span>Fetching portfolio…</span></div>
+    </div>
   </div>
 
-  <!-- Charts Row -->
-  <div class="grid-2" style="margin-top:1.5rem">
+  <!-- Charts -->
+  <div class="grid-2 mt-md">
     <div class="card">
-      <div class="section-header" style="margin-top:0">Sector Allocation</div>
+      <div class="section-header mt-0">Allocation by Sector</div>
       <div id="chart-sector" class="chart-box"></div>
     </div>
     <div class="card">
-      <div class="section-header" style="margin-top:0">Portfolio Treemap</div>
+      <div class="section-header mt-0">Portfolio Treemap</div>
       <div id="chart-treemap" class="chart-box"></div>
     </div>
   </div>
 
-  <!-- P&L Bar -->
-  <div class="card" style="margin-top:1.25rem">
-    <div class="section-header" style="margin-top:0">Unrealised P&amp;L by Holding</div>
-    <div id="chart-pnl" class="chart-box" style="min-height:240px"></div>
+  <div class="card mt-md">
+    <div class="section-header mt-0">Unrealised P&amp;L by Holding</div>
+    <div id="chart-pnl" class="chart-box chart-box-sm"></div>
   </div>
 
-  <p id="data-quality" style="color:var(--text-dim);font-size:0.78rem;text-align:right;margin-top:0.75rem"></p>
+  <div class="flex justify-between items-center mt-sm">
+    <p id="data-quality" class="text-xs text-dim"></p>
+    <p class="text-xs text-dim">Prices: NSE via Yahoo Finance &amp; Zerodha broker</p>
+  </div>
 </main>
 
-<div class="dry-run-notice">🛡️ DRY RUN — No real orders</div>
+<div class="dry-run-notice">
+  <div class="dry-run-dot"></div>DRY RUN — No real orders
+</div>
 
 <script src="js/api.js"></script>
 <script>
+// Clock
+setInterval(() => {
+  document.getElementById("clock").textContent =
+    new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Kolkata" }) + " IST";
+}, 1000);
+
+// Animate count-up
+function animateValue(el, end, prefix="₹", dp=2, durationMs=900) {
+  if (!el || isNaN(end)) return;
+  const start = 0;
+  const startTime = performance.now();
+  function update(t) {
+    const progress = Math.min((t - startTime) / durationMs, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const val = start + (end - start) * ease;
+    el.textContent = prefix + Math.abs(val).toLocaleString("en-IN", { minimumFractionDigits: dp, maximumFractionDigits: dp });
+    if (progress < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
 (async () => {
   try {
     const r = await apiGet("/api/portfolio/summary");
     if (!r.ok) throw new Error(r.error);
     const d = r.data;
 
-    // KPIs
     document.getElementById("last-refresh").textContent =
-      "Last updated: " + new Date().toLocaleTimeString("en-IN");
-    document.getElementById("aum").textContent = fmt(d.total_aum);
-    const pnlEl = document.getElementById("pnl");
-    pnlEl.textContent = fmt(d.total_pnl);
-    pnlEl.style.color = d.total_pnl >= 0 ? "var(--green)" : "var(--red)";
+      `Last synced: ${new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })} IST · ${d.holdings_count || 0} holdings`;
+
+    // KPIs with animation
+    setTimeout(() => animateValue(document.getElementById("aum"), d.total_aum), 100);
+    setTimeout(() => {
+      const el = document.getElementById("pnl");
+      animateValue(el, Math.abs(d.total_pnl));
+      if (d.total_pnl < 0) el.style.color = "var(--red)";
+      else el.style.color = "var(--green)";
+      document.querySelector(".kpi-card:nth-child(2)").classList.add(d.total_pnl >= 0 ? "positive" : "negative");
+    }, 180);
+
     const pPct = document.getElementById("pnl-pct");
-    pPct.textContent = fmtPct(d.total_pnl_pct);
+    pPct.textContent = (d.total_pnl_pct >= 0 ? "▲ +" : "▼ ") + Math.abs(d.total_pnl_pct || 0).toFixed(2) + "%";
     pPct.className = "kpi-delta " + (d.total_pnl_pct >= 0 ? "pos" : "neg");
-    const dayEl = document.getElementById("day-chg");
-    dayEl.textContent = fmt(d.total_day_change);
-    dayEl.style.color = d.total_day_change >= 0 ? "var(--green)" : "var(--red)";
-    document.getElementById("cash").textContent = fmt(d.available_cash);
-    document.getElementById("networth").textContent = fmt(d.net_worth);
+
+    setTimeout(() => {
+      const el = document.getElementById("day-chg");
+      animateValue(el, Math.abs(d.total_day_change));
+      el.style.color = d.total_day_change >= 0 ? "var(--green)" : "var(--red)";
+    }, 260);
+
+    setTimeout(() => animateValue(document.getElementById("cash"), d.available_cash), 340);
+    setTimeout(() => animateValue(document.getElementById("networth"), d.net_worth), 420);
+
+    document.getElementById("aum-sub").textContent = `${d.holdings_count || 0} positions`;
     document.getElementById("data-quality").textContent =
-      `Data: ${d.live_prices} live · ${d.stale_prices} broker/stale · ${d.holdings_count} holdings`;
+      `🔴 ${d.live_prices || 0} live  🟡 ${d.stale_prices || 0} stale`;
 
     // Holdings table
     const holdings = d.holdings || [];
     if (!holdings.length) {
       document.getElementById("holdings-wrap").innerHTML =
-        '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No holdings found</div><div class="empty-desc">Sync with Kite from the Settings page.</div></div>';
-      return;
+        `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No holdings found</div><div class="empty-desc">Run a Kite sync from the ⚙️ Settings page to import your portfolio.</div></div>`;
+    } else {
+      // Ticker strip
+      const ticker = document.getElementById("ticker-area");
+      if (ticker) {
+        ticker.innerHTML = holdings.map(h => {
+          const cls = h.pnl_pct >= 0 ? "pos" : "neg";
+          const arrow = h.pnl_pct >= 0 ? "▲" : "▼";
+          return `<div class="ticker-item">
+            <span class="ticker-symbol">${h.symbol}</span>
+            <span class="ticker-price">${fmt(h.current_price)}</span>
+            <span class="ticker-chg ${cls}">${arrow} ${Math.abs(h.pnl_pct||0).toFixed(1)}%</span>
+          </div>`;
+        }).join("");
+      }
+
+      const rows = holdings.map(h => {
+        const pnlCls = h.pnl >= 0 ? "td-pos" : "td-neg";
+        const arrow  = h.pnl >= 0 ? "▲" : "▼";
+        const pctBar = Math.min(Math.abs(h.pnl_pct || 0) / 20 * 100, 100);
+        return `<tr class="${h.pnl >= 0 ? 'row-positive' : 'row-negative'}">
+          <td><a class="td-main td-link" href="analyzer.html?sym=${h.symbol}">${h.symbol}</a></td>
+          <td><span class="badge badge-hold" style="font-size:0.6rem;padding:0.15rem 0.5rem">${h.exchange}</span></td>
+          <td class="td-mono">${h.qty}</td>
+          <td class="td-mono">${fmt(h.avg_price)}</td>
+          <td class="td-mono font-bold">${fmt(h.current_price)}</td>
+          <td class="td-mono">${fmt(h.invested)}</td>
+          <td class="td-mono">${fmt(h.current_value)}</td>
+          <td class="${pnlCls} td-mono">${arrow} ${fmt(Math.abs(h.pnl))}</td>
+          <td>
+            <div style="min-width:80px">
+              <div class="${pnlCls}" style="font-size:0.78rem;font-weight:700">${h.pnl_pct >= 0 ? "+" : ""}${(h.pnl_pct||0).toFixed(2)}%</div>
+              <div class="progress-bar" style="margin-top:3px">
+                <div class="progress-fill ${h.pnl >= 0 ? '' : 'neg'}" style="width:${pctBar}%"></div>
+              </div>
+            </div>
+          </td>
+          <td class="td-mono">${(h.weight_pct||0).toFixed(1)}%</td>
+          <td class="td-dim">${h.price_source || "—"}</td>
+        </tr>`;
+      }).join("");
+
+      document.getElementById("holdings-wrap").innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Symbol <span class="sort-icon">↕</span></th>
+              <th>Exchange</th>
+              <th>Qty</th>
+              <th>Avg Cost</th>
+              <th>CMP</th>
+              <th>Invested</th>
+              <th>Value</th>
+              <th>P&amp;L</th>
+              <th>Return</th>
+              <th>Weight</th>
+              <th>Source</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
     }
-
-    const rows = holdings.map(h => `
-      <tr>
-        <td class="td-main">${h.symbol}</td>
-        <td>${h.exchange}</td>
-        <td>${h.qty}</td>
-        <td>${fmt(h.avg_price)}</td>
-        <td>${fmt(h.current_price)}</td>
-        <td>${fmt(h.invested)}</td>
-        <td>${fmt(h.current_value)}</td>
-        <td class="${h.pnl >= 0 ? 'td-pos' : 'td-neg'}">${fmt(h.pnl)}</td>
-        <td class="${h.pnl_pct >= 0 ? 'td-pos' : 'td-neg'}">${fmtPct(h.pnl_pct)}</td>
-        <td>${h.weight_pct?.toFixed(1)}%</td>
-        <td class="td-dim">${h.price_source}</td>
-      </tr>`).join("");
-
-    document.getElementById("holdings-wrap").innerHTML = `
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>Symbol</th><th>Exchange</th><th>Qty</th>
-            <th>Avg Price</th><th>CMP</th><th>Invested</th>
-            <th>Value</th><th>P&amp;L</th><th>P&amp;L %</th>
-            <th>Weight</th><th>Source</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
 
     // Sector donut
     const sectors = d.sector_weights || {};
+    const colors = ["#00d4ff","#00ff88","#ffd600","#ff6b35","#a78bfa","#f472b6","#34d399","#60a5fa"];
     if (Object.keys(sectors).length) {
       Plotly.newPlot("chart-sector", [{
-        type: "pie", hole: 0.55,
-        labels: Object.keys(sectors), values: Object.values(sectors),
-        marker: { colors: ["#00d4ff","#00ff88","#ffd600","#ff6b35","#a78bfa","#f472b6","#34d399"] },
-        textfont: { size: 12, color: "#ccd6f6" },
+        type:"pie", hole:0.6,
+        labels: Object.keys(sectors),
+        values: Object.values(sectors),
+        marker: { colors, line: { color:"rgba(5,7,15,0.5)", width:2 } },
+        textfont: { size:12, color:"#ccd6f6" },
         hovertemplate: "<b>%{label}</b><br>%{value:.1f}%<extra></extra>",
-      }], { ...PLOTLY_LAYOUT, height: 320, showlegend: true,
-        annotations: [{ text: "SECTORS", x: 0.5, y: 0.5, showarrow: false, font: { size: 9, color: "#8892b0" } }]
+        pull: 0.03,
+      }], {
+        ...PLOTLY_LAYOUT, height:300, showlegend:true,
+        legend: { x:1, y:0.5, bgcolor:"rgba(0,0,0,0)", font:{size:11,color:"#8892b0"} },
+        annotations:[{
+          text:"SECTORS", x:0.5, y:0.5, showarrow:false,
+          font:{size:9,color:"#4a5568",family:"Inter"}
+        }]
+      }, PLOTLY_CONFIG);
+    } else {
+      Plotly.newPlot("chart-sector", [{
+        type:"pie", hole:0.6,
+        labels:["Portfolio"],
+        values:[100],
+        marker:{ colors:["#00d4ff"], line:{color:"rgba(5,7,15,0.5)",width:2} },
+        textfont:{size:12,color:"#ccd6f6"},
+      }], { ...PLOTLY_LAYOUT, height:300, showlegend:false,
+        annotations:[{text:"ALL",x:0.5,y:0.5,showarrow:false,font:{size:10,color:"#4a5568"}}]
       }, PLOTLY_CONFIG);
     }
 
     // Treemap
     Plotly.newPlot("chart-treemap", [{
-      type: "treemap",
-      labels: holdings.map(h => `${h.symbol}<br>₹${(h.current_value||0).toFixed(0)}`),
+      type:"treemap",
+      labels: holdings.map(h => `<b>${h.symbol}</b>`),
       parents: holdings.map(() => ""),
       values: holdings.map(h => h.current_value),
+      customdata: holdings.map(h => [h.pnl_pct, h.current_price, h.pnl]),
       marker: {
         colors: holdings.map(h => h.pnl_pct),
-        colorscale: [[0,"#ff3366"],[0.4,"#1a0a0e"],[0.5,"#0d1117"],[0.6,"#0a1a10"],[1,"#00ff88"]],
-        cmid: 0, showscale: true,
-        colorbar: { tickfont: { color: "#8892b0", size: 10 }, title: { text: "P&L %", font: { color: "#8892b0" } } },
+        colorscale:[[0,"#3d0a15"],[0.35,"#1a0a0e"],[0.5,"#0d1220"],[0.65,"#0a1a10"],[1,"#003d1f"]],
+        cmid:0, showscale:true,
+        colorbar:{
+          tickfont:{color:"#8892b0",size:10},
+          title:{text:"P&L %",font:{color:"#8892b0",size:10}},
+          len:0.6, thickness:10
+        },
+        line:{width:1.5, color:"rgba(5,7,15,0.7)"},
       },
-      textfont: { family: "Inter", size: 13, color: "white" },
-      hovertemplate: "<b>%{label}</b><br>Value: ₹%{value:,.0f}<extra></extra>",
-    }], { ...PLOTLY_LAYOUT, height: 320 }, PLOTLY_CONFIG);
+      texttemplate:"<b>%{label}</b><br>%{value:,.0f}",
+      textfont:{family:"Inter",size:12,color:"rgba(255,255,255,0.9)"},
+      hovertemplate:"<b>%{label}</b><br>Value: ₹%{value:,.0f}<br>P&L: %{customdata[0]:.2f}%<extra></extra>",
+    }], { ...PLOTLY_LAYOUT, height:300 }, PLOTLY_CONFIG);
 
-    // P&L bar
-    const sorted = [...holdings].sort((a, b) => a.pnl - b.pnl);
+    // P&L Bar
+    const sorted = [...holdings].sort((a,b) => a.pnl - b.pnl);
     Plotly.newPlot("chart-pnl", [{
-      type: "bar", orientation: "h",
-      x: sorted.map(h => h.pnl), y: sorted.map(h => h.symbol),
-      marker: { color: sorted.map(h => h.pnl >= 0 ? "#00ff88" : "#ff3366"), opacity: 0.85 },
-      text: sorted.map(h => fmt(h.pnl, "₹", 0)), textposition: "auto",
-      textfont: { size: 11, color: "white" },
-      hovertemplate: "<b>%{y}</b><br>P&L: ₹%{x:,.2f}<extra></extra>",
-    }], { ...PLOTLY_LAYOUT, height: 260, shapes: [{ type: "line", x0: 0, x1: 0, y0: -0.5, y1: sorted.length - 0.5, line: { color: "rgba(255,255,255,0.15)", width: 1 } }] }, PLOTLY_CONFIG);
+      type:"bar", orientation:"h",
+      x: sorted.map(h => h.pnl),
+      y: sorted.map(h => h.symbol),
+      marker: {
+        color: sorted.map(h => h.pnl >= 0 ? "rgba(0,255,136,0.7)" : "rgba(255,51,102,0.7)"),
+        line: { color: sorted.map(h => h.pnl >= 0 ? "#00ff88" : "#ff3366"), width:1.5 },
+      },
+      text: sorted.map(h => (h.pnl>=0?"+":"")+fmt(h.pnl,"₹",0)),
+      textposition:"outside",
+      textfont:{size:11, color:"#ccd6f6"},
+      hovertemplate:"<b>%{y}</b><br>P&L: ₹%{x:,.2f}<extra></extra>",
+    }], {
+      ...PLOTLY_LAYOUT, height:240,
+      shapes:[{type:"line",x0:0,x1:0,y0:-0.5,y1:sorted.length-0.5,
+        line:{color:"rgba(255,255,255,0.1)",width:1,dash:"dot"}}],
+      xaxis:{...PLOTLY_LAYOUT.xaxis, tickformat:"₹,.0f"},
+    }, PLOTLY_CONFIG);
 
-  } catch (err) {
-    document.getElementById("holdings-wrap").innerHTML = errBox("Failed to load portfolio: " + err.message);
+  } catch(err) {
+    document.getElementById("holdings-wrap").innerHTML = errBox("Failed to load: " + err.message + ". Is the Flask API running? (python flask_app.py)");
   }
 })();
 </script>
