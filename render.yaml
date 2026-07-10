@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: portfolioiq-api
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn flask_app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: DATABASE_URL
+        sync: false          # Set manually in Render dashboard
+      - key: SUPABASE_URL
+        value: https://mfjtrwwyxzhgslwxefam.supabase.co
+      - key: SUPABASE_KEY
+        sync: false          # Set manually — keep secret
+      - key: KITE_API_KEY
+        value: 41l2keyw0ncub7fa
+      - key: KITE_API_SECRET
+        sync: false          # Set manually
+      - key: KITE_CLIENT_ID
+        value: WJU490
+      - key: KITE_REDIRECT_URL
+        value: http://127.0.0.1:5000/callback
+      - key: FLASK_SECRET_KEY
+        generateValue: true  # Render auto-generates a secure random value
+      - key: DRY_RUN_MODE
+        value: "true"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: POLLING_INTERVAL_SEC
+        value: "60"
+      - key: MARKET_OPEN_TIME
+        value: "09:15"
+      - key: MARKET_CLOSE_TIME
+        value: "15:30"
+      - key: TIMEZONE
+        value: Asia/Kolkata
+      - key: SLIPPAGE_BOUND_PCT
+        value: "2.0"
+      - key: CONCENTRATION_LIMIT_PCT
+        value: "15.0"
+      - key: DUPLICATE_WINDOW_SEC
+        value: "300"
