@@ -6,7 +6,7 @@
 
 const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
   ? "http://localhost:5000"
-  : "https://portfolioiq-api.onrender.com";   // ← update with your deployed backend URL
+  : "https://portfolioiq-z4r6.onrender.com";   // ← connected to live Render backend
 
 async function apiGet(path, params = {}) {
   const url = new URL(API_BASE + path);
