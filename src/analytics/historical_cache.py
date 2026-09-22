@@ -145,7 +145,7 @@ def get_or_sync_historical_bars(
         if delta_df is not None and not delta_df.empty:
             delta_dtos = []
             for dt, row in delta_df.iterrows():
-                bar_d = dt.date() if isinstance(dt, (datetime, pd.Timestamp)) else dt
+                bar_d = dt.date() if isinstance(dt, datetime | pd.Timestamp) else dt
                 if bar_d > max_cached_date:
                     delta_dtos.append(
                         HistoricalBarDTO(
@@ -181,7 +181,7 @@ def get_or_sync_historical_bars(
     if full_df is not None and not full_df.empty:
         all_dtos = []
         for dt, row in full_df.iterrows():
-            bar_d = dt.date() if isinstance(dt, (datetime, pd.Timestamp)) else dt
+            bar_d = dt.date() if isinstance(dt, datetime | pd.Timestamp) else dt
             all_dtos.append(
                 HistoricalBarDTO(
                     tradingsymbol=tradingsymbol,
