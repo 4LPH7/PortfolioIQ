@@ -20,12 +20,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
+from uuid import uuid4
 
 from loguru import logger
 from sqlalchemy import text
 
 from src.analytics.rebalancer import RebalanceOrder, RebalancePlan, OrderSide
-from src.db.connection import get_db_session, execute_sql
+from src.config.settings import is_dry_run_enabled
+from src.db.connection import get_db_session
 from src.execution.validators.margin_check import validate_margin
 from src.execution.validators.slippage_check import validate_slippage
 from src.execution.validators.concentration_check import validate_concentration
@@ -48,6 +50,9 @@ class ValidationReport:
     checks_failed: list[str] = field(default_factory=list)
     failure_reason: str | None = None
     validated_at: datetime = field(default_factory=datetime.now)
+    internal_order_id: str = field(default_factory=lambda: str(uuid4()))
+    audit_id: int | None = None
+    is_dry_run: bool = True
 
 
 @dataclass
@@ -61,46 +66,88 @@ class GatekeeperResult:
 
 
 def _is_dry_run_mode() -> bool:
-    """Check if dry_run_mode is enabled in system_config."""
-    rows = execute_sql("SELECT value FROM system_config WHERE key = 'dry_run_mode'")
-    return rows[0]["value"].lower() == "true" if rows else True
+    """Return the deployment-level dry-run kill switch (fail closed)."""
+    return is_dry_run_enabled()
 
 
 def _log_validation(report: ValidationReport) -> None:
-    """Log the validation result to order_validation_log table."""
-    try:
-        with get_db_session() as session:
-            session.execute(
-                text("""
-                    INSERT INTO order_validation_log (
-                        tradingsymbol, exchange, transaction_type,
-                        quantity, price,
-                        validation_result, failure_reason,
-                        checks_passed, checks_failed,
-                        validated_at
-                    )
-                    VALUES (
-                        :symbol, :exchange, :txn_type,
-                        :qty, :price,
-                        :result, :reason,
-                        :passed, :failed,
-                        NOW()
-                    )
-                """),
-                {
-                    "symbol": report.order.tradingsymbol,
-                    "exchange": report.order.exchange,
-                    "txn_type": report.order.side.value,
-                    "qty": report.order.quantity,
-                    "price": float(report.order.estimated_price),
-                    "result": report.result.value,
-                    "reason": report.failure_reason,
-                    "passed": ",".join(report.checks_passed),
-                    "failed": ",".join(report.checks_failed),
-                },
-            )
-    except Exception as exc:
-        logger.error("Failed to log validation: {}", exc)
+    """Write the canonical order row and its per-check validation details.
+
+    Audit failures propagate to the caller so an order cannot proceed without
+    its validation record.
+    """
+    validation_status = {
+        ValidationResult.APPROVED: "APPROVED",
+        ValidationResult.REJECTED: "BLOCKED",
+        ValidationResult.SKIPPED_DRY_RUN: "DRY_RUN",
+    }[report.result]
+    check_names = {
+        "MARKET_HOURS": "MARKET_HOURS_CHECK",
+        "MARKET_CLOSED": "MARKET_HOURS_CHECK",
+        "MARGIN": "MARGIN_CHECK",
+        "SLIPPAGE": "SLIPPAGE_CHECK",
+        "CONCENTRATION": "CONCENTRATION_CHECK",
+        "DUPLICATE": "DUPLICATE_CHECK",
+    }
+
+    with get_db_session() as session:
+        report.audit_id = session.execute(
+            text("""
+                INSERT INTO order_audit_trail (
+                    internal_order_id, instrument_token, tradingsymbol, exchange,
+                    transaction_type, requested_quantity, price_at_signal,
+                    validation_status, broker_status, trigger_source, is_dry_run,
+                    notes, validated_at
+                )
+                VALUES (
+                    CAST(:internal_order_id AS UUID), :instrument_token, :symbol,
+                    :exchange, :txn_type, :quantity, :price_at_signal,
+                    :validation_status, 'NOT_SENT', 'REBALANCER', :is_dry_run,
+                    :notes, NOW()
+                )
+                RETURNING id
+            """),
+            {
+                "internal_order_id": report.internal_order_id,
+                "instrument_token": report.order.instrument_token,
+                "symbol": report.order.tradingsymbol,
+                "exchange": report.order.exchange,
+                "txn_type": report.order.side.value,
+                "quantity": report.order.quantity,
+                "price_at_signal": float(report.order.estimated_price),
+                "validation_status": validation_status,
+                "is_dry_run": report.is_dry_run,
+                "notes": report.failure_reason,
+            },
+        ).scalar_one()
+
+        for passed, names in (
+            (True, report.checks_passed),
+            (False, report.checks_failed),
+        ):
+            for name in names:
+                check_name = check_names.get(name)
+                if check_name is None:
+                    raise ValueError(f"Unknown validation check: {name}")
+                message = (
+                    report.failure_reason
+                    if not passed and report.failure_reason
+                    else f"{name.replace('_', ' ').title()} passed."
+                )
+                session.execute(
+                    text("""
+                        INSERT INTO order_validation_log (
+                            audit_id, check_name, passed, message
+                        )
+                        VALUES (:audit_id, :check_name, :passed, :message)
+                    """),
+                    {
+                        "audit_id": report.audit_id,
+                        "check_name": check_name,
+                        "passed": passed,
+                        "message": message,
+                    },
+                )
 
 
 def validate_order(order: RebalanceOrder, dry_run: bool = True) -> ValidationReport:
@@ -114,7 +161,12 @@ def validate_order(order: RebalanceOrder, dry_run: bool = True) -> ValidationRep
     Returns:
         ValidationReport with pass/fail details.
     """
-    report = ValidationReport(order=order, result=ValidationResult.APPROVED)
+    dry_run = dry_run or is_dry_run_enabled()
+    report = ValidationReport(
+        order=order,
+        result=ValidationResult.APPROVED,
+        is_dry_run=dry_run,
+    )
 
     # Gate 1: Market Hours
     if not is_market_open():

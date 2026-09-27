@@ -13,11 +13,13 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
+from uuid import uuid4
 
 from loguru import logger
 from sqlalchemy import text
 
 from src.analytics.rebalancer import RebalanceOrder, OrderSide
+from src.config.settings import is_dry_run_enabled
 from src.db.connection import get_db_session
 from src.execution.gatekeeper import GatekeeperResult, ValidationResult
 from src.ingestion.kite_auth import get_authenticated_kite
@@ -25,70 +27,65 @@ from src.ingestion.kite_auth import get_authenticated_kite
 
 def _log_order_to_audit_trail(
     order: RebalanceOrder,
+    internal_order_id: str,
     kite_order_id: str | None,
     status: str,
     error_message: str | None = None,
     is_dry_run: bool = True,
 ) -> None:
     """
-    Append an immutable record to the order_audit_trail.
+    Append an immutable broker outcome record to the order_audit_trail.
     This table has a BEFORE UPDATE OR DELETE trigger that prevents
     any modification — ensuring complete audit integrity.
     """
+    broker_status = {
+        "DRY_RUN": "NOT_SENT",
+        "PLACED": "OPEN",
+        "FAILED": "REJECTED",
+    }.get(status)
+    if broker_status is None:
+        raise ValueError(f"Unsupported broker outcome: {status}")
+
     with get_db_session() as session:
         session.execute(
             text("""
                 INSERT INTO order_audit_trail (
-                    kite_order_id,
-                    tradingsymbol,
-                    exchange,
-                    transaction_type,
-                    quantity,
-                    price,
-                    order_type,
-                    product,
-                    variety,
-                    status,
-                    trigger_source,
-                    reason,
-                    error_message,
-                    is_dry_run,
-                    placed_at
+                    internal_order_id, kite_order_id, instrument_token,
+                    tradingsymbol, exchange, transaction_type,
+                    requested_quantity, price_at_signal, validation_status,
+                    broker_status, broker_status_message, trigger_source,
+                    is_dry_run, notes
                 )
                 VALUES (
-                    :kite_order_id,
-                    :symbol,
-                    :exchange,
-                    :txn_type,
-                    :qty,
-                    :price,
-                    'MARKET',
-                    'CNC',
-                    'regular',
-                    :status,
-                    'REBALANCER',
-                    :reason,
-                    :error,
-                    :dry_run,
-                    NOW()
+                    CAST(:internal_order_id AS UUID), :kite_order_id,
+                    :instrument_token, :symbol, :exchange, :txn_type,
+                    :quantity, :price_at_signal, :validation_status, :broker_status,
+                    :error, 'REBALANCER', :dry_run, :notes
                 )
             """),
             {
+                "internal_order_id": internal_order_id,
                 "kite_order_id": kite_order_id,
+                "instrument_token": order.instrument_token,
                 "symbol": order.tradingsymbol,
                 "exchange": order.exchange,
                 "txn_type": order.side.value,
-                "qty": order.quantity,
-                "price": float(order.estimated_price),
-                "status": status,
-                "reason": order.reason.value,
+                "quantity": order.quantity,
+                "price_at_signal": float(order.estimated_price),
+                "validation_status": "DRY_RUN" if status == "DRY_RUN" else "APPROVED",
+                "broker_status": broker_status,
                 "error": error_message,
                 "dry_run": is_dry_run,
+                "notes": order.reason.value,
             },
         )
 
 
-def place_order(order: RebalanceOrder, dry_run: bool = True) -> dict[str, Any]:
+def place_order(
+    order: RebalanceOrder,
+    dry_run: bool = True,
+    internal_order_id: str | None = None,
+) -> dict[str, Any]:
     """
     Place a single order on Kite Connect.
 
@@ -99,12 +96,18 @@ def place_order(order: RebalanceOrder, dry_run: bool = True) -> dict[str, Any]:
     Returns:
         Dict with order placement result.
     """
-    if not order.is_approved:
+    dry_run = dry_run or is_dry_run_enabled()
+
+    if not order.is_approved and not dry_run:
         logger.warning(
             "Order {} {} x {} was NOT approved by gatekeeper. Skipping.",
             order.side.value, order.quantity, order.tradingsymbol
         )
         return {"status": "SKIPPED", "reason": "not_approved"}
+
+    if not dry_run and internal_order_id is None:
+        logger.error("Refusing live order without a gatekeeper audit record")
+        return {"status": "FAILED", "error": "gatekeeper audit record required"}
 
     if dry_run:
         logger.info(
@@ -114,6 +117,7 @@ def place_order(order: RebalanceOrder, dry_run: bool = True) -> dict[str, Any]:
         )
         _log_order_to_audit_trail(
             order=order,
+            internal_order_id=internal_order_id or str(uuid4()),
             kite_order_id=None,
             status="DRY_RUN",
             is_dry_run=True,
@@ -143,27 +147,6 @@ def place_order(order: RebalanceOrder, dry_run: bool = True) -> dict[str, Any]:
             product=kite.PRODUCT_CNC,
             order_type=kite.ORDER_TYPE_MARKET,
         )
-
-        logger.success(
-            "ORDER PLACED: {} {} x {} — Kite Order ID: {}",
-            order.side.value, order.quantity, order.tradingsymbol, kite_order_id
-        )
-
-        _log_order_to_audit_trail(
-            order=order,
-            kite_order_id=str(kite_order_id),
-            status="PLACED",
-            is_dry_run=False,
-        )
-
-        return {
-            "status": "PLACED",
-            "kite_order_id": str(kite_order_id),
-            "symbol": order.tradingsymbol,
-            "side": order.side.value,
-            "quantity": order.quantity,
-        }
-
     except Exception as exc:
         error_msg = str(exc)
         logger.error(
@@ -173,6 +156,7 @@ def place_order(order: RebalanceOrder, dry_run: bool = True) -> dict[str, Any]:
 
         _log_order_to_audit_trail(
             order=order,
+            internal_order_id=internal_order_id,
             kite_order_id=None,
             status="FAILED",
             error_message=error_msg,
@@ -184,6 +168,26 @@ def place_order(order: RebalanceOrder, dry_run: bool = True) -> dict[str, Any]:
             "symbol": order.tradingsymbol,
             "error": error_msg,
         }
+
+    logger.success(
+        "ORDER PLACED: {} {} x {} — Kite Order ID: {}",
+        order.side.value, order.quantity, order.tradingsymbol, kite_order_id
+    )
+    _log_order_to_audit_trail(
+        order=order,
+        internal_order_id=internal_order_id,
+        kite_order_id=str(kite_order_id),
+        status="PLACED",
+        is_dry_run=False,
+    )
+
+    return {
+        "status": "PLACED",
+        "kite_order_id": str(kite_order_id),
+        "symbol": order.tradingsymbol,
+        "side": order.side.value,
+        "quantity": order.quantity,
+    }
 
 
 def execute_plan(gatekeeper_result: GatekeeperResult) -> list[dict[str, Any]]:
@@ -214,7 +218,11 @@ def execute_plan(gatekeeper_result: GatekeeperResult) -> list[dict[str, Any]]:
     )
 
     for report in approved_reports:
-        result = place_order(report.order, dry_run=dry_run)
+        result = place_order(
+            report.order,
+            dry_run=dry_run,
+            internal_order_id=report.internal_order_id,
+        )
         results.append(result)
 
     # Summary

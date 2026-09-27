@@ -17,7 +17,7 @@ services:
       - key: SUPABASE_KEY
         sync: false          # Set manually — keep secret
       - key: KITE_API_KEY
-        value: 41l2keyw0ncub7fa
+        sync: false          # Set manually in Render dashboard; keep secret
       - key: KITE_API_SECRET
         sync: false          # Set manually
       - key: KITE_CLIENT_ID
@@ -28,6 +28,8 @@ services:
         generateValue: true  # Render auto-generates a secure random value
       - key: DRY_RUN_MODE
         value: "true"
+      - key: ALLOWED_ORIGINS
+        value: https://portfolioiq-4lph7.netlify.app
       - key: LOG_LEVEL
         value: INFO
       - key: POLLING_INTERVAL_SEC

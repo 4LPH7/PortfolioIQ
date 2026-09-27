@@ -74,7 +74,7 @@ def _partition_maintenance_job():
 
     try:
         with get_db_session() as session:
-            session.execute(text("SELECT create_next_partition()"))
+            session.execute(text("SELECT create_price_partition(CURRENT_DATE + 1)"))
         logger.info("[PARTITION] Created next day's partition.")
     except Exception as exc:
         logger.exception("[PARTITION] Failed: {}", exc)
