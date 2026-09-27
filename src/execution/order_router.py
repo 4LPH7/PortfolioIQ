@@ -21,6 +21,7 @@ from sqlalchemy import text
 from src.analytics.rebalancer import RebalanceOrder, OrderSide
 from src.config.settings import is_dry_run_enabled
 from src.db.connection import get_db_session
+from src.db.repository import record_broker_execution
 from src.execution.gatekeeper import GatekeeperResult, ValidationResult
 from src.ingestion.kite_auth import get_authenticated_kite
 
@@ -34,51 +35,24 @@ def _log_order_to_audit_trail(
     is_dry_run: bool = True,
 ) -> None:
     """
-    Append an immutable broker outcome record to the order_audit_trail.
+    Append an immutable broker outcome record to the order_audit_trail via repository.
     This table has a BEFORE UPDATE OR DELETE trigger that prevents
     any modification — ensuring complete audit integrity.
     """
-    broker_status = {
-        "DRY_RUN": "NOT_SENT",
-        "PLACED": "OPEN",
-        "FAILED": "REJECTED",
-    }.get(status)
-    if broker_status is None:
-        raise ValueError(f"Unsupported broker outcome: {status}")
-
-    with get_db_session() as session:
-        session.execute(
-            text("""
-                INSERT INTO order_audit_trail (
-                    internal_order_id, kite_order_id, instrument_token,
-                    tradingsymbol, exchange, transaction_type,
-                    requested_quantity, price_at_signal, validation_status,
-                    broker_status, broker_status_message, trigger_source,
-                    is_dry_run, notes
-                )
-                VALUES (
-                    CAST(:internal_order_id AS UUID), :kite_order_id,
-                    :instrument_token, :symbol, :exchange, :txn_type,
-                    :quantity, :price_at_signal, :validation_status, :broker_status,
-                    :error, 'REBALANCER', :dry_run, :notes
-                )
-            """),
-            {
-                "internal_order_id": internal_order_id,
-                "kite_order_id": kite_order_id,
-                "instrument_token": order.instrument_token,
-                "symbol": order.tradingsymbol,
-                "exchange": order.exchange,
-                "txn_type": order.side.value,
-                "quantity": order.quantity,
-                "price_at_signal": float(order.estimated_price),
-                "validation_status": "DRY_RUN" if status == "DRY_RUN" else "APPROVED",
-                "broker_status": broker_status,
-                "error": error_message,
-                "dry_run": is_dry_run,
-                "notes": order.reason.value,
-            },
-        )
+    record_broker_execution(
+        internal_order_id=internal_order_id,
+        instrument_token=order.instrument_token,
+        tradingsymbol=order.tradingsymbol,
+        exchange=order.exchange,
+        transaction_type=order.side.value,
+        requested_quantity=order.quantity,
+        price_at_signal=order.estimated_price,
+        status=status,
+        kite_order_id=kite_order_id,
+        error_message=error_message,
+        is_dry_run=is_dry_run,
+        notes=order.reason.value,
+    )
 
 
 def place_order(

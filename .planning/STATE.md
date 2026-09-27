@@ -23,11 +23,11 @@ See: .planning/ROADMAP.md (updated 2026-09-27)
 ## Current Position
 
 Phase: 1 of 8 (Phase 1: A Reliable Backend Core)
-Plan: 1 of 3 in current phase (01-01 complete; Wave 1: 01-02 next; Wave 2: 01-03)
-Status: Ready to execute Plan 01-02 (Data Layer & Typed Repository)
-Last activity: 2026-09-27 — Executed and verified Plan 01-01 (Idempotent Migration Runner)
+Plan: 2 of 3 in current phase (01-01, 01-02 complete; Wave 2: 01-03 next)
+Status: Ready to execute Plan 01-03 (API v1, Auth, Error Envelopes & Rate Limiting)
+Last activity: 2026-09-27 — Executed and verified Plan 01-02 (Data Layer & Typed Repository)
 
-Progress: [██░░░░░░░░] 22%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 

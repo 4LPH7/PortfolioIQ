@@ -28,6 +28,7 @@ from sqlalchemy import text
 from src.analytics.rebalancer import RebalanceOrder, RebalancePlan, OrderSide
 from src.config.settings import is_dry_run_enabled
 from src.db.connection import get_db_session
+from src.db.repository import record_order_attempt, record_validation_check
 from src.execution.validators.margin_check import validate_margin
 from src.execution.validators.slippage_check import validate_slippage
 from src.execution.validators.concentration_check import validate_concentration
@@ -90,64 +91,40 @@ def _log_validation(report: ValidationReport) -> None:
         "DUPLICATE": "DUPLICATE_CHECK",
     }
 
-    with get_db_session() as session:
-        report.audit_id = session.execute(
-            text("""
-                INSERT INTO order_audit_trail (
-                    internal_order_id, instrument_token, tradingsymbol, exchange,
-                    transaction_type, requested_quantity, price_at_signal,
-                    validation_status, broker_status, trigger_source, is_dry_run,
-                    notes, validated_at
-                )
-                VALUES (
-                    CAST(:internal_order_id AS UUID), :instrument_token, :symbol,
-                    :exchange, :txn_type, :quantity, :price_at_signal,
-                    :validation_status, 'NOT_SENT', 'REBALANCER', :is_dry_run,
-                    :notes, NOW()
-                )
-                RETURNING id
-            """),
-            {
-                "internal_order_id": report.internal_order_id,
-                "instrument_token": report.order.instrument_token,
-                "symbol": report.order.tradingsymbol,
-                "exchange": report.order.exchange,
-                "txn_type": report.order.side.value,
-                "quantity": report.order.quantity,
-                "price_at_signal": float(report.order.estimated_price),
-                "validation_status": validation_status,
-                "is_dry_run": report.is_dry_run,
-                "notes": report.failure_reason,
-            },
-        ).scalar_one()
+    attempt = record_order_attempt(
+        internal_order_id=report.internal_order_id,
+        instrument_token=report.order.instrument_token,
+        tradingsymbol=report.order.tradingsymbol,
+        exchange=report.order.exchange,
+        transaction_type=report.order.side.value,
+        requested_quantity=report.order.quantity,
+        price_at_signal=report.order.estimated_price,
+        validation_status=validation_status,
+        is_dry_run=report.is_dry_run,
+        notes=report.failure_reason,
+        trigger_source="REBALANCER",
+    )
+    report.audit_id = attempt.id
 
-        for passed, names in (
-            (True, report.checks_passed),
-            (False, report.checks_failed),
-        ):
-            for name in names:
-                check_name = check_names.get(name)
-                if check_name is None:
-                    raise ValueError(f"Unknown validation check: {name}")
-                message = (
-                    report.failure_reason
-                    if not passed and report.failure_reason
-                    else f"{name.replace('_', ' ').title()} passed."
-                )
-                session.execute(
-                    text("""
-                        INSERT INTO order_validation_log (
-                            audit_id, check_name, passed, message
-                        )
-                        VALUES (:audit_id, :check_name, :passed, :message)
-                    """),
-                    {
-                        "audit_id": report.audit_id,
-                        "check_name": check_name,
-                        "passed": passed,
-                        "message": message,
-                    },
-                )
+    for passed, names in (
+        (True, report.checks_passed),
+        (False, report.checks_failed),
+    ):
+        for name in names:
+            check_name = check_names.get(name)
+            if check_name is None:
+                raise ValueError(f"Unknown validation check: {name}")
+            message = (
+                report.failure_reason
+                if not passed and report.failure_reason
+                else f"{name.replace('_', ' ').title()} passed."
+            )
+            record_validation_check(
+                audit_id=report.audit_id,
+                check_name=check_name,
+                passed=passed,
+                message=message,
+            )
 
 
 def validate_order(order: RebalanceOrder, dry_run: bool = True) -> ValidationReport:
