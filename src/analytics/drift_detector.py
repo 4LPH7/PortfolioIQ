@@ -77,12 +77,12 @@ def _get_active_targets(user_id: str = "default") -> dict[str, dict]:
         SELECT
             ta.allocation_type,
             ta.sector,
-            ta.tradingsymbol,
+            im.tradingsymbol,
             ta.target_weight_pct,
-            ta.drift_threshold_pct,
-            ta.min_weight_pct,
-            ta.max_weight_pct
+            ta.drift_threshold_pct
         FROM target_allocations ta
+        LEFT JOIN instrument_master im
+            ON ta.instrument_token = im.instrument_token
         JOIN allocation_profiles ap ON ta.profile_id = ap.id
         WHERE ap.user_id = :uid AND ap.is_active = TRUE
     """, {"uid": user_id})
@@ -95,8 +95,6 @@ def _get_active_targets(user_id: str = "default") -> dict[str, dict]:
         targets[key] = {
             "target_weight_pct": Decimal(str(row["target_weight_pct"])),
             "drift_threshold_pct": Decimal(str(row.get("drift_threshold_pct") or 5)),
-            "min_weight_pct": Decimal(str(row.get("min_weight_pct") or 0)),
-            "max_weight_pct": Decimal(str(row.get("max_weight_pct") or 100)),
         }
 
     logger.debug("Loaded {} allocation targets", len(targets))

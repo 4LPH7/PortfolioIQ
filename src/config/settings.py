@@ -5,9 +5,11 @@ All configuration is strongly typed and validated at startup.
 """
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from typing import Literal
 
+from loguru import logger
 from pydantic import Field, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -119,6 +121,26 @@ class Settings(BaseSettings):
     def is_dry_run(self) -> bool:
         """Convenience alias — always check this before placing orders."""
         return self.dry_run_mode
+
+
+def is_dry_run_enabled() -> bool:
+    """Read the execution kill switch directly from the deployment environment.
+
+    Missing or malformed values fail closed. The database setting is deliberately
+    not consulted here: a deployment-level dry-run flag must not be overridden by
+    mutable application data.
+    """
+    raw_value = os.environ.get("DRY_RUN_MODE")
+    if raw_value is None:
+        logger.error("DRY_RUN_MODE is missing; forcing dry-run mode")
+        return True
+
+    normalized = raw_value.strip().lower()
+    if normalized not in {"true", "false"}:
+        logger.error("DRY_RUN_MODE is invalid; forcing dry-run mode")
+        return True
+
+    return normalized == "true"
 
 
 @lru_cache(maxsize=1)

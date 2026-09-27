@@ -4,6 +4,7 @@ Run: python flask_app.py
 Serves all data endpoints consumed by the static Netlify frontend.
 """
 from __future__ import annotations
+import os
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -13,7 +14,18 @@ from flask_cors import CORS
 from loguru import logger
 
 app = Flask(__name__)
-CORS(app, origins="*")   # allow Netlify frontend + localhost dev
+
+
+def _allowed_cors_origins() -> list[str]:
+    """Return the configured cross-origin allowlist; empty means deny all."""
+    return [
+        origin.strip()
+        for origin in os.environ.get("ALLOWED_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+
+
+CORS(app, origins=_allowed_cors_origins())
 
 
 # ─────────────────────────────────────────────────────────────
@@ -145,22 +157,39 @@ def audit_orders():
         side   = request.args.get("side",   "ALL")
         limit  = int(request.args.get("limit", 50))
 
+        status_sql = """CASE
+            WHEN a.is_dry_run THEN 'DRY_RUN'
+            WHEN a.broker_status = 'OPEN' THEN 'PLACED'
+            WHEN a.broker_status = 'REJECTED' THEN 'FAILED'
+            WHEN a.validation_status = 'BLOCKED' THEN 'FAILED'
+            ELSE COALESCE(a.broker_status, a.validation_status)
+        END"""
         where_parts, params = [], {"limit": limit}
         if status != "ALL":
-            where_parts.append("status = :status")
+            where_parts.append(f"{status_sql} = :status")
             params["status"] = status
         if side != "ALL":
             where_parts.append("transaction_type = :side")
             params["side"] = side
+        where_parts.append("""NOT EXISTS (
+            SELECT 1 FROM order_audit_trail newer
+            WHERE newer.internal_order_id = a.internal_order_id
+              AND newer.id > a.id
+        )""")
         where_sql = "WHERE " + " AND ".join(where_parts) if where_parts else ""
 
         rows = execute_sql(f"""
-            SELECT id, kite_order_id, tradingsymbol, exchange,
-                   transaction_type, quantity, price, status,
-                   trigger_source, reason, error_message, is_dry_run,
-                   placed_at::text
-            FROM order_audit_trail {where_sql}
-            ORDER BY placed_at DESC LIMIT :limit
+            SELECT a.id, a.kite_order_id, a.tradingsymbol, a.exchange,
+                   a.transaction_type,
+                   a.requested_quantity AS quantity,
+                   COALESCE(a.execution_price, a.requested_price,
+                            a.price_at_signal) AS price,
+                   {status_sql} AS status,
+                   a.trigger_source, a.notes AS reason,
+                   a.broker_status_message AS error_message,
+            a.is_dry_run, a.created_at::text AS placed_at
+            FROM order_audit_trail a {where_sql}
+            ORDER BY a.created_at DESC LIMIT :limit
         """, params)
         return jsonify({"ok": True, "data": rows})
     except Exception as exc:
@@ -173,11 +202,30 @@ def audit_validations():
         from src.db.connection import execute_sql
         limit = int(request.args.get("limit", 50))
         rows = execute_sql("""
-            SELECT id, tradingsymbol, transaction_type, quantity, price,
-                   validation_result, failure_reason, checks_passed,
-                   checks_failed, validated_at::text
-            FROM order_validation_log
-            ORDER BY validated_at DESC LIMIT :limit
+            SELECT
+                a.id,
+                a.tradingsymbol,
+                a.transaction_type,
+                a.requested_quantity AS quantity,
+                a.price_at_signal AS price,
+                CASE
+                    WHEN a.validation_status = 'DRY_RUN' THEN 'DRY_RUN'
+                    WHEN BOOL_AND(v.passed) THEN 'APPROVED'
+                    ELSE 'REJECTED'
+                END AS validation_result,
+                STRING_AGG(v.message, '; ')
+                    FILTER (WHERE NOT v.passed) AS failure_reason,
+                STRING_AGG(v.check_name, ', ')
+                    FILTER (WHERE v.passed) AS checks_passed,
+                STRING_AGG(v.check_name, ', ')
+                    FILTER (WHERE NOT v.passed) AS checks_failed,
+                a.validated_at::text AS validated_at
+            FROM order_validation_log v
+            JOIN order_audit_trail a ON a.id = v.audit_id
+            GROUP BY a.id, a.tradingsymbol, a.transaction_type,
+                     a.requested_quantity, a.price_at_signal,
+                     a.validation_status, a.validated_at
+            ORDER BY a.validated_at DESC LIMIT :limit
         """, {"limit": limit})
         return jsonify({"ok": True, "data": rows})
     except Exception as exc:
