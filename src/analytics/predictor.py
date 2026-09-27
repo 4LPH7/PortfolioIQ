@@ -12,12 +12,12 @@ Methods:
 Data: yfinance 1-year daily OHLCV. Cached per session to avoid
 repeated network calls during Streamlit reruns.
 """
+
 from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -54,6 +54,7 @@ SIGNAL_SCORES = {STRONG_BUY: 100, BUY: 75, HOLD: 50, SELL: 25, STRONG_SELL: 0}
 # Data Classes
 # ──────────────────────────────────────────────────────────
 
+
 @dataclass
 class RSIResult:
     current_rsi: float
@@ -70,8 +71,8 @@ class MACDResult:
     signal_line: float
     histogram: float
     signal: str
-    is_crossover: bool        # recent bullish crossover
-    is_crossunder: bool       # recent bearish crossunder
+    is_crossover: bool  # recent bullish crossover
+    is_crossunder: bool  # recent bearish crossunder
     macd_series: list[float] = field(default_factory=list)
     signal_series: list[float] = field(default_factory=list)
     hist_series: list[float] = field(default_factory=list)
@@ -81,11 +82,11 @@ class MACDResult:
 @dataclass
 class BollingerResult:
     upper_band: float
-    middle_band: float         # 20-day SMA
+    middle_band: float  # 20-day SMA
     lower_band: float
     current_price: float
-    bandwidth: float           # (upper - lower) / middle
-    percent_b: float           # position within bands (0=lower, 1=upper)
+    bandwidth: float  # (upper - lower) / middle
+    percent_b: float  # position within bands (0=lower, 1=upper)
     signal: str
     upper_series: list[float] = field(default_factory=list)
     middle_series: list[float] = field(default_factory=list)
@@ -96,12 +97,12 @@ class BollingerResult:
 
 @dataclass
 class LinearRegressionResult:
-    slope: float               # price change per day (INR)
-    slope_pct: float           # as % of current price per day
-    r_squared: float           # goodness of fit
-    predicted_30d: float       # OLS price forecast 30 days out
+    slope: float  # price change per day (INR)
+    slope_pct: float  # as % of current price per day
+    r_squared: float  # goodness of fit
+    predicted_30d: float  # OLS price forecast 30 days out
     signal: str
-    confidence: float          # R² as confidence proxy
+    confidence: float  # R² as confidence proxy
     regression_series: list[float] = field(default_factory=list)
     price_series: list[float] = field(default_factory=list)
     dates: list[str] = field(default_factory=list)
@@ -113,13 +114,13 @@ class MonteCarloResult:
     simulations: int = 1000
     horizon_days: int = 30
     # Price percentiles at end of simulation
-    p10: float = 0.0           # pessimistic (10th percentile)
+    p10: float = 0.0  # pessimistic (10th percentile)
     p25: float = 0.0
-    p50: float = 0.0           # median expectation
+    p50: float = 0.0  # median expectation
     p75: float = 0.0
-    p90: float = 0.0           # optimistic (90th percentile)
+    p90: float = 0.0  # optimistic (90th percentile)
     expected_return_pct: float = 0.0
-    prob_profit: float = 0.0   # % of simulations showing a gain
+    prob_profit: float = 0.0  # % of simulations showing a gain
     daily_volatility: float = 0.0
     annual_volatility: float = 0.0
     signal: str = HOLD
@@ -134,14 +135,14 @@ class MonteCarloResult:
 
 @dataclass
 class CompositeResult:
-    score: float               # 0–100
+    score: float  # 0–100
     signal: str
     rsi_score: float
     macd_score: float
     bollinger_score: float
     lr_score: float
     monte_carlo_score: float
-    summary: str               # human-readable conclusion
+    summary: str  # human-readable conclusion
 
 
 @dataclass
@@ -204,6 +205,7 @@ def _fetch_history(yf_ticker: str, period: str = "1y") -> pd.DataFrame | None:
 # Method 1: RSI
 # ──────────────────────────────────────────────────────────
 
+
 def compute_rsi(df: pd.DataFrame, period: int = 14) -> RSIResult:
     """Wilder's RSI on closing prices."""
     close = df["Close"].dropna()
@@ -246,6 +248,7 @@ def compute_rsi(df: pd.DataFrame, period: int = 14) -> RSIResult:
 # Method 2: MACD
 # ──────────────────────────────────────────────────────────
 
+
 def compute_macd(
     df: pd.DataFrame, fast: int = 12, slow: int = 26, signal_period: int = 9
 ) -> MACDResult:
@@ -267,12 +270,10 @@ def compute_macd(
     recent_macd = macd_line.iloc[-3:]
     recent_sig = signal_line.iloc[-3:]
     is_crossover = bool(
-        recent_macd.iloc[-1] > recent_sig.iloc[-1]
-        and recent_macd.iloc[-2] <= recent_sig.iloc[-2]
+        recent_macd.iloc[-1] > recent_sig.iloc[-1] and recent_macd.iloc[-2] <= recent_sig.iloc[-2]
     )
     is_crossunder = bool(
-        recent_macd.iloc[-1] < recent_sig.iloc[-1]
-        and recent_macd.iloc[-2] >= recent_sig.iloc[-2]
+        recent_macd.iloc[-1] < recent_sig.iloc[-1] and recent_macd.iloc[-2] >= recent_sig.iloc[-2]
     )
 
     if is_crossover and current_macd > 0:
@@ -307,6 +308,7 @@ def compute_macd(
 # ──────────────────────────────────────────────────────────
 # Method 3: Bollinger Bands
 # ──────────────────────────────────────────────────────────
+
 
 def compute_bollinger(df: pd.DataFrame, period: int = 20, std_dev: float = 2.0) -> BollingerResult:
     """Standard 20-day SMA ± 2σ Bollinger Bands."""
@@ -356,6 +358,7 @@ def compute_bollinger(df: pd.DataFrame, period: int = 20, std_dev: float = 2.0) 
 # Method 4: Linear Regression Momentum
 # ──────────────────────────────────────────────────────────
 
+
 def compute_linear_regression(df: pd.DataFrame, lookback: int = 30) -> LinearRegressionResult:
     """OLS regression on closing prices over last `lookback` days."""
     close = df["Close"].dropna().iloc[-lookback:]
@@ -363,7 +366,7 @@ def compute_linear_regression(df: pd.DataFrame, lookback: int = 30) -> LinearReg
     y = close.values.astype(float)
 
     slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-    r_squared = r_value ** 2
+    r_squared = r_value**2
     cur_price = float(close.iloc[-1])
     slope_pct = (slope / cur_price) * 100 if cur_price > 0 else 0
     predicted_30d = float(intercept + slope * (len(close) + 30))
@@ -380,7 +383,7 @@ def compute_linear_regression(df: pd.DataFrame, lookback: int = 30) -> LinearReg
         signal = HOLD
 
     regression_line = [float(intercept + slope * xi) for xi in x]
-    last60_close = df["Close"].dropna().iloc[-60:]
+    df["Close"].dropna().iloc[-60:]
     return LinearRegressionResult(
         slope=round(float(slope), 4),
         slope_pct=round(slope_pct, 4),
@@ -397,6 +400,7 @@ def compute_linear_regression(df: pd.DataFrame, lookback: int = 30) -> LinearReg
 # ──────────────────────────────────────────────────────────
 # Method 5: Monte Carlo Simulation (GBM)
 # ──────────────────────────────────────────────────────────
+
 
 def compute_monte_carlo(
     df: pd.DataFrame,
@@ -482,6 +486,7 @@ def compute_monte_carlo(
 # Composite Score
 # ──────────────────────────────────────────────────────────
 
+
 def compute_composite(
     rsi: RSIResult,
     macd: MACDResult,
@@ -511,16 +516,22 @@ def compute_composite(
         summary = f"All indicators align bullish. Score {score:.0f}/100 — strong upside bias."
     elif score >= 62:
         signal = BUY
-        summary = f"Majority of indicators are bullish. Score {score:.0f}/100 — cautious accumulation."
+        summary = (
+            f"Majority of indicators are bullish. Score {score:.0f}/100 — cautious accumulation."
+        )
     elif score >= 38:
         signal = HOLD
-        summary = f"Mixed signals. Score {score:.0f}/100 — no clear directional bias, hold position."
+        summary = (
+            f"Mixed signals. Score {score:.0f}/100 — no clear directional bias, hold position."
+        )
     elif score >= 20:
         signal = SELL
         summary = f"Majority of indicators are bearish. Score {score:.0f}/100 — consider reducing exposure."
     else:
         signal = STRONG_SELL
-        summary = f"All indicators align bearish. Score {score:.0f}/100 — significant downside risk."
+        summary = (
+            f"All indicators align bearish. Score {score:.0f}/100 — significant downside risk."
+        )
 
     return CompositeResult(
         score=round(score, 1),
@@ -537,6 +548,7 @@ def compute_composite(
 # ──────────────────────────────────────────────────────────
 # Main Entry Point
 # ──────────────────────────────────────────────────────────
+
 
 def analyse_holding(
     symbol: str,
@@ -615,23 +627,28 @@ def analyse_holding(
     except Exception as exc:
         logger.error("MonteCarlo failed for {}: {}", symbol, exc)
 
-    if all([result.rsi, result.macd, result.bollinger, result.linear_regression, result.monte_carlo]):
+    if all(
+        [result.rsi, result.macd, result.bollinger, result.linear_regression, result.monte_carlo]
+    ):
         try:
             result.composite = compute_composite(
-                result.rsi, result.macd, result.bollinger,
-                result.linear_regression, result.monte_carlo,
+                result.rsi,
+                result.macd,
+                result.bollinger,
+                result.linear_regression,
+                result.monte_carlo,
             )
         except Exception as exc:
             logger.error("Composite score failed for {}: {}", symbol, exc)
 
-    logger.success("Analysis complete for {} — composite: {}",
-                   symbol, result.composite.signal if result.composite else "N/A")
+    logger.success(
+        "Analysis complete for {} — composite: {}",
+        symbol,
+        result.composite.signal if result.composite else "N/A",
+    )
     return result
 
 
 def analyse_all_holdings(holdings: list[dict]) -> dict[str, StockAnalysis]:
     """Analyse all holdings. holdings is list of {symbol, avg_price} dicts."""
-    return {
-        h["symbol"]: analyse_holding(h["symbol"], h.get("avg_price", 0.0))
-        for h in holdings
-    }
+    return {h["symbol"]: analyse_holding(h["symbol"], h.get("avg_price", 0.0)) for h in holdings}

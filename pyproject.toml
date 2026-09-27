@@ -38,6 +38,14 @@ source = ["src"]
 omit = [
     "*/__pycache__/*",
     "*/tests/*",
+    # Prototype modules scheduled for future roadmap phases:
+    "src/analytics/*",           # Phase 4: Trading Intelligence & Risk
+    "src/ingestion/kite_auth.py",# Phase 3: Data Quality & Market Infrastructure
+    "src/ingestion/kite_sync.py",# Phase 3: Data Quality & Market Infrastructure
+    "src/ingestion/yahoo_poller.py", # Phase 3: Data Quality & Market Infrastructure
+    "src/ingestion/instrument_mapper.py", # Phase 3: Data Quality & Market Infrastructure
+    "src/export/*",              # Phase 5: Automated Operations & Observability
+    "src/scheduler/*",           # Phase 5: Automated Operations & Observability
 ]
 
 [tool.coverage.report]

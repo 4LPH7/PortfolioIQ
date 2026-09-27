@@ -3,10 +3,11 @@ PortfolioIQ — Database Connection & Session Management
 SQLAlchemy 2.0 engine with connection pooling.
 All modules use get_db_session() as a context manager.
 """
+
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -28,10 +29,10 @@ def _build_engine() -> Engine:
         settings.database_url,
         pool_size=settings.db_pool_size,
         max_overflow=settings.db_pool_max_overflow,
-        pool_pre_ping=True,           # Test connections before use (handles stale conns)
-        pool_recycle=3600,            # Recycle connections every 1 hour
+        pool_pre_ping=True,  # Test connections before use (handles stale conns)
+        pool_recycle=3600,  # Recycle connections every 1 hour
         echo=(settings.log_level == "DEBUG"),  # Log SQL in DEBUG mode
-        future=True,                  # SQLAlchemy 2.0 style
+        future=True,  # SQLAlchemy 2.0 style
     )
 
     # Log successful connection on first use
@@ -52,8 +53,7 @@ def get_engine() -> Engine:
     global _engine
     if _engine is None:
         _engine = _build_engine()
-        logger.info("Database engine initialized (pool_size={})",
-                    get_settings().db_pool_size)
+        logger.info("Database engine initialized (pool_size={})", get_settings().db_pool_size)
     return _engine
 
 
@@ -65,7 +65,7 @@ def get_session_factory() -> sessionmaker:
             bind=get_engine(),
             autocommit=False,
             autoflush=False,
-            expire_on_commit=False,   # Prevent lazy-load errors after commit
+            expire_on_commit=False,  # Prevent lazy-load errors after commit
         )
     return _SessionLocal
 
@@ -115,7 +115,7 @@ def execute_sql(sql: str, params: dict | None = None) -> list[dict]:
         result = session.execute(text(sql), params or {})
         if result.returns_rows:
             keys = result.keys()
-            return [dict(zip(keys, row)) for row in result.fetchall()]
+            return [dict(zip(keys, row, strict=False)) for row in result.fetchall()]
         return []
 
 

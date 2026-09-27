@@ -8,6 +8,7 @@ Usage:
     python db/run_migrations.py --dry-run   # Preview pending migrations
     python db/run_migrations.py --status    # Show migration status table
 """
+
 from __future__ import annotations
 
 import argparse
@@ -28,6 +29,7 @@ MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 class MigrationTamperedError(Exception):
     """Raised when an already applied migration's content or checksum differs from database record."""
+
     pass
 
 
@@ -73,7 +75,9 @@ def ensure_schema_migrations_table(conn) -> None:
 def get_applied_migrations(conn) -> dict[str, str]:
     """Return dictionary of {version: checksum_sha256} for all applied migrations."""
     cursor = conn.cursor()
-    cursor.execute("SELECT version, checksum_sha256 FROM schema_migrations ORDER BY executed_at ASC")
+    cursor.execute(
+        "SELECT version, checksum_sha256 FROM schema_migrations ORDER BY executed_at ASC"
+    )
     rows = cursor.fetchall()
     cursor.close()
     conn.commit()
@@ -119,7 +123,9 @@ def run_migrations(dry_run: bool = False, baseline: bool = False) -> None:
         ensure_schema_migrations_table(conn)
         applied = get_applied_migrations(conn)
 
-        print(f"\n{'DRY RUN — ' if dry_run else ''}Discovered {len(files)} migrations ({len(applied)} recorded in DB)\n")
+        print(
+            f"\n{'DRY RUN — ' if dry_run else ''}Discovered {len(files)} migrations ({len(applied)} recorded in DB)\n"
+        )
         print("=" * 70)
 
         unapplied = []
@@ -157,7 +163,7 @@ def run_migrations(dry_run: bool = False, baseline: bool = False) -> None:
                 # Baseline mode: record as applied without executing DDL
                 cursor.execute(
                     "INSERT INTO schema_migrations (version, checksum_sha256, executed_at) VALUES (%s, %s, NOW())",
-                    (f.name, checksum)
+                    (f.name, checksum),
                 )
                 conn.commit()
                 print("RECORDED (baseline mode)")
@@ -168,7 +174,7 @@ def run_migrations(dry_run: bool = False, baseline: bool = False) -> None:
                 cursor.execute(sql)
                 cursor.execute(
                     "INSERT INTO schema_migrations (version, checksum_sha256, executed_at) VALUES (%s, %s, NOW())",
-                    (f.name, checksum)
+                    (f.name, checksum),
                 )
                 conn.commit()
                 print("OK")
@@ -189,9 +195,15 @@ def run_migrations(dry_run: bool = False, baseline: bool = False) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="PortfolioIQ Database Migration Runner")
-    parser.add_argument("--dry-run", action="store_true", help="Preview pending migrations without executing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview pending migrations without executing"
+    )
     parser.add_argument("--status", action="store_true", help="Show migration status table")
-    parser.add_argument("--baseline", action="store_true", help="Mark pending migrations as applied without executing DDL")
+    parser.add_argument(
+        "--baseline",
+        action="store_true",
+        help="Mark pending migrations as applied without executing DDL",
+    )
     args = parser.parse_args()
 
     if args.status:

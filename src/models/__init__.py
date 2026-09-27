@@ -1,6 +1,7 @@
 """
 PortfolioIQ Data Models & DTOs
 """
+
 from src.models.dtos import (
     AppConfigDTO,
     BaseDTO,

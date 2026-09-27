@@ -2,6 +2,7 @@
 PortfolioIQ — Repository Data Transfer Objects (DTOs)
 Strict, typed Pydantic representations for the persistence and domain boundary.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -9,7 +10,7 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 
 class BaseDTO(BaseModel):
@@ -63,10 +64,18 @@ class OrderAttemptDTO(BaseDTO):
     execution_price: Decimal | None = None
     price_at_signal: Decimal
     validation_status: Literal["PENDING", "APPROVED", "BLOCKED", "DRY_RUN"] = "PENDING"
-    broker_status: Literal[
-        "NOT_SENT", "OPEN", "COMPLETE", "REJECTED", "CANCELLED",
-        "TRIGGER PENDING", "MODIFY PENDING"
-    ] | None = None
+    broker_status: (
+        Literal[
+            "NOT_SENT",
+            "OPEN",
+            "COMPLETE",
+            "REJECTED",
+            "CANCELLED",
+            "TRIGGER PENDING",
+            "MODIFY PENDING",
+        ]
+        | None
+    ) = None
     broker_status_message: str | None = None
     trigger_source: Literal["MANUAL", "REBALANCER", "SCHEDULER"] = "MANUAL"
     rebalance_session_id: UUID | None = None
@@ -86,8 +95,13 @@ class ValidationCheckDTO(BaseDTO):
     id: int | None = None
     audit_id: int
     check_name: Literal[
-        "MARGIN_CHECK", "SLIPPAGE_CHECK", "CONCENTRATION_CHECK",
-        "DUPLICATE_CHECK", "MARKET_HOURS_CHECK", "QUANTITY_CHECK", "TAX_WARNING"
+        "MARGIN_CHECK",
+        "SLIPPAGE_CHECK",
+        "CONCENTRATION_CHECK",
+        "DUPLICATE_CHECK",
+        "MARKET_HOURS_CHECK",
+        "QUANTITY_CHECK",
+        "TAX_WARNING",
     ]
     passed: bool
     expected_value: str | None = None

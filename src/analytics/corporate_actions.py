@@ -11,22 +11,24 @@ Supported actions:
 Data source: corporate_actions table (manually populated or
 scraped from exchange announcements).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 from typing import Any
 
 from loguru import logger
 from sqlalchemy import text
 
-from src.db.connection import get_db_session, execute_sql
+from src.db.connection import execute_sql, get_db_session
 
 
 @dataclass
 class CorporateAction:
     """Represents a single corporate action event."""
+
     id: int
     instrument_token: int
     tradingsymbol: str
@@ -45,7 +47,8 @@ def get_pending_actions(user_id: str = "default") -> list[CorporateAction]:
     Fetch unprocessed corporate actions for holdings in the portfolio.
     Only returns actions where ex_date has passed.
     """
-    rows = execute_sql("""
+    rows = execute_sql(
+        """
         SELECT
             ca.id,
             ca.instrument_token,
@@ -65,7 +68,9 @@ def get_pending_actions(user_id: str = "default") -> list[CorporateAction]:
         WHERE ca.is_processed = FALSE
           AND ca.ex_date <= CURRENT_DATE
         ORDER BY ca.ex_date ASC
-    """, {"uid": user_id})
+    """,
+        {"uid": user_id},
+    )
 
     return [
         CorporateAction(
@@ -78,7 +83,9 @@ def get_pending_actions(user_id: str = "default") -> list[CorporateAction]:
             ratio_to=r["ratio_to"],
             old_face_value=Decimal(str(r["old_face_value"])) if r.get("old_face_value") else None,
             new_face_value=Decimal(str(r["new_face_value"])) if r.get("new_face_value") else None,
-            dividend_per_share=Decimal(str(r["dividend_per_share"])) if r.get("dividend_per_share") else None,
+            dividend_per_share=Decimal(str(r["dividend_per_share"]))
+            if r.get("dividend_per_share")
+            else None,
             is_processed=r["is_processed"],
         )
         for r in rows
@@ -97,15 +104,22 @@ def process_split(action: CorporateAction) -> dict[str, Any]:
     ratio = Decimal(str(action.ratio_to)) / Decimal(str(action.ratio_from))
     logger.info(
         "Processing SPLIT for {} — ratio {}:{} (multiplier: {})",
-        action.tradingsymbol, action.ratio_from, action.ratio_to, ratio
+        action.tradingsymbol,
+        action.ratio_from,
+        action.ratio_to,
+        ratio,
     )
 
     with get_db_session() as session:
         # Get the holding ID
-        rows = session.execute(
-            text("SELECT id FROM user_holdings WHERE instrument_token = :token LIMIT 1"),
-            {"token": action.instrument_token}
-        ).mappings().all()
+        rows = (
+            session.execute(
+                text("SELECT id FROM user_holdings WHERE instrument_token = :token LIMIT 1"),
+                {"token": action.instrument_token},
+            )
+            .mappings()
+            .all()
+        )
 
         if not rows:
             logger.warning("No holding found for {} — skipping split", action.tradingsymbol)
@@ -126,7 +140,7 @@ def process_split(action: CorporateAction) -> dict[str, Any]:
                 WHERE holding_id = :hid
                   AND remaining_quantity > 0
             """),
-            {"ratio": float(ratio), "hid": holding_id}
+            {"ratio": float(ratio), "hid": holding_id},
         )
 
         # Adjust holdings
@@ -138,16 +152,18 @@ def process_split(action: CorporateAction) -> dict[str, Any]:
                     average_price = ROUND(average_price / :ratio, 2)
                 WHERE id = :hid
             """),
-            {"ratio": float(ratio), "hid": holding_id}
+            {"ratio": float(ratio), "hid": holding_id},
         )
 
         # Mark action as processed
         session.execute(
             text("UPDATE corporate_actions SET is_processed = TRUE WHERE id = :aid"),
-            {"aid": action.id}
+            {"aid": action.id},
         )
 
-    logger.success("Split processed for {}: qty * {}, price / {}", action.tradingsymbol, ratio, ratio)
+    logger.success(
+        "Split processed for {}: qty * {}, price / {}", action.tradingsymbol, ratio, ratio
+    )
     return {"status": "processed", "symbol": action.tradingsymbol, "ratio": float(ratio)}
 
 
@@ -163,19 +179,26 @@ def process_bonus(action: CorporateAction) -> dict[str, Any]:
     bonus_ratio = Decimal(str(action.ratio_to)) / Decimal(str(action.ratio_from))
     logger.info(
         "Processing BONUS for {} — ratio {}:{} (bonus: {} free per {} held)",
-        action.tradingsymbol, action.ratio_from, action.ratio_to,
-        action.ratio_to, action.ratio_from
+        action.tradingsymbol,
+        action.ratio_from,
+        action.ratio_to,
+        action.ratio_to,
+        action.ratio_from,
     )
 
     with get_db_session() as session:
-        rows = session.execute(
-            text("""
+        rows = (
+            session.execute(
+                text("""
                 SELECT id, quantity, t1_quantity
                 FROM user_holdings
                 WHERE instrument_token = :token LIMIT 1
             """),
-            {"token": action.instrument_token}
-        ).mappings().all()
+                {"token": action.instrument_token},
+            )
+            .mappings()
+            .all()
+        )
 
         if not rows:
             logger.warning("No holding found for {} — skipping bonus", action.tradingsymbol)
@@ -206,7 +229,7 @@ def process_bonus(action: CorporateAction) -> dict[str, Any]:
                 "ex_date": action.ex_date,
                 "qty": bonus_shares,
                 "ratio": float(bonus_ratio),
-            }
+            },
         )
 
         # Update total quantity in holdings
@@ -221,18 +244,21 @@ def process_bonus(action: CorporateAction) -> dict[str, Any]:
                     END
                 WHERE id = :hid
             """),
-            {"bonus_qty": bonus_shares, "hid": holding_id}
+            {"bonus_qty": bonus_shares, "hid": holding_id},
         )
 
         # Mark processed
         session.execute(
             text("UPDATE corporate_actions SET is_processed = TRUE WHERE id = :aid"),
-            {"aid": action.id}
+            {"aid": action.id},
         )
 
     logger.success(
         "Bonus processed for {}: +{} shares (ratio {}:{})",
-        action.tradingsymbol, bonus_shares, action.ratio_from, action.ratio_to
+        action.tradingsymbol,
+        bonus_shares,
+        action.ratio_from,
+        action.ratio_to,
     )
     return {"status": "processed", "symbol": action.tradingsymbol, "bonus_shares": bonus_shares}
 
@@ -244,13 +270,15 @@ def process_dividend(action: CorporateAction) -> dict[str, Any]:
     """
     logger.info(
         "Recording DIVIDEND for {} — Rs {} per share, ex-date {}",
-        action.tradingsymbol, action.dividend_per_share, action.ex_date
+        action.tradingsymbol,
+        action.dividend_per_share,
+        action.ex_date,
     )
 
     with get_db_session() as session:
         session.execute(
             text("UPDATE corporate_actions SET is_processed = TRUE WHERE id = :aid"),
-            {"aid": action.id}
+            {"aid": action.id},
         )
 
     return {
@@ -297,5 +325,6 @@ def process_all_pending(user_id: str = "default") -> list[dict[str, Any]]:
 if __name__ == "__main__":
     """Test: python -m src.analytics.corporate_actions"""
     import json
+
     results = process_all_pending()
     print(json.dumps(results, indent=2, default=str))

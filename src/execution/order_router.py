@@ -8,19 +8,16 @@ CRITICAL SAFETY:
       modified or deleted thanks to the 009 trigger)
     - Respects DRY_RUN_MODE from system_config
 """
+
 from __future__ import annotations
 
-from datetime import datetime
-from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
 from loguru import logger
-from sqlalchemy import text
 
-from src.analytics.rebalancer import RebalanceOrder, OrderSide
+from src.analytics.rebalancer import OrderSide, RebalanceOrder
 from src.config.settings import is_dry_run_enabled
-from src.db.connection import get_db_session
 from src.db.repository import record_broker_execution
 from src.execution.gatekeeper import GatekeeperResult, ValidationResult
 from src.ingestion.kite_auth import get_authenticated_kite
@@ -75,7 +72,9 @@ def place_order(
     if not order.is_approved and not dry_run:
         logger.warning(
             "Order {} {} x {} was NOT approved by gatekeeper. Skipping.",
-            order.side.value, order.quantity, order.tradingsymbol
+            order.side.value,
+            order.quantity,
+            order.tradingsymbol,
         )
         return {"status": "SKIPPED", "reason": "not_approved"}
 
@@ -86,8 +85,11 @@ def place_order(
     if dry_run:
         logger.info(
             "[DRY RUN] Would place: {} {} x {} @ ~{} on {}",
-            order.side.value, order.quantity, order.tradingsymbol,
-            order.estimated_price, order.exchange
+            order.side.value,
+            order.quantity,
+            order.tradingsymbol,
+            order.estimated_price,
+            order.exchange,
         )
         _log_order_to_audit_trail(
             order=order,
@@ -125,7 +127,10 @@ def place_order(
         error_msg = str(exc)
         logger.error(
             "ORDER FAILED: {} {} x {} — Error: {}",
-            order.side.value, order.quantity, order.tradingsymbol, error_msg
+            order.side.value,
+            order.quantity,
+            order.tradingsymbol,
+            error_msg,
         )
 
         _log_order_to_audit_trail(
@@ -145,7 +150,10 @@ def place_order(
 
     logger.success(
         "ORDER PLACED: {} {} x {} — Kite Order ID: {}",
-        order.side.value, order.quantity, order.tradingsymbol, kite_order_id
+        order.side.value,
+        order.quantity,
+        order.tradingsymbol,
+        kite_order_id,
     )
     _log_order_to_audit_trail(
         order=order,
@@ -178,7 +186,8 @@ def execute_plan(gatekeeper_result: GatekeeperResult) -> list[dict[str, Any]]:
     dry_run = gatekeeper_result.is_dry_run
 
     approved_reports = [
-        r for r in gatekeeper_result.reports
+        r
+        for r in gatekeeper_result.reports
         if r.result in (ValidationResult.APPROVED, ValidationResult.SKIPPED_DRY_RUN)
     ]
 
@@ -186,10 +195,7 @@ def execute_plan(gatekeeper_result: GatekeeperResult) -> list[dict[str, Any]]:
         logger.info("No approved orders to execute.")
         return results
 
-    logger.info(
-        "Executing {} orders (dry_run={})",
-        len(approved_reports), dry_run
-    )
+    logger.info("Executing {} orders (dry_run={})", len(approved_reports), dry_run)
 
     for report in approved_reports:
         result = place_order(
@@ -204,10 +210,7 @@ def execute_plan(gatekeeper_result: GatekeeperResult) -> list[dict[str, Any]]:
     dry_runs = sum(1 for r in results if r["status"] == "DRY_RUN")
     failed = sum(1 for r in results if r["status"] == "FAILED")
 
-    logger.info(
-        "Execution complete: {} placed, {} dry-run, {} failed",
-        placed, dry_runs, failed
-    )
+    logger.info("Execution complete: {} placed, {} dry-run, {} failed", placed, dry_runs, failed)
     return results
 
 
@@ -224,4 +227,5 @@ if __name__ == "__main__":
     results = execute_plan(gk_result)
 
     import json
+
     print(json.dumps(results, indent=2, default=str))

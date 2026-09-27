@@ -3,26 +3,25 @@ Tests for market_hours.py
 Verifies NSE market open/close logic, holiday detection, and weekend handling.
 Uses freezegun to mock the current IST time.
 """
+
 from __future__ import annotations
 
 import datetime
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
-import pytz
 from freezegun import freeze_time
 
 # We patch DB calls so tests run without a real database
 with patch("src.db.connection.execute_sql") as mock_execute:
     from src.ingestion.market_hours import (
-        is_market_open,
-        is_market_day,
-        is_weekend,
-        is_holiday,
-        seconds_until_market_open,
-        get_market_status,
-        now_ist,
         IST,
+        get_market_status,
+        is_holiday,
+        is_market_day,
+        is_market_open,
+        is_weekend,
+        seconds_until_market_open,
     )
 
 
@@ -35,22 +34,23 @@ def make_ist_datetime(year, month, day, hour, minute, second=0):
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture(autouse=True)
 def mock_db_holidays():
     """Mock the DB holiday lookup to return known 2026 NSE holidays."""
     nse_holidays_2026 = {
         datetime.date(2026, 1, 26),  # Republic Day
-        datetime.date(2026, 3, 3),   # Holi
-        datetime.date(2026, 4, 3),   # Good Friday
+        datetime.date(2026, 3, 3),  # Holi
+        datetime.date(2026, 4, 3),  # Good Friday
         datetime.date(2026, 4, 14),  # Ambedkar Jayanti
-        datetime.date(2026, 5, 1),   # Maharashtra Day
+        datetime.date(2026, 5, 1),  # Maharashtra Day
         datetime.date(2026, 6, 26),  # Muharram
         datetime.date(2026, 10, 2),  # Gandhi Jayanti
-        datetime.date(2026, 12, 25), # Christmas
+        datetime.date(2026, 12, 25),  # Christmas
     }
     with patch(
         "src.ingestion.market_hours._get_holidays_for_year",
-        side_effect=lambda year: {d for d in nse_holidays_2026 if d.year == year}
+        side_effect=lambda year: {d for d in nse_holidays_2026 if d.year == year},
     ):
         yield
 
@@ -58,6 +58,7 @@ def mock_db_holidays():
 # ============================================================
 # is_weekend tests
 # ============================================================
+
 
 class TestIsWeekend:
     def test_monday_is_not_weekend(self):
@@ -76,6 +77,7 @@ class TestIsWeekend:
 # ============================================================
 # is_holiday tests
 # ============================================================
+
 
 class TestIsHoliday:
     def test_republic_day_is_holiday(self):
@@ -99,6 +101,7 @@ class TestIsHoliday:
 # is_market_day tests
 # ============================================================
 
+
 class TestIsMarketDay:
     def test_regular_monday_is_market_day(self):
         assert is_market_day(datetime.date(2026, 6, 29)) is True
@@ -119,6 +122,7 @@ class TestIsMarketDay:
 # ============================================================
 # is_market_open tests
 # ============================================================
+
 
 class TestIsMarketOpen:
     def test_open_at_9_15(self):
@@ -176,6 +180,7 @@ class TestIsMarketOpen:
 # get_market_status tests
 # ============================================================
 
+
 class TestGetMarketStatus:
     def test_status_open_during_session(self):
         with freeze_time("2026-06-29 09:30:00+05:30"):  # Monday 9:30 AM IST
@@ -206,6 +211,7 @@ class TestGetMarketStatus:
 # ============================================================
 # seconds_until_market_open tests
 # ============================================================
+
 
 class TestSecondsUntilOpen:
     def test_returns_zero_when_open(self):

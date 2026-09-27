@@ -3,6 +3,7 @@ PortfolioIQ — Test Harness Verification
 Validates tests/conftest.py PostgreSQL connection detection, marker handling,
 and transactional rollback isolation.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -13,7 +14,10 @@ from tests.conftest import POSTGRES_AVAILABLE, is_postgres_reachable
 
 def test_is_postgres_reachable_returns_false_for_invalid_dsn() -> None:
     """Invalid or dead database connections return False without crashing."""
-    assert is_postgres_reachable("postgresql://invalid:invalid@127.0.0.1:54321/dead_db", timeout=1) is False
+    assert (
+        is_postgres_reachable("postgresql://invalid:invalid@127.0.0.1:54321/dead_db", timeout=1)
+        is False
+    )
 
 
 def test_postgres_marker_registered(pytestconfig: pytest.Config) -> None:
@@ -47,7 +51,6 @@ def test_transactional_rollback_discards_mutations(db_session) -> None:
     # Read original value or update temporarily
     original = [c for c in list_app_configs() if c.key == "dry_run_mode"]
     if original:
-        orig_val = original[0].value
         temp_val = "temp_test_value"
         update_app_config("dry_run_mode", temp_val)
         updated = [c for c in list_app_configs() if c.key == "dry_run_mode"]

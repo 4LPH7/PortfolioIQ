@@ -2,12 +2,14 @@
 PortfolioIQ — API Middleware & Security
 Enforces API key authentication, correlation ID propagation, and uniform error formatting.
 """
+
 from __future__ import annotations
 
 import contextvars
 import hmac
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Type
+from typing import Any
 from uuid import uuid4
 
 from flask import Response, g, jsonify, request
@@ -17,7 +19,9 @@ from pydantic import BaseModel, ValidationError
 from src.config.settings import get_settings
 
 # Request-scoped correlation ID context variable
-correlation_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("correlation_id", default="system")
+correlation_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "correlation_id", default="system"
+)
 
 # Endpoints explicitly exempt from API key validation
 EXEMPT_ENDPOINTS = {
@@ -43,7 +47,9 @@ def attach_correlation_id_header(response: Response) -> Response:
     return response
 
 
-def format_error_response(code: str, message: str, details: Any = None, status_code: int = 400) -> tuple[Response, int]:
+def format_error_response(
+    code: str, message: str, details: Any = None, status_code: int = 400
+) -> tuple[Response, int]:
     """Return a uniform error JSON response envelope."""
     payload = {
         "ok": False,
@@ -61,6 +67,7 @@ def require_api_key(f: Callable[..., Any]) -> Callable[..., Any]:
     Decorator requiring a valid X-API-Key header.
     Exempts CORS preflight OPTIONS requests and designated public endpoints.
     """
+
     @wraps(f)
     def decorated_function(*args: Any, **kwargs: Any) -> Any:
         # Always allow CORS preflight
@@ -75,8 +82,14 @@ def require_api_key(f: Callable[..., Any]) -> Callable[..., Any]:
         settings = get_settings()
         expected_key = settings.portfolioiq_api_key
 
-        if not api_key or not expected_key or not hmac.compare_digest(api_key.strip(), expected_key.strip()):
-            logger.warning("Unauthorized access attempt on {} from {}", request.path, request.remote_addr)
+        if (
+            not api_key
+            or not expected_key
+            or not hmac.compare_digest(api_key.strip(), expected_key.strip())
+        ):
+            logger.warning(
+                "Unauthorized access attempt on {} from {}", request.path, request.remote_addr
+            )
             return format_error_response(
                 code="UNAUTHORIZED",
                 message="Invalid or missing X-API-Key header",
@@ -88,11 +101,12 @@ def require_api_key(f: Callable[..., Any]) -> Callable[..., Any]:
     return decorated_function
 
 
-def validate_json(schema_cls: Type[BaseModel]) -> Callable[..., Any]:
+def validate_json(schema_cls: type[BaseModel]) -> Callable[..., Any]:
     """
     Decorator that validates incoming request JSON against a Pydantic schema.
     Passes the validated model instance as the first argument to the route handler.
     """
+
     def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(f)
         def wrapper(*args: Any, **kwargs: Any) -> Any:

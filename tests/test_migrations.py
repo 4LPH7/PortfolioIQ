@@ -1,9 +1,11 @@
 """
 Tests for db/run_migrations.py idempotent tracking and tamper detection.
 """
+
 import hashlib
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from db.run_migrations import (
@@ -72,11 +74,14 @@ def test_run_migrations_skips_applied(tmp_path: Path):
     mock_cursor = MagicMock()
     mock_conn.cursor.return_value = mock_cursor
 
-    with patch("db.run_migrations.get_connection", return_value=mock_conn), \
-         patch("db.run_migrations.get_migration_files", return_value=[mock_file]), \
-         patch("db.run_migrations.ensure_schema_migrations_table"), \
-         patch("db.run_migrations.get_applied_migrations", return_value={"001_sample.sql": file_hash}):
-
+    with (
+        patch("db.run_migrations.get_connection", return_value=mock_conn),
+        patch("db.run_migrations.get_migration_files", return_value=[mock_file]),
+        patch("db.run_migrations.ensure_schema_migrations_table"),
+        patch(
+            "db.run_migrations.get_applied_migrations", return_value={"001_sample.sql": file_hash}
+        ),
+    ):
         run_migrations()
 
         # cursor.execute should NOT have executed the file's SQL
@@ -90,36 +95,48 @@ def test_run_migrations_detects_tampering(tmp_path: Path):
 
     mock_conn = MagicMock()
 
-    with patch("db.run_migrations.get_connection", return_value=mock_conn), \
-         patch("db.run_migrations.get_migration_files", return_value=[mock_file]), \
-         patch("db.run_migrations.ensure_schema_migrations_table"), \
-         patch("db.run_migrations.get_applied_migrations", return_value={"001_sample.sql": "different_historical_hash"}):
-
+    with (
+        patch("db.run_migrations.get_connection", return_value=mock_conn),
+        patch("db.run_migrations.get_migration_files", return_value=[mock_file]),
+        patch("db.run_migrations.ensure_schema_migrations_table"),
+        patch(
+            "db.run_migrations.get_applied_migrations",
+            return_value={"001_sample.sql": "different_historical_hash"},
+        ),
+    ):
         with pytest.raises(MigrationTamperedError) as exc_info:
             run_migrations()
 
-        assert "Checksum mismatch for already applied migration '001_sample.sql'" in str(exc_info.value)
+        assert "Checksum mismatch for already applied migration '001_sample.sql'" in str(
+            exc_info.value
+        )
 
 
 def test_run_migrations_executes_unapplied(tmp_path: Path):
     """Verify unapplied migrations are executed and recorded in schema_migrations."""
     mock_file = tmp_path / "002_new.sql"
     mock_file.write_text("CREATE TABLE test_tab (id INT);\n", encoding="utf-8")
-    expected_hash = calculate_migration_checksum(mock_file)
+    calculate_migration_checksum(mock_file)
 
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
     mock_conn.cursor.return_value = mock_cursor
 
-    with patch("db.run_migrations.get_connection", return_value=mock_conn), \
-         patch("db.run_migrations.get_migration_files", return_value=[mock_file]), \
-         patch("db.run_migrations.ensure_schema_migrations_table"), \
-         patch("db.run_migrations.get_applied_migrations", return_value={}):
-
+    with (
+        patch("db.run_migrations.get_connection", return_value=mock_conn),
+        patch("db.run_migrations.get_migration_files", return_value=[mock_file]),
+        patch("db.run_migrations.ensure_schema_migrations_table"),
+        patch("db.run_migrations.get_applied_migrations", return_value={}),
+    ):
         run_migrations()
 
         # Check that file SQL was executed
-        assert any("CREATE TABLE test_tab" in str(call) for call in mock_cursor.execute.call_args_list)
+        assert any(
+            "CREATE TABLE test_tab" in str(call) for call in mock_cursor.execute.call_args_list
+        )
         # Check that record was inserted
-        assert any("INSERT INTO schema_migrations" in str(call) for call in mock_cursor.execute.call_args_list)
+        assert any(
+            "INSERT INTO schema_migrations" in str(call)
+            for call in mock_cursor.execute.call_args_list
+        )
         assert mock_conn.commit.called

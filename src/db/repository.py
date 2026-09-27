@@ -3,6 +3,7 @@ PortfolioIQ — Centralized Data Access Repository
 Encapsulates all database queries using parameterized SQLAlchemy Core and Pydantic DTOs.
 Adheres to strict append-only constraints for audit tables.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -84,14 +85,21 @@ def record_order_attempt(
         "current_weight_pct": float(current_weight_pct) if current_weight_pct is not None else None,
         "drift_pct": float(drift_pct) if drift_pct is not None else None,
         "tax_type": tax_type,
-        "estimated_tax_impact": float(estimated_tax_impact) if estimated_tax_impact is not None else None,
+        "estimated_tax_impact": float(estimated_tax_impact)
+        if estimated_tax_impact is not None
+        else None,
         "notes": notes,
     }
 
     with get_db_session() as session:
         result = session.execute(query, params)
         row = result.mappings().one()
-        logger.debug("Recorded order attempt {}: id={}, status={}", internal_order_id, row["id"], validation_status)
+        logger.debug(
+            "Recorded order attempt {}: id={}, status={}",
+            internal_order_id,
+            row["id"],
+            validation_status,
+        )
         return OrderAttemptDTO.model_validate(dict(row))
 
 
@@ -200,7 +208,9 @@ def record_broker_execution(
     with get_db_session() as session:
         result = session.execute(query, params)
         row = result.mappings().one()
-        logger.debug("Recorded broker execution for {}: broker_status={}", internal_order_id, broker_status)
+        logger.debug(
+            "Recorded broker execution for {}: broker_status={}", internal_order_id, broker_status
+        )
         return BrokerExecutionDTO.model_validate(dict(row))
 
 
@@ -221,7 +231,9 @@ def get_current_holdings(user_id: str = "default", active_only: bool = True) -> 
 
 def get_app_config(key: str) -> AppConfigDTO | None:
     """Retrieve a single runtime configuration key from system_config."""
-    query = text("SELECT key, value, value_type, description, updated_at FROM system_config WHERE key = :key")
+    query = text(
+        "SELECT key, value, value_type, description, updated_at FROM system_config WHERE key = :key"
+    )
     with get_db_session() as session:
         result = session.execute(query, {"key": key})
         row = result.mappings().first()
@@ -230,7 +242,9 @@ def get_app_config(key: str) -> AppConfigDTO | None:
 
 def list_app_configs() -> list[AppConfigDTO]:
     """Retrieve all configuration records from system_config."""
-    query = text("SELECT key, value, value_type, description, updated_at FROM system_config ORDER BY key ASC")
+    query = text(
+        "SELECT key, value, value_type, description, updated_at FROM system_config ORDER BY key ASC"
+    )
     with get_db_session() as session:
         result = session.execute(query)
         return [AppConfigDTO.model_validate(dict(r)) for r in result.mappings().all()]

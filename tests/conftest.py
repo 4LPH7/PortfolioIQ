@@ -3,12 +3,13 @@ PortfolioIQ — Test Configuration & PostgreSQL Fixture Harness
 Provides path resolution, test environment configuration, migration bootstrapping,
 nested transactional rollbacks, and offline DB auto-skipping.
 """
+
 from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import psycopg2
 import pytest

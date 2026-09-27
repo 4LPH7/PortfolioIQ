@@ -1,6 +1,9 @@
 """Margin check validator — ensures sufficient cash for buy orders."""
+
 from __future__ import annotations
+
 from decimal import Decimal
+
 from src.analytics.rebalancer import RebalanceOrder
 from src.db.connection import execute_sql
 
@@ -12,7 +15,7 @@ def validate_margin(order: RebalanceOrder, user_id: str = "default") -> tuple[bo
     """
     rows = execute_sql(
         "SELECT available_cash FROM user_margins WHERE user_id = :uid AND segment = 'equity'",
-        {"uid": user_id}
+        {"uid": user_id},
     )
     if not rows:
         return False, "No margin data available. Run Kite sync first."

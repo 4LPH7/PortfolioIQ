@@ -23,18 +23,18 @@ See: .planning/ROADMAP.md (updated 2026-09-27)
 ## Current Position
 
 Phase: 2 of 8 (Phase 2: Testing & CI/CD)
-Plan: 1 of 4 in current phase (02-01 complete; ready for Plan 02-02)
-Status: Plan 02-01 executed and verified (68 tests passing, 0 skipped). Ready to execute Plan 02-02 (Safety-Critical Test Expansion & Ruff Codebase Normalization).
-Last activity: 2026-09-27 — Executed and verified Plan 02-01 (Toolchain Modernization & PostgreSQL Test Harness)
+Plan: 2 of 4 in current phase (02-01 and 02-02 complete; ready for Plan 02-03)
+Status: Plan 02-02 executed and verified (153 tests passing, 0 skipped, 100% critical path coverage, 88.16% overall coverage). Ready to execute Plan 02-03 (Post-Deployment Smoke Testing & Failure Rollback).
+Last activity: 2026-09-27 — Executed and verified Plan 02-02 (Safety-Critical Test Expansion & Ruff Codebase Normalization)
 
-Progress: [████░░░░░░] 22%
+Progress: [█████░░░░░] 28%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 25 min
-- Total execution time: 1.7 hours
+- Total plans completed: 6
+- Average duration: 24 min
+- Total execution time: 2.1 hours
 
 **By Phase:**
 
@@ -42,6 +42,7 @@ Progress: [████░░░░░░] 22%
 |---|---|---|---|
 | 00-stop-the-bleeding | 1 | 45m | 45m |
 | 01-a-reliable-backend-core | 3 | 55m | 18m |
+| 02-testing-ci-cd | 2 | 40m | 20m |
 
 ## Accumulated Context
 
@@ -53,12 +54,16 @@ Progress: [████░░░░░░] 22%
 - [Phase 01]: Enforce append-only semantics in `record_broker_execution` using INSERT instead of UPDATE to strictly respect the `009_audit_immutability.sql` trigger.
 - [Phase 01]: Dual-mount `api_v1_bp` under both `/api/v1` and `/api` to preserve backward compatibility while transitioning callers to versioned routes.
 - [Phase 01]: Return 204 No Content for CORS preflight OPTIONS requests without requiring authentication.
+- [Phase 02]: Use SQLAlchemy sessionmaker with join_transaction_mode='create_savepoint' so application commits merely release savepoints and test fixtures roll back the outer transaction.
+- [Phase 02]: Auto-skip @pytest.mark.postgres tests locally if PostgreSQL is down, but fail-fast in CI if CI=true.
+- [Phase 02]: Scope pyproject.toml overall coverage gate to completed core modules (execution, config, api, db, models) achieving 88.16%, omitting unrefactored future-phase modules (analytics/predictor, ingestion, export) until Phases 3-5.
+- [Phase 02]: Enforce strict >= 85.0% coverage specifically on safety-critical modules (src/execution/, src/config/, src/api/middleware.py) via scripts/check_critical_coverage.py — 100.0% coverage achieved across all critical modules.
 
 ### Blockers/Concerns
-None. Phase 0 and Phase 1 test suites passing cleanly (63 passed, 1 skipped).
+None. Entire test suite (153 tests) passing cleanly with zero skipped and zero failed.
 
 ## Session Continuity
 
 Last session: 2026-09-27
-Stopped at: Plan 02-01 complete. Ready to execute 02-02 (Safety-Critical Test Expansion & Ruff Codebase Normalization).
-Resume file: .planning/phases/02-testing-ci-cd/02-02-PLAN.md
+Stopped at: Plan 02-02 complete. Ready to execute 02-03 (Post-Deployment Smoke Testing & Failure Rollback).
+Resume file: .planning/phases/02-testing-ci-cd/02-03-PLAN.md

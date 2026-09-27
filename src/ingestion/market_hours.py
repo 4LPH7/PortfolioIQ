@@ -3,6 +3,7 @@ PortfolioIQ — Market Hours & Calendar Logic
 Determines whether NSE is currently open for trading.
 All time comparisons use IST (Asia/Kolkata).
 """
+
 from __future__ import annotations
 
 import datetime
@@ -110,7 +111,7 @@ def is_market_open(dt: datetime.datetime | None = None) -> bool:
     open_h, open_m = map(int, settings.market_open_time.split(":"))
     close_h, close_m = map(int, settings.market_close_time.split(":"))
 
-    open_time  = dt.replace(hour=open_h,  minute=open_m,  second=0, microsecond=0)
+    open_time = dt.replace(hour=open_h, minute=open_m, second=0, microsecond=0)
     close_time = dt.replace(hour=close_h, minute=close_m, second=0, microsecond=0)
 
     return open_time <= dt <= close_time
@@ -140,8 +141,7 @@ def seconds_until_market_open() -> float:
             candidate_date += datetime.timedelta(days=1)
         candidate = IST.localize(
             datetime.datetime(
-                candidate_date.year, candidate_date.month, candidate_date.day,
-                open_h, open_m, 0
+                candidate_date.year, candidate_date.month, candidate_date.day, open_h, open_m, 0
             )
         )
 

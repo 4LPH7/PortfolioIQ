@@ -3,12 +3,12 @@ PortfolioIQ — API v1 Blueprint
 Defines REST API endpoints for portfolio valuation, stock analysis,
 rebalancing, tax summaries, audit trails, and system settings.
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 from flask import Blueprint, jsonify, request
-from loguru import logger
 
 from src.api.limiter import limiter
 from src.api.middleware import format_error_response, require_api_key, validate_json
@@ -39,6 +39,7 @@ def health():
 def market_status():
     """NSE market status endpoint for frontend sidebar."""
     from src.ingestion.market_hours import get_market_status
+
     return jsonify({"ok": True, "data": get_market_status()})
 
 
@@ -49,6 +50,7 @@ def market_status():
 @require_api_key
 def portfolio_summary():
     from src.analytics.valuator import get_valuation_summary
+
     data = get_valuation_summary()
     return jsonify({"ok": True, "data": data})
 
@@ -106,10 +108,10 @@ def analyse_stock(symbol: str):
 def holdings_symbols():
     """Return list of current holding symbols."""
     from src.analytics.valuator import get_valuation_summary
+
     summary = get_valuation_summary()
     symbols = [
-        {"symbol": h["symbol"], "avg_price": h["avg_price"]}
-        for h in summary.get("holdings", [])
+        {"symbol": h["symbol"], "avg_price": h["avg_price"]} for h in summary.get("holdings", [])
     ]
     return jsonify({"ok": True, "data": symbols})
 
@@ -121,6 +123,7 @@ def holdings_symbols():
 @require_api_key
 def rebalance_drift():
     from src.analytics.drift_detector import get_drift_summary
+
     data = get_drift_summary()
     return jsonify({"ok": True, "data": data})
 
@@ -129,6 +132,7 @@ def rebalance_drift():
 @require_api_key
 def rebalance_orders():
     from src.analytics.rebalancer import get_rebalance_summary
+
     data = get_rebalance_summary()
     return jsonify({"ok": True, "data": data})
 
@@ -140,6 +144,7 @@ def rebalance_orders():
 @require_api_key
 def tax_summary():
     from src.analytics.tax_guard import get_tax_summary
+
     data = get_tax_summary()
     return jsonify({"ok": True, "data": data})
 
@@ -214,6 +219,7 @@ def update_config(payload: UpdateConfigDTO):
 @limiter.limit(get_settings().rate_limit_mutations)
 def manual_sync():
     from src.ingestion.kite_sync import run_start_of_day_sync
+
     result = run_start_of_day_sync()
     return jsonify({"ok": True, "data": result})
 

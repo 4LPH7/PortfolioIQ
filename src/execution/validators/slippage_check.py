@@ -1,6 +1,9 @@
 """Slippage check validator — ensures live price hasn't moved too far from estimated."""
+
 from __future__ import annotations
+
 from decimal import Decimal
+
 from src.analytics.rebalancer import RebalanceOrder
 from src.db.connection import execute_sql
 
@@ -19,7 +22,7 @@ def validate_slippage(order: RebalanceOrder) -> tuple[bool, str]:
     price_rows = execute_sql(
         """SELECT last_price, is_stale FROM live_prices
            WHERE instrument_token = :token""",
-        {"token": order.instrument_token}
+        {"token": order.instrument_token},
     )
 
     if not price_rows:
@@ -36,9 +39,7 @@ def validate_slippage(order: RebalanceOrder) -> tuple[bool, str]:
         return False, "Live price is zero or negative."
 
     # Calculate slippage %
-    slippage_pct = abs(
-        ((live_price - order.estimated_price) / order.estimated_price) * 100
-    )
+    slippage_pct = abs(((live_price - order.estimated_price) / order.estimated_price) * 100)
 
     if slippage_pct > slippage_bound:
         return False, (

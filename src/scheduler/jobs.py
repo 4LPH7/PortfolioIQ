@@ -7,9 +7,8 @@ Manages all background jobs for the system:
     - Partition Maintenance (midnight): Create next day's partition
     - Token Expiry Warning (5:30 AM): Alert if Kite token expired
 """
-from __future__ import annotations
 
-from datetime import datetime
+from __future__ import annotations
 
 import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -69,8 +68,9 @@ def _eod_export_job():
 
 def _partition_maintenance_job():
     """Create price_history partition for tomorrow."""
-    from src.db.connection import get_db_session
     from sqlalchemy import text
+
+    from src.db.connection import get_db_session
 
     try:
         with get_db_session() as session:
@@ -83,6 +83,7 @@ def _partition_maintenance_job():
 def _token_expiry_check_job():
     """Check if the Kite access token is still valid."""
     from src.ingestion.kite_auth import get_stored_token
+
     token = get_stored_token()
     if token is None:
         logger.warning(

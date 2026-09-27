@@ -3,6 +3,7 @@ PortfolioIQ — Application Settings
 Loads from .env file via Pydantic Settings.
 All configuration is strongly typed and validated at startup.
 """
+
 from __future__ import annotations
 
 import os
@@ -94,15 +95,20 @@ class Settings(BaseSettings):
     # Gatekeeper limits
     # ------------------------------------------------------------------ #
     slippage_bound_pct: float = Field(
-        2.0, gt=0, le=10,
+        2.0,
+        gt=0,
+        le=10,
         description="Max price drift % since recommendation before blocking order",
     )
     concentration_limit_pct: float = Field(
-        15.0, gt=0, le=100,
+        15.0,
+        gt=0,
+        le=100,
         description="Max single-stock portfolio weight % before blocking order",
     )
     duplicate_window_sec: int = Field(
-        300, ge=60,
+        300,
+        ge=60,
         description="Seconds to look back for duplicate orders",
     )
     max_rebalance_orders: int = Field(10, ge=1, le=50)
@@ -120,7 +126,7 @@ class Settings(BaseSettings):
     def validate_time_format(cls, v: str) -> str:
         """Ensure time strings are in HH:MM format."""
         parts = v.split(":")
-        if len(parts) != 2 or not all(p.isdigit() for p in parts):
+        if len(parts) != 2 or not all(p.isdigit() and len(p) == 2 for p in parts):
             raise ValueError(f"Time must be in HH:MM format, got: {v!r}")
         h, m = int(parts[0]), int(parts[1])
         if not (0 <= h <= 23 and 0 <= m <= 59):

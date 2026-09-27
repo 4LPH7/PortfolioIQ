@@ -1,6 +1,7 @@
 """
 PortfolioIQ — API Module
 """
+
 from src.api.middleware import (
     attach_correlation_id_header,
     format_error_response,

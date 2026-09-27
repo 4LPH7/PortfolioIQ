@@ -14,29 +14,28 @@ Validation chain:
 If ANY validator fails, the order is REJECTED and logged to
 order_validation_log for audit.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
 from loguru import logger
-from sqlalchemy import text
 
-from src.analytics.rebalancer import RebalanceOrder, RebalancePlan, OrderSide
+from src.analytics.rebalancer import OrderSide, RebalanceOrder, RebalancePlan
 from src.config.settings import is_dry_run_enabled
-from src.db.connection import get_db_session
 from src.db.repository import record_order_attempt, record_validation_check
-from src.execution.validators.margin_check import validate_margin
-from src.execution.validators.slippage_check import validate_slippage
 from src.execution.validators.concentration_check import validate_concentration
 from src.execution.validators.duplicate_check import validate_no_duplicate
+from src.execution.validators.margin_check import validate_margin
+from src.execution.validators.slippage_check import validate_slippage
 from src.ingestion.market_hours import is_market_open
 
 
-class ValidationResult(str, Enum):
+class ValidationResult(StrEnum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     SKIPPED_DRY_RUN = "SKIPPED_DRY_RUN"
@@ -45,6 +44,7 @@ class ValidationResult(str, Enum):
 @dataclass
 class ValidationReport:
     """Result of validating a single order through all gates."""
+
     order: RebalanceOrder
     result: ValidationResult
     checks_passed: list[str] = field(default_factory=list)
@@ -59,6 +59,7 @@ class ValidationReport:
 @dataclass
 class GatekeeperResult:
     """Result of validating an entire rebalance plan."""
+
     reports: list[ValidationReport] = field(default_factory=list)
     approved_count: int = 0
     rejected_count: int = 0
@@ -202,7 +203,10 @@ def validate_order(order: RebalanceOrder, dry_run: bool = True) -> ValidationRep
         report.failure_reason = "Dry run mode — order not placed"
         logger.info(
             "[DRY RUN] {} {} x {} @ {} PASSED all gates but NOT placed",
-            order.side.value, order.quantity, order.tradingsymbol, order.estimated_price
+            order.side.value,
+            order.quantity,
+            order.tradingsymbol,
+            order.estimated_price,
         )
     else:
         report.result = ValidationResult.APPROVED
@@ -222,10 +226,7 @@ def validate_plan(plan: RebalancePlan) -> GatekeeperResult:
     dry_run = _is_dry_run_mode()
     result = GatekeeperResult(is_dry_run=dry_run)
 
-    logger.info(
-        "Gatekeeper validating {} orders (dry_run={})",
-        len(plan.orders), dry_run
-    )
+    logger.info("Gatekeeper validating {} orders (dry_run={})", len(plan.orders), dry_run)
 
     for order in plan.orders:
         report = validate_order(order, dry_run=dry_run)
@@ -240,7 +241,9 @@ def validate_plan(plan: RebalancePlan) -> GatekeeperResult:
 
     logger.info(
         "Gatekeeper result: {} approved, {} rejected, {} dry-run skipped",
-        result.approved_count, result.rejected_count, result.dry_run_count
+        result.approved_count,
+        result.rejected_count,
+        result.dry_run_count,
     )
     return result
 

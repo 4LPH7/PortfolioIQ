@@ -8,17 +8,16 @@ Sources:
     2. Kite instruments API (refreshed daily)
     3. Manual overrides in the CSV for problematic symbols
 """
+
 from __future__ import annotations
 
 import csv
-import os
 from pathlib import Path
-from typing import Optional
 
 from loguru import logger
 from sqlalchemy import text
 
-from src.db.connection import get_db_session, execute_sql
+from src.db.connection import execute_sql, get_db_session
 from src.ingestion.kite_auth import get_authenticated_kite
 
 # Path to the seed CSV mapping file
@@ -43,10 +42,10 @@ def tradingsymbol_to_yf_ticker(tradingsymbol: str, exchange: str = "NSE") -> str
     """
     # Special cases that don't follow the standard .NS pattern
     special_cases = {
-        "NIFTY 50":   "^NSEI",
-        "NIFTY":      "^NSEI",
-        "BANKNIFTY":  "^NSEBANK",
-        "SENSEX":     "^BSESN",
+        "NIFTY 50": "^NSEI",
+        "NIFTY": "^NSEI",
+        "BANKNIFTY": "^NSEBANK",
+        "SENSEX": "^BSESN",
     }
 
     if tradingsymbol in special_cases:
@@ -72,9 +71,9 @@ def load_mapping_from_csv() -> dict[str, dict]:
             symbol = row.get("tradingsymbol", "").strip()
             if symbol:
                 mapping[symbol] = {
-                    "yf_ticker":           row.get("yf_ticker", "").strip(),
-                    "sector":              row.get("sector", "").strip() or None,
-                    "industry":            row.get("industry", "").strip() or None,
+                    "yf_ticker": row.get("yf_ticker", "").strip(),
+                    "sector": row.get("sector", "").strip() or None,
+                    "industry": row.get("industry", "").strip() or None,
                     "market_cap_category": row.get("market_cap_category", "").strip() or None,
                 }
 
@@ -170,27 +169,25 @@ def sync_instrument_master_from_kite() -> int:
                         last_synced_at      = NOW()
                 """),
                 {
-                    "instrument_token":    inst.get("instrument_token"),
-                    "exchange_token":      inst.get("exchange_token"),
-                    "tradingsymbol":       symbol,
-                    "name":                inst.get("name", ""),
-                    "isin":                None,  # Not in Kite instruments list
-                    "yf_ticker":           yf_ticker,
-                    "exchange":            inst.get("exchange", "NSE"),
-                    "instrument_type":     inst.get("instrument_type", "EQ"),
-                    "segment":             inst.get("segment", "NSE"),
-                    "tick_size":           float(inst.get("tick_size", 0.05)),
-                    "lot_size":            int(inst.get("lot_size", 1)),
-                    "sector":              csv_data.get("sector"),
-                    "industry":            csv_data.get("industry"),
+                    "instrument_token": inst.get("instrument_token"),
+                    "exchange_token": inst.get("exchange_token"),
+                    "tradingsymbol": symbol,
+                    "name": inst.get("name", ""),
+                    "isin": None,  # Not in Kite instruments list
+                    "yf_ticker": yf_ticker,
+                    "exchange": inst.get("exchange", "NSE"),
+                    "instrument_type": inst.get("instrument_type", "EQ"),
+                    "segment": inst.get("segment", "NSE"),
+                    "tick_size": float(inst.get("tick_size", 0.05)),
+                    "lot_size": int(inst.get("lot_size", 1)),
+                    "sector": csv_data.get("sector"),
+                    "industry": csv_data.get("industry"),
                     "market_cap_category": csv_data.get("market_cap_category"),
                 },
             )
             upserted += 1
 
-    logger.success(
-        "Instrument master sync complete. {} NSE equity instruments upserted.", upserted
-    )
+    logger.success("Instrument master sync complete. {} NSE equity instruments upserted.", upserted)
     return upserted
 
 

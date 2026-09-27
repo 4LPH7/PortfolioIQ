@@ -1,8 +1,8 @@
 """Regression coverage for Phase 0 security and schema corrections."""
+
 from __future__ import annotations
 
 import importlib
-import os
 from contextlib import contextmanager
 from decimal import Decimal
 from unittest.mock import patch
@@ -118,13 +118,15 @@ def test_drift_detector_uses_canonical_allocation_columns(
 
     def fake_execute_sql(query: str, _params: dict) -> list[dict]:
         captured["query"] = query
-        return [{
-            "allocation_type": "STOCK",
-            "sector": None,
-            "tradingsymbol": "PHASE0TEST",
-            "target_weight_pct": 10,
-            "drift_threshold_pct": 5,
-        }]
+        return [
+            {
+                "allocation_type": "STOCK",
+                "sector": None,
+                "tradingsymbol": "PHASE0TEST",
+                "target_weight_pct": 10,
+                "drift_threshold_pct": 5,
+            }
+        ]
 
     monkeypatch.setattr(drift_detector, "execute_sql", fake_execute_sql)
     targets = drift_detector._get_active_targets()
@@ -164,13 +166,16 @@ def test_gatekeeper_writes_canonical_order_and_validation_rows(
     from src.db.connection import execute_sql
     from src.execution import gatekeeper
 
-    execute_sql("""
+    execute_sql(
+        """
         INSERT INTO instrument_master (
             instrument_token, exchange_token, tradingsymbol, exchange
         ) VALUES (:token, :token, :symbol, 'NSE')
         ON CONFLICT (instrument_token) DO UPDATE
         SET tradingsymbol = EXCLUDED.tradingsymbol
-    """, {"token": 2_147_000_001, "symbol": "PHASE0TEST"})
+    """,
+        {"token": 2_147_000_001, "symbol": "PHASE0TEST"},
+    )
     execute_sql("UPDATE system_config SET value = 'false' WHERE key = 'dry_run_mode'")
 
     monkeypatch.setenv("DRY_RUN_MODE", "true")
@@ -191,11 +196,13 @@ def test_gatekeeper_writes_canonical_order_and_validation_rows(
         {"id": report.audit_id},
     )
 
-    assert order_rows == [{
-        "validation_status": "DRY_RUN",
-        "is_dry_run": True,
-        "requested_quantity": 1,
-        "price_at_signal": Decimal("100.00"),
-    }]
+    assert order_rows == [
+        {
+            "validation_status": "DRY_RUN",
+            "is_dry_run": True,
+            "requested_quantity": 1,
+            "price_at_signal": Decimal("100.00"),
+        }
+    ]
     assert len(checks) == 5
     assert all(row["passed"] for row in checks)

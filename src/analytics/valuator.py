@@ -8,25 +8,26 @@ live market prices (from Yahoo via live_prices table) to compute:
     - Portfolio-level: total_aum, total_invested, total_pnl, pnl_pct
     - Sector-level: sector_value, sector_weight
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from loguru import logger
-from sqlalchemy import text
 
-from src.db.connection import get_db_session, execute_sql
-
+from src.db.connection import execute_sql
 
 # ============================================================
 # Data Classes
 # ============================================================
 
+
 @dataclass
 class HoldingValuation:
     """Valuation for a single holding."""
+
     instrument_token: int
     tradingsymbol: str
     exchange: str
@@ -60,9 +61,9 @@ class HoldingValuation:
         self.current_value = self.current_price * total_qty
         self.unrealised_pnl = self.current_value - self.invested_value
         if self.invested_value > 0:
-            self.unrealised_pnl_pct = (
-                (self.unrealised_pnl / self.invested_value) * 100
-            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            self.unrealised_pnl_pct = ((self.unrealised_pnl / self.invested_value) * 100).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
         if self.close_price and self.close_price > 0:
             self.day_change = (self.current_price - self.close_price) * total_qty
             self.day_change_pct = (
@@ -73,6 +74,7 @@ class HoldingValuation:
 @dataclass
 class PortfolioValuation:
     """Complete portfolio valuation."""
+
     user_id: str = "default"
     holdings: list[HoldingValuation] = field(default_factory=list)
 
@@ -97,6 +99,7 @@ class PortfolioValuation:
 # Valuation Engine
 # ============================================================
 
+
 def compute_portfolio_valuation(user_id: str = "default") -> PortfolioValuation:
     """
     Compute full portfolio valuation by joining holdings with live prices.
@@ -112,7 +115,8 @@ def compute_portfolio_valuation(user_id: str = "default") -> PortfolioValuation:
     logger.info("Computing portfolio valuation for user='{}'...", user_id)
 
     # Pull holdings joined with live prices and instrument metadata
-    rows = execute_sql("""
+    rows = execute_sql(
+        """
         SELECT
             h.instrument_token,
             h.tradingsymbol,
@@ -140,7 +144,9 @@ def compute_portfolio_valuation(user_id: str = "default") -> PortfolioValuation:
         WHERE h.user_id = :user_id
           AND (h.quantity + h.t1_quantity) > 0
         ORDER BY h.tradingsymbol
-    """, {"user_id": user_id})
+    """,
+        {"user_id": user_id},
+    )
 
     pv = PortfolioValuation(user_id=user_id)
 
@@ -191,14 +197,14 @@ def compute_portfolio_valuation(user_id: str = "default") -> PortfolioValuation:
     pv.total_day_change = sum(h.day_change for h in pv.holdings)
 
     if pv.total_invested > 0:
-        pv.total_pnl_pct = (
-            (pv.total_pnl / pv.total_invested) * 100
-        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        pv.total_pnl_pct = ((pv.total_pnl / pv.total_invested) * 100).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
 
     # Fetch available cash from margins
     margin_rows = execute_sql(
         "SELECT available_cash FROM user_margins WHERE user_id = :uid AND segment = 'equity'",
-        {"uid": user_id}
+        {"uid": user_id},
     )
     if margin_rows:
         pv.available_cash = Decimal(str(margin_rows[0]["available_cash"]))
@@ -207,9 +213,9 @@ def compute_portfolio_valuation(user_id: str = "default") -> PortfolioValuation:
     # Compute per-holding weight as % of AUM
     if pv.total_aum > 0:
         for h in pv.holdings:
-            h.weight_pct = (
-                (h.current_value / pv.total_aum) * 100
-            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            h.weight_pct = ((h.current_value / pv.total_aum) * 100).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
 
     # Sector aggregation
     for h in pv.holdings:
@@ -225,8 +231,12 @@ def compute_portfolio_valuation(user_id: str = "default") -> PortfolioValuation:
 
     logger.success(
         "Valuation complete: AUM={}, PnL={} ({}%), {} holdings ({} live, {} stale/broker)",
-        pv.total_aum, pv.total_pnl, pv.total_pnl_pct,
-        len(pv.holdings), pv.live_count, pv.stale_count
+        pv.total_aum,
+        pv.total_pnl,
+        pv.total_pnl_pct,
+        len(pv.holdings),
+        pv.live_count,
+        pv.stale_count,
     )
     return pv
 
@@ -274,5 +284,6 @@ def get_valuation_summary(user_id: str = "default") -> dict[str, Any]:
 if __name__ == "__main__":
     """Test valuation: python -m src.analytics.valuator"""
     import json
+
     summary = get_valuation_summary()
     print(json.dumps(summary, indent=2))

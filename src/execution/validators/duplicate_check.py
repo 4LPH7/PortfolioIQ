@@ -1,6 +1,7 @@
 """Duplicate check — prevents placing the same order twice within a cooldown window."""
+
 from __future__ import annotations
-from decimal import Decimal
+
 from src.analytics.rebalancer import RebalanceOrder
 from src.db.connection import execute_sql
 
@@ -16,7 +17,8 @@ def validate_no_duplicate(order: RebalanceOrder) -> tuple[bool, str]:
     window_sec = int(rows[0]["value"]) if rows else 300  # 5 minutes default
 
     # Check order_audit_trail for recent identical orders
-    dup_rows = execute_sql("""
+    dup_rows = execute_sql(
+        """
         SELECT id, placed_at, status
         FROM order_audit_trail
         WHERE tradingsymbol = :sym
@@ -25,12 +27,14 @@ def validate_no_duplicate(order: RebalanceOrder) -> tuple[bool, str]:
           AND placed_at > NOW() - INTERVAL ':window seconds'
           AND status IN ('PLACED', 'COMPLETE', 'OPEN')
         LIMIT 1
-    """, {
-        "sym": order.tradingsymbol,
-        "txn_type": order.side.value,
-        "qty": order.quantity,
-        "window": window_sec,
-    })
+    """,
+        {
+            "sym": order.tradingsymbol,
+            "txn_type": order.side.value,
+            "qty": order.quantity,
+            "window": window_sec,
+        },
+    )
 
     if dup_rows:
         dup = dup_rows[0]

@@ -2,26 +2,23 @@
 Tests for src/db/repository.py and src/models/dtos.py
 Verifies DTO validation, parameterized SQL execution, and append-only audit enforcement.
 """
+
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
-import pytest
 
+from src.db.repository import (
+    get_app_config,
+    get_current_holdings,
+    record_broker_execution,
+    record_order_attempt,
+    update_app_config,
+)
 from src.models.dtos import (
     AppConfigDTO,
     BrokerExecutionDTO,
     HoldingDTO,
     OrderAttemptDTO,
-    ValidationCheckDTO,
-)
-from src.db.repository import (
-    get_app_config,
-    get_current_holdings,
-    list_app_configs,
-    record_broker_execution,
-    record_order_attempt,
-    record_validation_check,
-    update_app_config,
 )
 
 

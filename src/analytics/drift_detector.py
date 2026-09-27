@@ -12,26 +12,27 @@ Output:
     List of DriftSignal objects that the Rebalancer consumes to
     generate corrective orders.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_UP
-from enum import Enum
+from decimal import ROUND_HALF_UP, Decimal
+from enum import StrEnum
 from typing import Any
 
 from loguru import logger
 
-from src.analytics.valuator import compute_portfolio_valuation, PortfolioValuation
+from src.analytics.valuator import PortfolioValuation, compute_portfolio_valuation
 from src.db.connection import execute_sql
 
 
-class DriftType(str, Enum):
+class DriftType(StrEnum):
     SECTOR = "SECTOR"
     HOLDING = "HOLDING"
     CASH = "CASH"
 
 
-class DriftDirection(str, Enum):
+class DriftDirection(StrEnum):
     OVERWEIGHT = "OVERWEIGHT"
     UNDERWEIGHT = "UNDERWEIGHT"
 
@@ -39,6 +40,7 @@ class DriftDirection(str, Enum):
 @dataclass
 class DriftSignal:
     """A single drift detection result."""
+
     drift_type: DriftType
     name: str  # sector name or tradingsymbol
     current_weight_pct: Decimal
@@ -73,7 +75,8 @@ def _get_active_targets(user_id: str = "default") -> dict[str, dict]:
     Load active allocation targets from the database.
     Returns dict keyed by (allocation_type, name) → target info.
     """
-    rows = execute_sql("""
+    rows = execute_sql(
+        """
         SELECT
             ta.allocation_type,
             ta.sector,
@@ -85,7 +88,9 @@ def _get_active_targets(user_id: str = "default") -> dict[str, dict]:
             ON ta.instrument_token = im.instrument_token
         JOIN allocation_profiles ap ON ta.profile_id = ap.id
         WHERE ap.user_id = :uid AND ap.is_active = TRUE
-    """, {"uid": user_id})
+    """,
+        {"uid": user_id},
+    )
 
     targets = {}
     for row in rows:
@@ -103,10 +108,7 @@ def _get_active_targets(user_id: str = "default") -> dict[str, dict]:
 
 def _get_system_config_value(key: str, default: str = "0") -> Decimal:
     """Get a config value from system_config as Decimal."""
-    rows = execute_sql(
-        "SELECT value FROM system_config WHERE key = :key",
-        {"key": key}
-    )
+    rows = execute_sql("SELECT value FROM system_config WHERE key = :key", {"key": key})
     return Decimal(rows[0]["value"]) if rows else Decimal(default)
 
 
@@ -210,9 +212,9 @@ def detect_drift(
 
     # ─── 3. CASH DRIFT ───────────────────────────────────────
     if valuation.net_worth > 0:
-        cash_weight = (
-            (valuation.available_cash / valuation.net_worth) * 100
-        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        cash_weight = ((valuation.available_cash / valuation.net_worth) * 100).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
 
         cash_target_key = ("CASH", "CASH")
         if cash_target_key in targets:
@@ -232,7 +234,9 @@ def detect_drift(
                 direction=direction,
                 severity=_classify_severity(drift, threshold),
                 current_value=valuation.available_cash,
-                target_value=(target_cash_pct / 100 * valuation.net_worth).quantize(Decimal("0.01")),
+                target_value=(target_cash_pct / 100 * valuation.net_worth).quantize(
+                    Decimal("0.01")
+                ),
                 rebalance_amount=Decimal("0"),  # cash drift is informational
             )
             signals.append(signal)
@@ -242,10 +246,7 @@ def detect_drift(
     signals.sort(key=lambda s: (severity_order.get(s.severity, 3), -abs(s.drift_pct)))
 
     actionable = sum(1 for s in signals if s.is_actionable)
-    logger.info(
-        "Drift detection complete: {} signals ({} actionable)",
-        len(signals), actionable
-    )
+    logger.info("Drift detection complete: {} signals ({} actionable)", len(signals), actionable)
     return signals
 
 
@@ -276,4 +277,5 @@ def get_drift_summary(user_id: str = "default") -> dict[str, Any]:
 if __name__ == "__main__":
     """Test: python -m src.analytics.drift_detector"""
     import json
+
     print(json.dumps(get_drift_summary(), indent=2))

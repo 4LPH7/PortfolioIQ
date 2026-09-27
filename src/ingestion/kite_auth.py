@@ -16,6 +16,7 @@ Flow:
     5. Flask catches the redirect, exchanges the token, stores it in DB
     6. Flask server shuts down. Done.
 """
+
 from __future__ import annotations
 
 import threading
@@ -26,10 +27,10 @@ import pytz
 from flask import Flask, request
 from kiteconnect import KiteConnect
 from loguru import logger
+from sqlalchemy import text
 
 from src.config.settings import get_settings
 from src.db.connection import execute_sql, get_db_session
-from sqlalchemy import text
 
 IST = pytz.timezone("Asia/Kolkata")
 
@@ -72,9 +73,7 @@ def exchange_token(request_token: str) -> str:
 
     # Calculate expiry: Kite tokens expire around 6 AM IST next day
     now_ist = datetime.now(tz=IST)
-    tomorrow_6am = (now_ist + timedelta(days=1)).replace(
-        hour=6, minute=0, second=0, microsecond=0
-    )
+    tomorrow_6am = (now_ist + timedelta(days=1)).replace(hour=6, minute=0, second=0, microsecond=0)
 
     # Store in DB (upsert — one row per user)
     with get_db_session() as session:
@@ -141,8 +140,7 @@ def get_authenticated_kite() -> KiteConnect:
     token = get_stored_token()
     if token is None:
         raise RuntimeError(
-            "No valid Kite access token. "
-            "Run: python -m src.ingestion.kite_auth  to log in."
+            "No valid Kite access token. Run: python -m src.ingestion.kite_auth  to log in."
         )
     settings = get_settings()
     kite = KiteConnect(api_key=settings.kite_api_key)
@@ -218,7 +216,7 @@ def run_auth_flow() -> str:
     Returns:
         access_token string
     """
-    settings = get_settings()
+    get_settings()
     login_url = get_login_url()
 
     app = _create_callback_app()
@@ -265,5 +263,5 @@ if __name__ == "__main__":
         exit(1)
 
     token = run_auth_flow()
-    print(f"\n✅ Authentication complete. Token stored in database.")
-    print(f"You can now run the main application.")
+    print("\n✅ Authentication complete. Token stored in database.")
+    print("You can now run the main application.")

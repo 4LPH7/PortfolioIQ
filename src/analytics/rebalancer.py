@@ -14,27 +14,28 @@ Pipeline:
 This module NEVER places orders directly. It only produces an order
 manifest that the Gatekeeper validates before execution.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
-from enum import Enum
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
+from enum import StrEnum
 from typing import Any
 
 from loguru import logger
 
-from src.analytics.valuator import compute_portfolio_valuation, PortfolioValuation
-from src.analytics.drift_detector import detect_drift, DriftSignal, DriftType, DriftDirection
-from src.analytics.tax_guard import check_sell_tax_impact, TaxWarning
+from src.analytics.drift_detector import DriftDirection, DriftSignal, DriftType, detect_drift
+from src.analytics.tax_guard import TaxWarning, check_sell_tax_impact
+from src.analytics.valuator import compute_portfolio_valuation
 from src.db.connection import execute_sql
 
 
-class OrderSide(str, Enum):
+class OrderSide(StrEnum):
     BUY = "BUY"
     SELL = "SELL"
 
 
-class OrderReason(str, Enum):
+class OrderReason(StrEnum):
     SECTOR_DRIFT = "SECTOR_DRIFT"
     CONCENTRATION_BREACH = "CONCENTRATION_BREACH"
     HOLDING_DRIFT = "HOLDING_DRIFT"
@@ -45,6 +46,7 @@ class OrderReason(str, Enum):
 @dataclass
 class RebalanceOrder:
     """A single proposed rebalance order (not yet validated or placed)."""
+
     tradingsymbol: str
     exchange: str
     instrument_token: int
@@ -72,6 +74,7 @@ class RebalanceOrder:
 @dataclass
 class RebalancePlan:
     """Complete rebalance plan with sell and buy orders."""
+
     orders: list[RebalanceOrder] = field(default_factory=list)
     sell_orders: list[RebalanceOrder] = field(default_factory=list)
     buy_orders: list[RebalanceOrder] = field(default_factory=list)
@@ -99,15 +102,14 @@ class RebalancePlan:
 
 def _get_max_rebalance_orders() -> int:
     """Get the max orders limit from config."""
-    rows = execute_sql(
-        "SELECT value FROM system_config WHERE key = 'max_rebalance_orders'"
-    )
+    rows = execute_sql("SELECT value FROM system_config WHERE key = 'max_rebalance_orders'")
     return int(rows[0]["value"]) if rows else 10
 
 
 def _get_holding_details(tradingsymbol: str, user_id: str = "default") -> dict | None:
     """Get holding details needed for order generation."""
-    rows = execute_sql("""
+    rows = execute_sql(
+        """
         SELECT
             h.instrument_token,
             h.exchange,
@@ -122,7 +124,9 @@ def _get_holding_details(tradingsymbol: str, user_id: str = "default") -> dict |
         LEFT JOIN instrument_master im ON h.instrument_token = im.instrument_token
         WHERE h.tradingsymbol = :sym AND h.user_id = :uid
         LIMIT 1
-    """, {"sym": tradingsymbol, "uid": user_id})
+    """,
+        {"sym": tradingsymbol, "uid": user_id},
+    )
     return rows[0] if rows else None
 
 
@@ -181,8 +185,7 @@ def generate_rebalance_plan(
         if signal.drift_type == DriftType.SECTOR:
             # Find overweight holdings in this sector
             sector_holdings = [
-                h for h in valuation.holdings
-                if (h.sector or "Uncategorised") == signal.name
+                h for h in valuation.holdings if (h.sector or "Uncategorised") == signal.name
             ]
             # Sort by weight (heaviest first — trim the biggest position)
             sector_holdings.sort(key=lambda h: h.weight_pct, reverse=True)
@@ -258,9 +261,14 @@ def generate_rebalance_plan(
 
             reason = (
                 OrderReason.CONCENTRATION_BREACH
-                if signal.target_weight_pct == Decimal(str(
-                    execute_sql("SELECT value FROM system_config WHERE key = 'concentration_limit_pct'")[0]["value"]
-                ))
+                if signal.target_weight_pct
+                == Decimal(
+                    str(
+                        execute_sql(
+                            "SELECT value FROM system_config WHERE key = 'concentration_limit_pct'"
+                        )[0]["value"]
+                    )
+                )
                 else OrderReason.HOLDING_DRIFT
             )
 
@@ -300,8 +308,7 @@ def generate_rebalance_plan(
             else:
                 # Pick the most underweight holding in the sector
                 sector_holdings = [
-                    h for h in valuation.holdings
-                    if (h.sector or "Uncategorised") == signal.name
+                    h for h in valuation.holdings if (h.sector or "Uncategorised") == signal.name
                 ]
                 if sector_holdings:
                     sector_holdings.sort(key=lambda h: h.weight_pct)
@@ -310,7 +317,7 @@ def generate_rebalance_plan(
                     # No existing holdings in this sector — can't auto-buy new stock
                     logger.debug(
                         "Sector '{}' underweight but no existing holdings to buy more of.",
-                        signal.name
+                        signal.name,
                     )
                     continue
 
@@ -332,9 +339,7 @@ def generate_rebalance_plan(
                 logger.debug("Insufficient cash to buy even 1 share of {}", target_symbol)
                 continue
 
-            buy_qty = int(
-                (buy_value_needed / current_price).to_integral_value(rounding=ROUND_DOWN)
-            )
+            buy_qty = int((buy_value_needed / current_price).to_integral_value(rounding=ROUND_DOWN))
             buy_qty = _round_to_lot_size(buy_qty, lot_size)
 
             if buy_qty <= 0:
@@ -347,7 +352,9 @@ def generate_rebalance_plan(
                 side=OrderSide.BUY,
                 quantity=buy_qty,
                 estimated_price=current_price,
-                reason=OrderReason.SECTOR_DRIFT if signal.drift_type == DriftType.SECTOR else OrderReason.HOLDING_DRIFT,
+                reason=OrderReason.SECTOR_DRIFT
+                if signal.drift_type == DriftType.SECTOR
+                else OrderReason.HOLDING_DRIFT,
                 drift_signal=signal,
             )
             plan.add_order(order)
@@ -357,8 +364,12 @@ def generate_rebalance_plan(
     logger.success(
         "Rebalance plan: {} orders ({} sells, {} buys), "
         "net cash impact: {}, {} drift signals addressed, {} tax warnings",
-        len(plan.orders), len(plan.sell_orders), len(plan.buy_orders),
-        plan.net_cash_impact, plan.drift_signals_addressed, plan.tax_warnings_count
+        len(plan.orders),
+        len(plan.sell_orders),
+        len(plan.buy_orders),
+        plan.net_cash_impact,
+        plan.drift_signals_addressed,
+        plan.tax_warnings_count,
     )
     return plan
 
@@ -398,4 +409,5 @@ def get_rebalance_summary(user_id: str = "default") -> dict[str, Any]:
 if __name__ == "__main__":
     """Test: python -m src.analytics.rebalancer"""
     import json
+
     print(json.dumps(get_rebalance_summary(), indent=2))

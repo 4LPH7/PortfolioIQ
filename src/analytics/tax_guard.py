@@ -14,36 +14,36 @@ This module:
     4. Issues warnings when a sell order would trigger STCG within N days of LTCG cutoff
     5. Reports lots nearing LTCG conversion (the "tax bomb" window)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from loguru import logger
-
 from src.db.connection import execute_sql
-
 
 # ============================================================
 # Constants
 # ============================================================
 
 LTCG_HOLDING_DAYS = 365  # days for equity LTCG classification
-STCG_TAX_RATE = Decimal("0.20")      # 20% STCG on equity
-LTCG_TAX_RATE = Decimal("0.125")     # 12.5% LTCG on equity
-LTCG_EXEMPTION = Decimal("125000")   # Rs 1.25 lakh LTCG exemption per FY
-STCG_WARNING_WINDOW_DAYS = 30        # warn if selling within 30 days of LTCG cutoff
+STCG_TAX_RATE = Decimal("0.20")  # 20% STCG on equity
+LTCG_TAX_RATE = Decimal("0.125")  # 12.5% LTCG on equity
+LTCG_EXEMPTION = Decimal("125000")  # Rs 1.25 lakh LTCG exemption per FY
+STCG_WARNING_WINDOW_DAYS = 30  # warn if selling within 30 days of LTCG cutoff
 
 
 # ============================================================
 # Data Classes
 # ============================================================
 
+
 @dataclass
 class TaxLot:
     """A single FIFO tax lot."""
+
     lot_id: int
     holding_id: int
     buy_date: date
@@ -77,6 +77,7 @@ class TaxLot:
 @dataclass
 class HoldingTaxProfile:
     """Tax profile for a single holding."""
+
     tradingsymbol: str
     exchange: str
     instrument_token: int
@@ -136,6 +137,7 @@ class HoldingTaxProfile:
 @dataclass
 class TaxWarning:
     """A warning about a potential tax-adverse action."""
+
     tradingsymbol: str
     warning_type: str  # 'NEAR_LTCG' | 'STCG_SELL' | 'HIGH_TAX'
     message: str
@@ -147,12 +149,14 @@ class TaxWarning:
 # Tax Guard Engine
 # ============================================================
 
+
 def load_tax_lots(user_id: str = "default") -> dict[str, HoldingTaxProfile]:
     """
     Load all tax lots for current holdings.
     Returns dict keyed by tradingsymbol → HoldingTaxProfile.
     """
-    rows = execute_sql("""
+    rows = execute_sql(
+        """
         SELECT
             h.tradingsymbol,
             h.exchange,
@@ -170,7 +174,9 @@ def load_tax_lots(user_id: str = "default") -> dict[str, HoldingTaxProfile]:
         WHERE h.user_id = :uid
           AND tl.remaining_quantity > 0
         ORDER BY h.tradingsymbol, tl.buy_date ASC
-    """, {"uid": user_id})
+    """,
+        {"uid": user_id},
+    )
 
     profiles: dict[str, HoldingTaxProfile] = {}
     for row in rows:
@@ -242,43 +248,47 @@ def check_sell_tax_impact(
 
             if lot.is_near_ltcg:
                 near_ltcg_lots_sold += sold_from_lot
-                warnings.append(TaxWarning(
-                    tradingsymbol=tradingsymbol,
-                    warning_type="NEAR_LTCG",
-                    message=(
-                        f"Selling {sold_from_lot} shares bought on {lot.buy_date} "
-                        f"which would convert to LTCG in {lot.days_to_ltcg} days. "
-                        f"Consider waiting to save ~{float((gain * (STCG_TAX_RATE - LTCG_TAX_RATE)).quantize(Decimal('0.01')))} in tax."
-                    ),
-                    severity="HIGH" if lot.days_to_ltcg <= 7 else "MEDIUM",
-                    details={
-                        "buy_date": str(lot.buy_date),
-                        "days_to_ltcg": lot.days_to_ltcg,
-                        "quantity": sold_from_lot,
-                        "potential_tax_saving": float(
-                            (gain * (STCG_TAX_RATE - LTCG_TAX_RATE)).quantize(Decimal("0.01"))
+                warnings.append(
+                    TaxWarning(
+                        tradingsymbol=tradingsymbol,
+                        warning_type="NEAR_LTCG",
+                        message=(
+                            f"Selling {sold_from_lot} shares bought on {lot.buy_date} "
+                            f"which would convert to LTCG in {lot.days_to_ltcg} days. "
+                            f"Consider waiting to save ~{float((gain * (STCG_TAX_RATE - LTCG_TAX_RATE)).quantize(Decimal('0.01')))} in tax."
                         ),
-                    },
-                ))
+                        severity="HIGH" if lot.days_to_ltcg <= 7 else "MEDIUM",
+                        details={
+                            "buy_date": str(lot.buy_date),
+                            "days_to_ltcg": lot.days_to_ltcg,
+                            "quantity": sold_from_lot,
+                            "potential_tax_saving": float(
+                                (gain * (STCG_TAX_RATE - LTCG_TAX_RATE)).quantize(Decimal("0.01"))
+                            ),
+                        },
+                    )
+                )
 
     # Summary warning for STCG
     if stcg_lots_sold > 0 and stcg_gain > 0:
         estimated_tax = (stcg_gain * STCG_TAX_RATE).quantize(Decimal("0.01"))
-        warnings.append(TaxWarning(
-            tradingsymbol=tradingsymbol,
-            warning_type="STCG_SELL",
-            message=(
-                f"Selling {stcg_lots_sold} shares at STCG rate (20%). "
-                f"Estimated STCG tax: Rs {float(estimated_tax):,.2f} "
-                f"on gain of Rs {float(stcg_gain):,.2f}."
-            ),
-            severity="MEDIUM",
-            details={
-                "stcg_quantity": stcg_lots_sold,
-                "stcg_gain": float(stcg_gain),
-                "estimated_tax": float(estimated_tax),
-            },
-        ))
+        warnings.append(
+            TaxWarning(
+                tradingsymbol=tradingsymbol,
+                warning_type="STCG_SELL",
+                message=(
+                    f"Selling {stcg_lots_sold} shares at STCG rate (20%). "
+                    f"Estimated STCG tax: Rs {float(estimated_tax):,.2f} "
+                    f"on gain of Rs {float(stcg_gain):,.2f}."
+                ),
+                severity="MEDIUM",
+                details={
+                    "stcg_quantity": stcg_lots_sold,
+                    "stcg_gain": float(stcg_gain),
+                    "estimated_tax": float(estimated_tax),
+                },
+            )
+        )
 
     return warnings
 
@@ -299,24 +309,28 @@ def get_tax_summary(user_id: str = "default") -> dict[str, Any]:
         total_tax_liability += p.total_tax_liability
 
         if p.near_ltcg_quantity > 0:
-            near_ltcg_holdings.append({
-                "symbol": sym,
-                "quantity": p.near_ltcg_quantity,
-                "next_ltcg_date": str(p.next_ltcg_date) if p.next_ltcg_date else None,
-            })
+            near_ltcg_holdings.append(
+                {
+                    "symbol": sym,
+                    "quantity": p.near_ltcg_quantity,
+                    "next_ltcg_date": str(p.next_ltcg_date) if p.next_ltcg_date else None,
+                }
+            )
 
-        holdings_tax.append({
-            "symbol": sym,
-            "ltcg_qty": p.ltcg_quantity,
-            "ltcg_cost_basis": float(p.ltcg_cost_basis),
-            "stcg_qty": p.stcg_quantity,
-            "stcg_cost_basis": float(p.stcg_cost_basis),
-            "estimated_stcg_tax": float(p.estimated_stcg_tax),
-            "estimated_ltcg_tax": float(p.estimated_ltcg_tax),
-            "total_tax": float(p.total_tax_liability),
-            "near_ltcg_qty": p.near_ltcg_quantity,
-            "next_ltcg_date": str(p.next_ltcg_date) if p.next_ltcg_date else None,
-        })
+        holdings_tax.append(
+            {
+                "symbol": sym,
+                "ltcg_qty": p.ltcg_quantity,
+                "ltcg_cost_basis": float(p.ltcg_cost_basis),
+                "stcg_qty": p.stcg_quantity,
+                "stcg_cost_basis": float(p.stcg_cost_basis),
+                "estimated_stcg_tax": float(p.estimated_stcg_tax),
+                "estimated_ltcg_tax": float(p.estimated_ltcg_tax),
+                "total_tax": float(p.total_tax_liability),
+                "near_ltcg_qty": p.near_ltcg_quantity,
+                "next_ltcg_date": str(p.next_ltcg_date) if p.next_ltcg_date else None,
+            }
+        )
 
     return {
         "total_stcg_quantity": total_stcg_quantity,
@@ -330,4 +344,5 @@ def get_tax_summary(user_id: str = "default") -> dict[str, Any]:
 if __name__ == "__main__":
     """Test: python -m src.analytics.tax_guard"""
     import json
+
     print(json.dumps(get_tax_summary(), indent=2))

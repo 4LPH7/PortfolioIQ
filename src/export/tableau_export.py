@@ -7,10 +7,10 @@ Exports at 3:45 PM IST daily:
     2. sector_allocation_{date}.csv — sector weights
     3. price_history_{date}.csv — intraday price ticks
 """
+
 from __future__ import annotations
 
 import csv
-import os
 from datetime import date
 from pathlib import Path
 
@@ -36,29 +36,45 @@ def export_portfolio_snapshot(today: date | None = None) -> Path:
     filepath = _ensure_export_dir() / f"portfolio_snapshot_{today}.csv"
 
     with open(filepath, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=[
-            "date", "symbol", "exchange", "sector", "qty",
-            "avg_price", "current_price", "invested", "current_value",
-            "pnl", "pnl_pct", "day_change", "weight_pct", "price_source",
-        ])
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "date",
+                "symbol",
+                "exchange",
+                "sector",
+                "qty",
+                "avg_price",
+                "current_price",
+                "invested",
+                "current_value",
+                "pnl",
+                "pnl_pct",
+                "day_change",
+                "weight_pct",
+                "price_source",
+            ],
+        )
         writer.writeheader()
         for h in summary["holdings"]:
-            writer.writerow({
-                "date": str(today),
-                "symbol": h["symbol"],
-                "exchange": h["exchange"],
-                "sector": h.get("sector", ""),
-                "qty": h["qty"],
-                "avg_price": h["avg_price"],
-                "current_price": h["current_price"],
-                "invested": h["invested"],
-                "current_value": h["current_value"],
-                "pnl": h["pnl"],
-                "pnl_pct": h["pnl_pct"],
-                "day_change": h["day_change"],
-                "weight_pct": h["weight_pct"],
-                "price_source": h["price_source"],
-            })
+            writer.writerow(
+                {
+                    "date": str(today),
+                    "symbol": h["symbol"],
+                    "exchange": h["exchange"],
+                    "sector": h.get("sector", ""),
+                    "qty": h["qty"],
+                    "avg_price": h["avg_price"],
+                    "current_price": h["current_price"],
+                    "invested": h["invested"],
+                    "current_value": h["current_value"],
+                    "pnl": h["pnl"],
+                    "pnl_pct": h["pnl_pct"],
+                    "day_change": h["day_change"],
+                    "weight_pct": h["weight_pct"],
+                    "price_source": h["price_source"],
+                }
+            )
 
     logger.info("Exported portfolio snapshot: {}", filepath)
     return filepath
@@ -75,11 +91,13 @@ def export_sector_allocation(today: date | None = None) -> Path:
         writer = csv.DictWriter(f, fieldnames=["date", "sector", "weight_pct"])
         writer.writeheader()
         for sector, weight in summary["sector_weights"].items():
-            writer.writerow({
-                "date": str(today),
-                "sector": sector,
-                "weight_pct": weight,
-            })
+            writer.writerow(
+                {
+                    "date": str(today),
+                    "sector": sector,
+                    "weight_pct": weight,
+                }
+            )
 
     logger.info("Exported sector allocation: {}", filepath)
     return filepath
@@ -89,7 +107,8 @@ def export_price_history(today: date | None = None) -> Path:
     """Export today's intraday price ticks to CSV."""
     today = today or date.today()
 
-    rows = execute_sql("""
+    rows = execute_sql(
+        """
         SELECT
             ph.instrument_token,
             im.tradingsymbol,
@@ -104,27 +123,40 @@ def export_price_history(today: date | None = None) -> Path:
         JOIN instrument_master im ON ph.instrument_token = im.instrument_token
         WHERE ph.recorded_at::date = :today
         ORDER BY ph.recorded_at ASC
-    """, {"today": str(today)})
+    """,
+        {"today": str(today)},
+    )
 
     filepath = _ensure_export_dir() / f"price_history_{today}.csv"
 
     with open(filepath, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=[
-            "timestamp", "symbol", "last_price", "open", "high", "low",
-            "volume", "change_pct",
-        ])
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "timestamp",
+                "symbol",
+                "last_price",
+                "open",
+                "high",
+                "low",
+                "volume",
+                "change_pct",
+            ],
+        )
         writer.writeheader()
         for r in rows:
-            writer.writerow({
-                "timestamp": str(r["recorded_at"]),
-                "symbol": r["tradingsymbol"],
-                "last_price": r["last_price"],
-                "open": r.get("open_price"),
-                "high": r.get("high_price"),
-                "low": r.get("low_price"),
-                "volume": r.get("volume"),
-                "change_pct": r.get("change_percent"),
-            })
+            writer.writerow(
+                {
+                    "timestamp": str(r["recorded_at"]),
+                    "symbol": r["tradingsymbol"],
+                    "last_price": r["last_price"],
+                    "open": r.get("open_price"),
+                    "high": r.get("high_price"),
+                    "low": r.get("low_price"),
+                    "volume": r.get("volume"),
+                    "change_pct": r.get("change_percent"),
+                }
+            )
 
     logger.info("Exported price history: {} ({} records)", filepath, len(rows))
     return filepath
