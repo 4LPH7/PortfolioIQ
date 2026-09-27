@@ -62,6 +62,22 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field("INFO")
 
     # ------------------------------------------------------------------ #
+    # API Security & Rate Limiting
+    # ------------------------------------------------------------------ #
+    portfolioiq_api_key: str = Field(
+        "dev-secret-key",
+        description="Static API key required in X-API-Key header",
+    )
+    rate_limit_mutations: str = Field(
+        "10 per minute",
+        description="Rate limit on mutation endpoints (sync, rebalance, settings)",
+    )
+    rate_limit_default: str = Field(
+        "120 per minute",
+        description="Default rate limit across API endpoints",
+    )
+
+    # ------------------------------------------------------------------ #
     # Market timing
     # ------------------------------------------------------------------ #
     timezone: str = Field("Asia/Kolkata")

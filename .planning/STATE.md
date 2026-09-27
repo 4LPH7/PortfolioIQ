@@ -4,10 +4,10 @@ gsd_state_version: '1.0'
 status: planning
 progress:
   total_phases: 9
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 11
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 4
+  percent: 22
 ---
 <!-- STATE-MD-SCHEMA:END:frontmatter -->
 
@@ -18,29 +18,30 @@ progress:
 See: .planning/ROADMAP.md (updated 2026-09-27)
 
 **Core value:** Production-grade personal algorithmic portfolio management and trading safety platform.
-**Current focus:** Phase 1: A Reliable Backend Core
+**Current focus:** Phase 2: Testing & CI/CD
 
 ## Current Position
 
-Phase: 1 of 8 (Phase 1: A Reliable Backend Core)
-Plan: 2 of 3 in current phase (01-01, 01-02 complete; Wave 2: 01-03 next)
-Status: Ready to execute Plan 01-03 (API v1, Auth, Error Envelopes & Rate Limiting)
-Last activity: 2026-09-27 — Executed and verified Plan 01-02 (Data Layer & Typed Repository)
+Phase: 1 of 8 (Phase 1: A Reliable Backend Core — Complete)
+Plan: 3 of 3 in current phase (01-01, 01-02, 01-03 complete)
+Status: Phase 1 fully verified (63 passing tests). Ready to begin Phase 2.
+Last activity: 2026-09-27 — Executed and verified Plan 01-03 (API v1, Auth, Error Envelopes & Rate Limiting)
 
-Progress: [███░░░░░░░] 33%
+Progress: [████░░░░░░] 22%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 45 min
-- Total execution time: 0.75 hours
+- Total plans completed: 4
+- Average duration: 25 min
+- Total execution time: 1.7 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |---|---|---|---|
 | 00-stop-the-bleeding | 1 | 45m | 45m |
+| 01-a-reliable-backend-core | 3 | 55m | 18m |
 
 ## Accumulated Context
 
@@ -48,12 +49,16 @@ Progress: [███░░░░░░░] 33%
 - [Phase 00]: Enforce fail-closed DRY_RUN_MODE at environment level; gatekeeper overrides live order requests while DRY_RUN_MODE is true.
 - [Phase 00]: Standardize on supabase_schema.sql as single source of truth for column names and table structures.
 - [Phase 00]: Restrict CORS to explicit ALLOWED_ORIGINS allowlist.
+- [Phase 01]: Normalise CRLF line endings to LF when calculating SHA-256 migration checksums in `db/run_migrations.py` to prevent cross-platform false-positive tampering errors.
+- [Phase 01]: Enforce append-only semantics in `record_broker_execution` using INSERT instead of UPDATE to strictly respect the `009_audit_immutability.sql` trigger.
+- [Phase 01]: Dual-mount `api_v1_bp` under both `/api/v1` and `/api` to preserve backward compatibility while transitioning callers to versioned routes.
+- [Phase 01]: Return 204 No Content for CORS preflight OPTIONS requests without requiring authentication.
 
 ### Blockers/Concerns
-None. Phase 0 safety regression tests passing cleanly (7/7).
+None. Phase 0 and Phase 1 test suites passing cleanly (63 passed, 1 skipped).
 
 ## Session Continuity
 
 Last session: 2026-09-27
-Stopped at: Signed off on Phase 0. Ready to plan Phase 1 (A Reliable Backend Core).
+Stopped at: Signed off on Phase 1 (A Reliable Backend Core). Ready to plan Phase 2 (Testing & CI/CD).
 Resume file: None

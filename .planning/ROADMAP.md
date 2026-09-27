@@ -23,23 +23,23 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 **Definition of done:** `git log -p | gitleaks` comes back clean, every endpoint that touches the database returns real data instead of a 500, and no live order can be placed even if application code has a bug. Verified in `00-VERIFICATION.md`.
 
 ## Phase 1: A Reliable Backend Core
-**Status:** Unplanned
+**Status:** Complete
 **Goal:** the backend is boring and predictable. Timeframe: 1–2 weeks.
 
-- Add a migration version table (e.g. Alembic or a simple schema_migrations table) so db/migrations/ is idempotent and re-runnable
-- Introduce typed SQLAlchemy models (or Pydantic DTOs) for every table — no more raw dict-shaped SQL results passed around
-- Centralize persistence into named functions instead of inline SQL scattered across modules:
+- [x] Add a migration version table (e.g. Alembic or a simple schema_migrations table) so db/migrations/ is idempotent and re-runnable
+- [x] Introduce typed SQLAlchemy models (or Pydantic DTOs) for every table — no more raw dict-shaped SQL results passed around
+- [x] Centralize persistence into named functions instead of inline SQL scattered across modules:
   - `record_order_attempt(...)`
   - `record_validation_check(...)`
   - `record_broker_execution(...)`
   - `get_current_holdings(user_id) -> list[Holding]`
-- Add request/response schemas (Pydantic) for every Flask endpoint, with consistent error codes (`{"error": {"code": ..., "message": ...}}`)
-- Add structured logging with request/correlation IDs (Loguru is already a dependency — use it consistently)
-- Add real authentication (even a simple API-key-per-user scheme is fine at this stage) — no endpoint that syncs, rebalances, or places orders should be reachable unauthenticated
-- Add basic rate limiting (Flask-Limiter) on write endpoints
-- Version the API explicitly: `/api/v1/...`, so schema changes don't silently break the frontend
+- [x] Add request/response schemas (Pydantic) for every Flask endpoint, with consistent error codes (`{"error": {"code": ..., "message": ...}}`)
+- [x] Add structured logging with request/correlation IDs (Loguru is already a dependency — use it consistently)
+- [x] Add real authentication (even a simple API-key-per-user scheme is fine at this stage) — no endpoint that syncs, rebalances, or places orders should be reachable unauthenticated
+- [x] Add basic rate limiting (Flask-Limiter) on write endpoints
+- [x] Version the API explicitly: `/api/v1/...`, so schema changes don't silently break the frontend
 
-**Definition of done:** every endpoint has a typed contract, a bad request returns a structured 4xx instead of a stack trace, and no endpoint is callable without identifying who's calling it.
+**Definition of done:** every endpoint has a typed contract, a bad request returns a structured 4xx instead of a stack trace, and no endpoint is callable without identifying who's calling it. Verified in `01-VERIFICATION.md`.
 
 ## Phase 2: Testing & CI/CD
 **Status:** Unplanned

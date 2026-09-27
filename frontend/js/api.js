@@ -5,33 +5,78 @@
  */
 
 const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-  ? "http://localhost:5000"
-  : "https://portfolioiq-z4r6.onrender.com";   // ← connected to live Render backend
+  ? "http://localhost:5000/api/v1"
+  : "https://portfolioiq-z4r6.onrender.com/api/v1";
+
+function getApiKey() {
+  return localStorage.getItem("portfolioiq_api_key") || "dev-secret-key";
+}
+
+function generateRequestId() {
+  return "req_" + Math.random().toString(36).substring(2, 14);
+}
+
+function resolveUrl(path) {
+  let cleanPath = path;
+  if (cleanPath.startsWith("/api/v1/")) {
+    cleanPath = cleanPath.slice(7);
+  } else if (cleanPath.startsWith("/api/")) {
+    cleanPath = cleanPath.slice(4);
+  } else if (!cleanPath.startsWith("/")) {
+    cleanPath = "/" + cleanPath;
+  }
+  return API_BASE + cleanPath;
+}
 
 async function apiGet(path, params = {}) {
-  const url = new URL(API_BASE + path);
+  const url = new URL(resolveUrl(path));
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const res = await fetch(url.toString(), {
+    headers: {
+      "X-API-Key": getApiKey(),
+      "X-Request-ID": generateRequestId(),
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errorMsg = data.error?.message || (typeof data.error === "string" ? data.error : `HTTP ${res.status}`);
+    return { ok: false, error: errorMsg, ...data };
+  }
+  return data;
 }
 
 async function apiPost(path, body = {}) {
-  const res = await fetch(API_BASE + path, {
+  const res = await fetch(resolveUrl(path), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": getApiKey(),
+      "X-Request-ID": generateRequestId(),
+    },
     body: JSON.stringify(body),
   });
-  return res.json();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok && data.error && typeof data.error === "object") {
+    data.error_message = data.error.message;
+  }
+  return data;
 }
 
 async function apiPatch(path, body = {}) {
-  const res = await fetch(API_BASE + path, {
+  const res = await fetch(resolveUrl(path), {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": getApiKey(),
+      "X-Request-ID": generateRequestId(),
+    },
     body: JSON.stringify(body),
   });
-  return res.json();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok && data.error && typeof data.error === "object") {
+    data.error_message = data.error.message;
+  }
+  return data;
 }
 
 // ── Helpers ───────────────────────────────────────────────────

@@ -114,3 +114,8 @@ class AppConfigDTO(BaseDTO):
     value_type: Literal["string", "boolean", "integer", "float"] = "string"
     description: str | None = None
     updated_at: datetime | None = None
+
+
+class UpdateConfigDTO(BaseModel):
+    key: str
+    value: str

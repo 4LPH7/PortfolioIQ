@@ -243,3 +243,103 @@ def update_app_config(key: str, value: str) -> None:
         res = session.execute(query, {"key": key, "value": str(value)})
         if res.rowcount == 0:
             raise KeyError(f"Configuration key '{key}' not found in system_config")
+
+
+def get_audit_orders(
+    status: str = "ALL",
+    side: str = "ALL",
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """Retrieve filtered order audit log entries."""
+    status_sql = """CASE
+        WHEN a.is_dry_run THEN 'DRY_RUN'
+        WHEN a.broker_status = 'OPEN' THEN 'PLACED'
+        WHEN a.broker_status = 'REJECTED' THEN 'FAILED'
+        WHEN a.validation_status = 'BLOCKED' THEN 'FAILED'
+        ELSE COALESCE(a.broker_status, a.validation_status)
+    END"""
+    where_parts: list[str] = []
+    params: dict[str, Any] = {"limit": limit}
+
+    if status != "ALL":
+        where_parts.append(f"{status_sql} = :status")
+        params["status"] = status
+    if side != "ALL":
+        where_parts.append("a.transaction_type = :side")
+        params["side"] = side
+
+    where_parts.append("""NOT EXISTS (
+        SELECT 1 FROM order_audit_trail newer
+        WHERE newer.internal_order_id = a.internal_order_id
+          AND newer.id > a.id
+    )""")
+    where_sql = "WHERE " + " AND ".join(where_parts) if where_parts else ""
+
+    query = text(f"""
+        SELECT a.id, a.kite_order_id, a.tradingsymbol, a.exchange,
+               a.transaction_type,
+               a.requested_quantity AS quantity,
+               COALESCE(a.execution_price, a.requested_price,
+                        a.price_at_signal) AS price,
+               {status_sql} AS status,
+               a.trigger_source, a.notes AS reason,
+               a.broker_status_message AS error_message,
+               a.is_dry_run, a.created_at::text AS placed_at
+        FROM order_audit_trail a {where_sql}
+        ORDER BY a.created_at DESC LIMIT :limit
+    """)
+    with get_db_session() as session:
+        result = session.execute(query, params)
+        return [dict(r) for r in result.mappings().all()]
+
+
+def get_audit_validations(limit: int = 50) -> list[dict[str, Any]]:
+    """Retrieve recent order validation logs aggregated by audit event."""
+    query = text("""
+        SELECT
+            a.id,
+            a.tradingsymbol,
+            a.transaction_type,
+            a.requested_quantity AS quantity,
+            a.price_at_signal AS price,
+            CASE
+                WHEN a.validation_status = 'DRY_RUN' THEN 'DRY_RUN'
+                WHEN BOOL_AND(v.passed) THEN 'APPROVED'
+                ELSE 'REJECTED'
+            END AS validation_result,
+            STRING_AGG(v.message, '; ')
+                FILTER (WHERE NOT v.passed) AS failure_reason,
+            STRING_AGG(v.check_name, ', ')
+                FILTER (WHERE v.passed) AS checks_passed,
+            STRING_AGG(v.check_name, ', ')
+                FILTER (WHERE NOT v.passed) AS checks_failed,
+            a.validated_at::text AS validated_at
+        FROM order_validation_log v
+        JOIN order_audit_trail a ON a.id = v.audit_id
+        GROUP BY a.id, a.tradingsymbol, a.transaction_type,
+                 a.requested_quantity, a.price_at_signal,
+                 a.validation_status, a.validated_at
+        ORDER BY a.validated_at DESC LIMIT :limit
+    """)
+    with get_db_session() as session:
+        result = session.execute(query, {"limit": limit})
+        return [dict(r) for r in result.mappings().all()]
+
+
+def get_database_stats() -> dict[str, int]:
+    """Retrieve operational database row counts across core tables."""
+    query = text("""
+        SELECT
+            (SELECT count(*) FROM instrument_master WHERE is_active=TRUE)      AS instruments,
+            (SELECT count(*) FROM user_holdings WHERE user_id='default')       AS holdings,
+            (SELECT count(*) FROM live_prices)                                 AS live_prices,
+            (SELECT count(*) FROM price_history)                               AS price_history,
+            (SELECT count(*) FROM order_audit_trail)                           AS audit_entries,
+            (SELECT count(*) FROM order_validation_log)                        AS validation_entries,
+            (SELECT count(*) FROM holding_tax_lots WHERE remaining_quantity>0) AS tax_lots,
+            (SELECT count(*) FROM market_calendar)                             AS holidays
+    """)
+    with get_db_session() as session:
+        result = session.execute(query)
+        row = result.mappings().first()
+        return dict(row) if row else {}
