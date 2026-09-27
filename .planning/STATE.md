@@ -23,18 +23,18 @@ See: .planning/ROADMAP.md (updated 2026-09-27)
 ## Current Position
 
 Phase: 2 of 8 (Phase 2: Testing & CI/CD)
-Plan: 2 of 4 in current phase (02-01 and 02-02 complete; ready for Plan 02-03)
-Status: Plan 02-02 executed and verified (153 tests passing, 0 skipped, 100% critical path coverage, 88.16% overall coverage). Ready to execute Plan 02-03 (Post-Deployment Smoke Testing & Failure Rollback).
-Last activity: 2026-09-27 — Executed and verified Plan 02-02 (Safety-Critical Test Expansion & Ruff Codebase Normalization)
+Plan: 3 of 4 in current phase (02-01, 02-02, and 02-03 complete; ready for Plan 02-04)
+Status: Plan 02-03 executed and verified (166 tests passing, 0 skipped, smoke test runner and retry unit tests implemented). Ready to execute Plan 02-04 (GitHub Actions CI/CD Pipeline & Branch Protection).
+Last activity: 2026-09-27 — Executed and verified Plan 02-03 (Post-Deployment Smoke Testing & Failure Rollback)
 
-Progress: [█████░░░░░] 28%
+Progress: [██████░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 24 min
-- Total execution time: 2.1 hours
+- Total plans completed: 7
+- Average duration: 23 min
+- Total execution time: 2.3 hours
 
 **By Phase:**
 
@@ -42,7 +42,7 @@ Progress: [█████░░░░░] 28%
 |---|---|---|---|
 | 00-stop-the-bleeding | 1 | 45m | 45m |
 | 01-a-reliable-backend-core | 3 | 55m | 18m |
-| 02-testing-ci-cd | 2 | 40m | 20m |
+| 02-testing-ci-cd | 3 | 55m | 18m |
 
 ## Accumulated Context
 
@@ -58,12 +58,13 @@ Progress: [█████░░░░░] 28%
 - [Phase 02]: Auto-skip @pytest.mark.postgres tests locally if PostgreSQL is down, but fail-fast in CI if CI=true.
 - [Phase 02]: Scope pyproject.toml overall coverage gate to completed core modules (execution, config, api, db, models) achieving 88.16%, omitting unrefactored future-phase modules (analytics/predictor, ingestion, export) until Phases 3-5.
 - [Phase 02]: Enforce strict >= 85.0% coverage specifically on safety-critical modules (src/execution/, src/config/, src/api/middleware.py) via scripts/check_critical_coverage.py — 100.0% coverage achieved across all critical modules.
+- [Phase 02]: Use Python standard library (urllib.request, json, time, argparse) for scripts/smoke_test.py to enable zero-dependency deployment smoke testing.
 
 ### Blockers/Concerns
-None. Entire test suite (153 tests) passing cleanly with zero skipped and zero failed.
+None. Entire test suite (166 tests) passing cleanly with zero skipped and zero failed.
 
 ## Session Continuity
 
 Last session: 2026-09-27
-Stopped at: Plan 02-02 complete. Ready to execute 02-03 (Post-Deployment Smoke Testing & Failure Rollback).
-Resume file: .planning/phases/02-testing-ci-cd/02-03-PLAN.md
+Stopped at: Plan 02-03 complete. Ready to execute 02-04 (GitHub Actions CI/CD Pipeline & Branch Protection).
+Resume file: .planning/phases/02-testing-ci-cd/02-04-PLAN.md
