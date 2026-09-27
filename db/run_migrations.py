@@ -76,6 +76,7 @@ def get_applied_migrations(conn) -> dict[str, str]:
     cursor.execute("SELECT version, checksum_sha256 FROM schema_migrations ORDER BY executed_at ASC")
     rows = cursor.fetchall()
     cursor.close()
+    conn.commit()
     return {row[0]: row[1] for row in rows}
 
 
@@ -163,7 +164,6 @@ def run_migrations(dry_run: bool = False, baseline: bool = False) -> None:
                 continue
 
             try:
-                conn.autocommit = False
                 sql = f.read_text(encoding="utf-8")
                 cursor.execute(sql)
                 cursor.execute(
@@ -176,7 +176,7 @@ def run_migrations(dry_run: bool = False, baseline: bool = False) -> None:
                 conn.rollback()
                 print(f"FAILED\n\nERROR in {f.name}:\n{exc}\n")
                 print("Migration halted and rolled back. Fix the issue and re-run.")
-                sys.exit(1)
+                raise
 
         cursor.close()
 
@@ -201,7 +201,10 @@ def main():
         finally:
             conn.close()
     else:
-        run_migrations(dry_run=args.dry_run, baseline=args.baseline)
+        try:
+            run_migrations(dry_run=args.dry_run, baseline=args.baseline)
+        except Exception:
+            sys.exit(1)
 
 
 if __name__ == "__main__":

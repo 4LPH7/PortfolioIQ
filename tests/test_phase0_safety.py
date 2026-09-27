@@ -156,8 +156,9 @@ def test_partition_job_calls_migration_function(monkeypatch: pytest.MonkeyPatch)
     assert any("create_price_partition(CURRENT_DATE + 1)" in query for query in statements)
 
 
-@pytest.mark.skipif(not os.environ.get("CI"), reason="Writes immutable audit rows in the CI-only database")
+@pytest.mark.postgres
 def test_gatekeeper_writes_canonical_order_and_validation_rows(
+    db_session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from src.db.connection import execute_sql
