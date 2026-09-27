@@ -22,10 +22,10 @@ See: .planning/ROADMAP.md (updated 2026-09-27)
 
 ## Current Position
 
-Phase: 0 of 8 (Phase 0: Stop the Bleeding) complete. Next: Phase 1: A Reliable Backend Core.
-Plan: 0 of 0 in Phase 1 (Ready to plan)
+Phase: 1 of 8 (Phase 1: A Reliable Backend Core)
+Plan: 0 of 0 in Phase 1 (Context gathered, ready to plan)
 Status: Ready to plan Phase 1
-Last activity: 2026-09-27 — Fully verified and signed off Phase 0 (Security & Correctness)
+Last activity: 2026-09-27 — Gathered implementation context for Phase 1 (API v1, Auth, Repository DTOs, Migration tracking)
 
 Progress: [█░░░░░░░░░] 11%
 
