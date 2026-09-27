@@ -4,10 +4,10 @@ gsd_state_version: '1.0'
 status: planning
 progress:
   total_phases: 9
-  completed_phases: 2
-  total_plans: 8
-  completed_plans: 5
-  percent: 28
+  completed_phases: 3
+  total_plans: 9
+  completed_plans: 8
+  percent: 38
 ---
 <!-- STATE-MD-SCHEMA:END:frontmatter -->
 
@@ -18,23 +18,23 @@ progress:
 See: .planning/ROADMAP.md (updated 2026-09-27)
 
 **Core value:** Production-grade personal algorithmic portfolio management and trading safety platform.
-**Current focus:** Phase 2: Testing & CI/CD
+**Current focus:** Phase 3: Data Quality & Market Infrastructure
 
 ## Current Position
 
-Phase: 2 of 8 (Phase 2: Testing & CI/CD)
-Plan: 3 of 4 in current phase (02-01, 02-02, and 02-03 complete; ready for Plan 02-04)
-Status: Plan 02-03 executed and verified (166 tests passing, 0 skipped, smoke test runner and retry unit tests implemented). Ready to execute Plan 02-04 (GitHub Actions CI/CD Pipeline & Branch Protection).
-Last activity: 2026-09-27 — Executed and verified Plan 02-03 (Post-Deployment Smoke Testing & Failure Rollback)
+Phase: 3 of 9 (Phase 3: Data Quality & Market Infrastructure)
+Plan: Ready to plan Phase 3
+Status: Phase 2 (Testing & CI/CD) 100% complete and verified (166 tests passing, 0 skipped, 100% safety-critical coverage, 88.16% core coverage, CI/CD pipeline modernized with smoke test and automated rollback).
+Last activity: 2026-09-27 — Completed and verified Phase 2 (Testing & CI/CD)
 
-Progress: [██████░░░░] 33%
+Progress: [███████░░░] 38%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 23 min
-- Total execution time: 2.3 hours
+- Total plans completed: 8
+- Average duration: 22 min
+- Total execution time: 2.5 hours
 
 **By Phase:**
 
@@ -42,7 +42,7 @@ Progress: [██████░░░░] 33%
 |---|---|---|---|
 | 00-stop-the-bleeding | 1 | 45m | 45m |
 | 01-a-reliable-backend-core | 3 | 55m | 18m |
-| 02-testing-ci-cd | 3 | 55m | 18m |
+| 02-testing-ci-cd | 4 | 70m | 17m |
 
 ## Accumulated Context
 
@@ -59,6 +59,8 @@ Progress: [██████░░░░] 33%
 - [Phase 02]: Scope pyproject.toml overall coverage gate to completed core modules (execution, config, api, db, models) achieving 88.16%, omitting unrefactored future-phase modules (analytics/predictor, ingestion, export) until Phases 3-5.
 - [Phase 02]: Enforce strict >= 85.0% coverage specifically on safety-critical modules (src/execution/, src/config/, src/api/middleware.py) via scripts/check_critical_coverage.py — 100.0% coverage achieved across all critical modules.
 - [Phase 02]: Use Python standard library (urllib.request, json, time, argparse) for scripts/smoke_test.py to enable zero-dependency deployment smoke testing.
+- [Phase 02]: Standardize PostgreSQL service container credentials in CI matching docker-compose.yml and conftest.py defaults.
+- [Phase 02]: Automate deployment rollback in GitHub Actions to previous known-good commit (HEAD~1) upon smoke test failure.
 
 ### Blockers/Concerns
 None. Entire test suite (166 tests) passing cleanly with zero skipped and zero failed.
@@ -66,5 +68,5 @@ None. Entire test suite (166 tests) passing cleanly with zero skipped and zero f
 ## Session Continuity
 
 Last session: 2026-09-27
-Stopped at: Plan 02-03 complete. Ready to execute 02-04 (GitHub Actions CI/CD Pipeline & Branch Protection).
-Resume file: .planning/phases/02-testing-ci-cd/02-04-PLAN.md
+Stopped at: Phase 2 100% complete and verified. Ready to discuss/plan Phase 3 (Data Quality & Market Infrastructure).
+Resume file: .planning/ROADMAP.md

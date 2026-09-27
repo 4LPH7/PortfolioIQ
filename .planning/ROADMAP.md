@@ -42,20 +42,21 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 **Definition of done:** every endpoint has a typed contract, a bad request returns a structured 4xx instead of a stack trace, and no endpoint is callable without identifying who's calling it. Verified in `01-VERIFICATION.md`.
 
 ## Phase 2: Testing & CI/CD
-**Status:** Unplanned
+**Status:** Complete
 **Goal:** it's impossible to merge a schema-breaking change again. Timeframe: 1–2 weeks, ongoing after.
 
-- Set up pytest with a real PostgreSQL service container
-- Add a GitHub Actions workflow:
-  - `ruff check .`
-  - `black --check .`
-  - `pytest --cov`
-  - postgres service container + migration run
-  - docker build validation
-  - dependency vulnerability scan (pip-audit or Snyk)
-- Make CI a required check on main (branch protection is currently disabled)
-- Add a deployment smoke test that hits `/api/health` post-deploy and rolls back automatically on failure
-- Track coverage over time; fail CI if safety-critical coverage regresses
+- [x] Set up pytest with a real PostgreSQL service container and nested savepoint rollbacks
+- [x] Add a GitHub Actions workflow:
+  - `ruff check .` and `ruff format --check .`
+  - `pip-audit` dependency vulnerability scanning with pip cache
+  - `pytest --cov` with 75% overall gate and 85% safety-critical enforcement (`scripts/check_critical_coverage.py`)
+  - postgres service container + migration run (`db/run_migrations.py`)
+  - docker build validation (`docker build -t portfolioiq:ci .`)
+- [x] Make CI a required check on main (branch protection status checks documented)
+- [x] Add a deployment smoke test (`scripts/smoke_test.py`) that hits `/api/v1/health` and `/api/v1/market/status` post-deploy and rolls back automatically to `HEAD~1` on failure
+- [x] Track coverage over time; fail CI if safety-critical coverage regresses (100% achieved on execution, config, middleware)
+
+**Definition of done:** All 166 tests pass cleanly with zero skipped and zero failed, safety-critical coverage is 100%, code formatting and linting is 100% clean under Ruff, and CI/CD enforces automated tests, migration checks, and post-deploy smoke tests with automated rollback. Verified in `02-VERIFICATION.md`.
 
 ## Phase 3: Data Quality & Market Infrastructure
 **Status:** Unplanned
