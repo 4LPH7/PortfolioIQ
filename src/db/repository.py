@@ -6,6 +6,7 @@ Adheres to strict append-only constraints for audit tables.
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -13,20 +14,26 @@ from uuid import UUID
 
 from loguru import logger
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from src.db.connection import get_db_session
 from src.models.dtos import (
     AppConfigDTO,
+    BacktestRunDTO,
     BrokerExecutionDTO,
     CreateCashFlowDTO,
     CreateMarketCalendarDTO,
+    CreateSignalSnapshotDTO,
     CreateSnapshotDTO,
+    HistoricalBarDTO,
     HoldingDTO,
     HoldingsReconciliationDTO,
+    IndicatorEvaluationDTO,
     MarketCalendarDTO,
     OrderAttemptDTO,
     PortfolioCashFlowDTO,
     PortfolioDailySnapshotDTO,
+    SignalSnapshotDTO,
     ValidationCheckDTO,
 )
 
@@ -597,3 +604,398 @@ def get_realized_ltcg_ytd(
         result = session.execute(query, {"user_id": user_id, "fy_start_date": fy_start_date})
         row = result.mappings().first()
         return Decimal(str(row["total_ltcg"])) if row else Decimal("0.00")
+
+
+# ============================================================
+# Phase 5: Quantitative Signal Engine & Backtest Persistence
+# ============================================================
+
+
+def record_signal_snapshot(
+    snapshot: CreateSignalSnapshotDTO, session: Session | None = None
+) -> SignalSnapshotDTO:
+    """Record or update a daily holding quantitative signal snapshot."""
+    query = text("""
+        INSERT INTO signal_snapshots (
+            snapshot_date, user_id, tradingsymbol, model_version,
+            current_price, benchmark_price, composite_score, signal_label, status,
+            indicators, monte_carlo, created_at, updated_at
+        )
+        VALUES (
+            :snapshot_date, :user_id, :tradingsymbol, :model_version,
+            :current_price, :benchmark_price, :composite_score, :signal_label, :status,
+            CAST(:indicators AS JSONB), CAST(:monte_carlo AS JSONB), NOW(), NOW()
+        )
+        ON CONFLICT (user_id, tradingsymbol, snapshot_date, model_version) DO UPDATE SET
+            current_price = EXCLUDED.current_price,
+            benchmark_price = EXCLUDED.benchmark_price,
+            composite_score = EXCLUDED.composite_score,
+            signal_label = EXCLUDED.signal_label,
+            status = EXCLUDED.status,
+            indicators = EXCLUDED.indicators,
+            monte_carlo = EXCLUDED.monte_carlo,
+            updated_at = NOW()
+        RETURNING *
+    """)
+    params = snapshot.model_dump()
+    params["indicators"] = json.dumps(params.get("indicators") or {})
+    params["monte_carlo"] = json.dumps(params.get("monte_carlo") or {})
+
+    def _execute(s):
+        result = s.execute(query, params)
+        row = result.mappings().one()
+        return SignalSnapshotDTO.model_validate(dict(row))
+
+    if session is not None:
+        return _execute(session)
+    with get_db_session() as s:
+        return _execute(s)
+
+
+def get_signal_snapshots(
+    tradingsymbol: str,
+    user_id: str = "default",
+    limit: int = 60,
+    session: Session | None = None,
+) -> list[SignalSnapshotDTO]:
+    """Retrieve historical signal snapshots for a symbol in descending chronological order."""
+    query = text("""
+        SELECT * FROM signal_snapshots
+        WHERE user_id = :user_id AND tradingsymbol = :tradingsymbol
+        ORDER BY snapshot_date DESC
+        LIMIT :limit
+    """)
+    params = {"user_id": user_id, "tradingsymbol": tradingsymbol, "limit": limit}
+
+    def _execute(s):
+        result = s.execute(query, params)
+        return [SignalSnapshotDTO.model_validate(dict(r)) for r in result.mappings().all()]
+
+    if session is not None:
+        return _execute(session)
+    with get_db_session() as s:
+        return _execute(s)
+
+
+def get_pending_forward_return_snapshots(
+    horizon_days: int,
+    session: Session | None = None,
+) -> list[SignalSnapshotDTO]:
+    """Retrieve signal snapshots where forward return for horizon_days (5, 20, 60) is pending."""
+    col_name = f"return_{horizon_days}d_stock"
+    if col_name not in ("return_5d_stock", "return_20d_stock", "return_60d_stock"):
+        raise ValueError(f"Invalid horizon_days: {horizon_days}. Must be 5, 20, or 60.")
+
+    query = text(f"""
+        SELECT * FROM signal_snapshots
+        WHERE {col_name} IS NULL
+          AND snapshot_date <= CURRENT_DATE - INTERVAL '{horizon_days} days'
+        ORDER BY snapshot_date ASC
+    """)
+
+    def _execute(s):
+        result = s.execute(query)
+        return [SignalSnapshotDTO.model_validate(dict(r)) for r in result.mappings().all()]
+
+    if session is not None:
+        return _execute(session)
+    with get_db_session() as s:
+        return _execute(s)
+
+
+def update_signal_forward_returns(
+    snapshot_id: int,
+    horizon: str,
+    stock_return: Decimal | float,
+    bench_return: Decimal | float,
+    excess_return: Decimal | float,
+    session: Session | None = None,
+) -> None:
+    """Update realized forward returns on a signal snapshot once horizon has matured."""
+    if horizon not in ("5d", "20d", "60d"):
+        raise ValueError(f"Invalid horizon: {horizon}. Must be '5d', '20d', or '60d'.")
+
+    query = text(f"""
+        UPDATE signal_snapshots
+        SET
+            return_{horizon}_stock = :stock_return,
+            return_{horizon}_benchmark = :bench_return,
+            excess_return_{horizon} = :excess_return,
+            realized_{horizon}_at = CURRENT_DATE,
+            updated_at = NOW()
+        WHERE id = :snapshot_id
+    """)
+    params = {
+        "snapshot_id": snapshot_id,
+        "stock_return": float(stock_return),
+        "bench_return": float(bench_return),
+        "excess_return": float(excess_return),
+    }
+
+    def _execute(s):
+        s.execute(query, params)
+
+    if session is not None:
+        _execute(session)
+    else:
+        with get_db_session() as s:
+            _execute(s)
+
+
+def record_backtest_run(run: BacktestRunDTO, session: Session | None = None) -> BacktestRunDTO:
+    """Record a walk-forward backtest run and its child indicator evaluations."""
+    run_query = text("""
+        INSERT INTO backtest_runs (
+            run_id, tradingsymbol, model_version, train_start_date, train_end_date,
+            test_start_date, test_end_date, train_window_days, test_window_days,
+            total_folds, strategy_cagr, strategy_sharpe, strategy_sortino,
+            strategy_max_drawdown, strategy_win_rate, strategy_profit_factor,
+            total_trades, stock_cagr, stock_sharpe, stock_max_drawdown,
+            benchmark_cagr, benchmark_sharpe, benchmark_max_drawdown,
+            excess_cagr_vs_stock, excess_cagr_vs_benchmark, total_cost_drag_bps,
+            status, passed_hurdle, hurdle_details, created_at
+        )
+        VALUES (
+            CAST(:run_id AS UUID), :tradingsymbol, :model_version, :train_start_date, :train_end_date,
+            :test_start_date, :test_end_date, :train_window_days, :test_window_days,
+            :total_folds, :strategy_cagr, :strategy_sharpe, :strategy_sortino,
+            :strategy_max_drawdown, :strategy_win_rate, :strategy_profit_factor,
+            :total_trades, :stock_cagr, :stock_sharpe, :stock_max_drawdown,
+            :benchmark_cagr, :benchmark_sharpe, :benchmark_max_drawdown,
+            :excess_cagr_vs_stock, :excess_cagr_vs_benchmark, :total_cost_drag_bps,
+            :status, :passed_hurdle, CAST(:hurdle_details AS JSONB), NOW()
+        )
+        ON CONFLICT (tradingsymbol, model_version, train_start_date, test_end_date) DO UPDATE SET
+            train_end_date = EXCLUDED.train_end_date,
+            test_start_date = EXCLUDED.test_start_date,
+            train_window_days = EXCLUDED.train_window_days,
+            test_window_days = EXCLUDED.test_window_days,
+            total_folds = EXCLUDED.total_folds,
+            strategy_cagr = EXCLUDED.strategy_cagr,
+            strategy_sharpe = EXCLUDED.strategy_sharpe,
+            strategy_sortino = EXCLUDED.strategy_sortino,
+            strategy_max_drawdown = EXCLUDED.strategy_max_drawdown,
+            strategy_win_rate = EXCLUDED.strategy_win_rate,
+            strategy_profit_factor = EXCLUDED.strategy_profit_factor,
+            total_trades = EXCLUDED.total_trades,
+            stock_cagr = EXCLUDED.stock_cagr,
+            stock_sharpe = EXCLUDED.stock_sharpe,
+            stock_max_drawdown = EXCLUDED.stock_max_drawdown,
+            benchmark_cagr = EXCLUDED.benchmark_cagr,
+            benchmark_sharpe = EXCLUDED.benchmark_sharpe,
+            benchmark_max_drawdown = EXCLUDED.benchmark_max_drawdown,
+            excess_cagr_vs_stock = EXCLUDED.excess_cagr_vs_stock,
+            excess_cagr_vs_benchmark = EXCLUDED.excess_cagr_vs_benchmark,
+            total_cost_drag_bps = EXCLUDED.total_cost_drag_bps,
+            status = EXCLUDED.status,
+            passed_hurdle = EXCLUDED.passed_hurdle,
+            hurdle_details = EXCLUDED.hurdle_details
+        RETURNING *
+    """)
+
+    eval_insert = text("""
+        INSERT INTO indicator_evaluations (
+            backtest_run_id, indicator_name, in_sample_ic, in_sample_p_value,
+            out_sample_ic, out_sample_p_value, mean_ic, std_ic,
+            information_ratio, weight, is_pruned, prune_reason, created_at
+        )
+        VALUES (
+            :backtest_run_id, :indicator_name, :in_sample_ic, :in_sample_p_value,
+            :out_sample_ic, :out_sample_p_value, :mean_ic, :std_ic,
+            :information_ratio, :weight, :is_pruned, :prune_reason, NOW()
+        )
+        ON CONFLICT (backtest_run_id, indicator_name) DO UPDATE SET
+            in_sample_ic = EXCLUDED.in_sample_ic,
+            in_sample_p_value = EXCLUDED.in_sample_p_value,
+            out_sample_ic = EXCLUDED.out_sample_ic,
+            out_sample_p_value = EXCLUDED.out_sample_p_value,
+            mean_ic = EXCLUDED.mean_ic,
+            std_ic = EXCLUDED.std_ic,
+            information_ratio = EXCLUDED.information_ratio,
+            weight = EXCLUDED.weight,
+            is_pruned = EXCLUDED.is_pruned,
+            prune_reason = EXCLUDED.prune_reason
+    """)
+
+    run_dict = run.model_dump()
+    indicators = run_dict.pop("indicators", [])
+    run_dict["run_id"] = str(run_dict["run_id"])
+    run_dict["hurdle_details"] = json.dumps(run_dict.get("hurdle_details") or {})
+
+    def _execute(s):
+        res = s.execute(run_query, run_dict)
+        saved_run_dict = dict(res.mappings().one())
+        run_id_db = saved_run_dict["id"]
+
+        saved_evals = []
+        for ind in indicators:
+            ind_dict = {
+                "backtest_run_id": run_id_db,
+                "indicator_name": ind["name"],
+                "in_sample_ic": ind.get("in_sample_ic"),
+                "in_sample_p_value": ind.get("in_sample_p_value"),
+                "out_sample_ic": ind.get("out_sample_ic"),
+                "out_sample_p_value": ind.get("out_sample_p_value"),
+                "mean_ic": ind.get("mean_ic", 0.0),
+                "std_ic": ind.get("std_ic", 0.0),
+                "information_ratio": ind.get("information_ratio", 0.0),
+                "weight": ind.get("weight", 0.0),
+                "is_pruned": ind.get("is_pruned", True),
+                "prune_reason": ind.get("prune_reason"),
+            }
+            s.execute(eval_insert, ind_dict)
+            saved_evals.append(
+                IndicatorEvaluationDTO(
+                    name=ind["name"],
+                    in_sample_ic=ind.get("in_sample_ic"),
+                    in_sample_p_value=ind.get("in_sample_p_value"),
+                    out_sample_ic=ind.get("out_sample_ic"),
+                    out_sample_p_value=ind.get("out_sample_p_value"),
+                    mean_ic=ind.get("mean_ic", 0.0),
+                    std_ic=ind.get("std_ic", 0.0),
+                    information_ratio=ind.get("information_ratio", 0.0),
+                    p_value=ind.get("p_value", 1.0),
+                    weight=ind.get("weight", 0.0),
+                    is_pruned=ind.get("is_pruned", True),
+                    prune_reason=ind.get("prune_reason"),
+                    score=ind.get("score", 50.0),
+                )
+            )
+
+        saved_run_dict["indicators"] = saved_evals
+        return BacktestRunDTO.model_validate(saved_run_dict)
+
+    if session is not None:
+        return _execute(session)
+    with get_db_session() as s:
+        return _execute(s)
+
+
+def get_latest_backtest_run(
+    tradingsymbol: str,
+    model_version: str = "v1.0.0",
+    session: Session | None = None,
+) -> BacktestRunDTO | None:
+    """Retrieve the latest walk-forward backtest run and its indicator evaluations."""
+    run_query = text("""
+        SELECT * FROM backtest_runs
+        WHERE tradingsymbol = :tradingsymbol AND model_version = :model_version
+        ORDER BY test_end_date DESC, id DESC
+        LIMIT 1
+    """)
+    eval_query = text("""
+        SELECT * FROM indicator_evaluations
+        WHERE backtest_run_id = :backtest_run_id
+        ORDER BY indicator_name ASC
+    """)
+
+    def _execute(s):
+        run_res = s.execute(
+            run_query, {"tradingsymbol": tradingsymbol, "model_version": model_version}
+        )
+        run_row = run_res.mappings().first()
+        if not run_row:
+            return None
+        run_dict = dict(run_row)
+
+        eval_res = s.execute(eval_query, {"backtest_run_id": run_dict["id"]})
+        evals = []
+        for er in eval_res.mappings().all():
+            evals.append(
+                IndicatorEvaluationDTO(
+                    name=er["indicator_name"],
+                    in_sample_ic=float(er["in_sample_ic"])
+                    if er["in_sample_ic"] is not None
+                    else None,
+                    in_sample_p_value=float(er["in_sample_p_value"])
+                    if er["in_sample_p_value"] is not None
+                    else None,
+                    out_sample_ic=float(er["out_sample_ic"])
+                    if er["out_sample_ic"] is not None
+                    else None,
+                    out_sample_p_value=float(er["out_sample_p_value"])
+                    if er["out_sample_p_value"] is not None
+                    else None,
+                    mean_ic=float(er["mean_ic"]) if er["mean_ic"] is not None else 0.0,
+                    std_ic=float(er["std_ic"]) if er["std_ic"] is not None else 0.0,
+                    information_ratio=float(er["information_ratio"])
+                    if er["information_ratio"] is not None
+                    else 0.0,
+                    weight=float(er["weight"]) if er["weight"] is not None else 0.0,
+                    is_pruned=bool(er["is_pruned"]),
+                    prune_reason=er["prune_reason"],
+                )
+            )
+        run_dict["indicators"] = evals
+        return BacktestRunDTO.model_validate(run_dict)
+
+    if session is not None:
+        return _execute(session)
+    with get_db_session() as s:
+        return _execute(s)
+
+
+def upsert_historical_bars(bars: list[HistoricalBarDTO], session: Session | None = None) -> int:
+    """Batch upsert historical daily OHLCV bars."""
+    if not bars:
+        return 0
+
+    query = text("""
+        INSERT INTO historical_daily_bars (
+            tradingsymbol, bar_date, open, high, low, close, volume, created_at
+        )
+        VALUES (
+            :tradingsymbol, :bar_date, :open, :high, :low, :close, :volume, NOW()
+        )
+        ON CONFLICT (tradingsymbol, bar_date) DO UPDATE SET
+            open = EXCLUDED.open,
+            high = EXCLUDED.high,
+            low = EXCLUDED.low,
+            close = EXCLUDED.close,
+            volume = EXCLUDED.volume
+    """)
+    param_list = [b.model_dump(exclude={"created_at"}) for b in bars]
+
+    def _execute(s):
+        s.execute(query, param_list)
+        return len(param_list)
+
+    if session is not None:
+        return _execute(session)
+    with get_db_session() as s:
+        return _execute(s)
+
+
+def get_historical_bars(
+    tradingsymbol: str,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    session: Session | None = None,
+) -> list[HistoricalBarDTO]:
+    """Retrieve historical daily bars in ascending chronological order."""
+    where_clauses = ["tradingsymbol = :tradingsymbol"]
+    params: dict[str, Any] = {"tradingsymbol": tradingsymbol}
+
+    if start_date is not None:
+        where_clauses.append("bar_date >= :start_date")
+        params["start_date"] = start_date
+
+    if end_date is not None:
+        where_clauses.append("bar_date <= :end_date")
+        params["end_date"] = end_date
+
+    where_sql = "WHERE " + " AND ".join(where_clauses)
+    query = text(f"""
+        SELECT * FROM historical_daily_bars
+        {where_sql}
+        ORDER BY bar_date ASC
+    """)
+
+    def _execute(s):
+        result = s.execute(query, params)
+        return [HistoricalBarDTO.model_validate(dict(r)) for r in result.mappings().all()]
+
+    if session is not None:
+        return _execute(session)
+    with get_db_session() as s:
+        return _execute(s)

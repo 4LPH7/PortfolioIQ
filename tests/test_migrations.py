@@ -213,3 +213,78 @@ def test_phase_4_table_structures():
             assert "source" in columns
     except OperationalError:
         pytest.skip("Database not available")
+
+
+def test_phase_5_table_structures():
+    """Verify table structures for signal_snapshots, backtest_runs, indicator_evaluations, and historical_daily_bars."""
+    from sqlalchemy import text
+    from sqlalchemy.exc import OperationalError
+
+    from src.db.connection import get_db_session
+
+    try:
+        with get_db_session() as session:
+            # 1. signal_snapshots
+            result = session.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'signal_snapshots'"
+                )
+            )
+            sig_cols = {r[0] for r in result.fetchall()}
+            assert "snapshot_date" in sig_cols
+            assert "tradingsymbol" in sig_cols
+            assert "composite_score" in sig_cols
+            assert "signal_label" in sig_cols
+            assert "status" in sig_cols
+            assert "indicators" in sig_cols
+            assert "monte_carlo" in sig_cols
+            assert "return_5d_stock" in sig_cols
+            assert "return_20d_stock" in sig_cols
+            assert "return_60d_stock" in sig_cols
+            assert "excess_return_20d" in sig_cols
+
+            # 2. backtest_runs
+            result = session.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'backtest_runs'"
+                )
+            )
+            bt_cols = {r[0] for r in result.fetchall()}
+            assert "run_id" in bt_cols
+            assert "strategy_cagr" in bt_cols
+            assert "stock_cagr" in bt_cols
+            assert "benchmark_cagr" in bt_cols
+            assert "excess_cagr_vs_stock" in bt_cols
+            assert "passed_hurdle" in bt_cols
+            assert "status" in bt_cols
+
+            # 3. indicator_evaluations
+            result = session.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'indicator_evaluations'"
+                )
+            )
+            eval_cols = {r[0] for r in result.fetchall()}
+            assert "backtest_run_id" in eval_cols
+            assert "indicator_name" in eval_cols
+            assert "mean_ic" in eval_cols
+            assert "information_ratio" in eval_cols
+            assert "weight" in eval_cols
+            assert "is_pruned" in eval_cols
+
+            # 4. historical_daily_bars
+            result = session.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'historical_daily_bars'"
+                )
+            )
+            bar_cols = {r[0] for r in result.fetchall()}
+            assert "tradingsymbol" in bar_cols
+            assert "bar_date" in bar_cols
+            assert "open" in bar_cols
+            assert "high" in bar_cols
+            assert "low" in bar_cols
+            assert "close" in bar_cols
+            assert "volume" in bar_cols
+    except OperationalError:
+        pytest.skip("Database not available")

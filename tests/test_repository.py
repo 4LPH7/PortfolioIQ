@@ -13,25 +13,37 @@ from src.db.repository import (
     get_cash_flows,
     get_current_holdings,
     get_daily_snapshots,
+    get_historical_bars,
     get_holdings_reconciliation_logs,
+    get_latest_backtest_run,
     get_market_calendar_entries,
+    get_pending_forward_return_snapshots,
     get_realized_ltcg_ytd,
+    get_signal_snapshots,
+    record_backtest_run,
     record_broker_execution,
     record_cash_flow,
     record_daily_snapshot,
     record_holdings_reconciliation,
     record_order_attempt,
+    record_signal_snapshot,
     update_app_config,
+    update_signal_forward_returns,
+    upsert_historical_bars,
     upsert_market_calendar_entry,
 )
 from src.models.dtos import (
     AppConfigDTO,
+    BacktestRunDTO,
     BrokerExecutionDTO,
     CreateCashFlowDTO,
     CreateMarketCalendarDTO,
+    CreateSignalSnapshotDTO,
     CreateSnapshotDTO,
+    HistoricalBarDTO,
     HoldingDTO,
     HoldingsReconciliationDTO,
+    IndicatorEvaluationDTO,
     MarketCalendarDTO,
     OrderAttemptDTO,
 )
@@ -455,3 +467,267 @@ def test_get_realized_ltcg_ytd_repository():
         mock_get_session.return_value.__enter__.return_value = mock_session
         ltcg = get_realized_ltcg_ytd(user_id="default", fy_start_date=date(2026, 4, 1))
         assert ltcg == Decimal("45000.00")
+
+
+def test_signal_snapshots_repository():
+    mock_session = MagicMock()
+    mock_result = MagicMock()
+    mock_session.execute.return_value = mock_result
+
+    mock_row = {
+        "id": 1,
+        "snapshot_date": date(2026, 9, 28),
+        "user_id": "default",
+        "tradingsymbol": "INFY",
+        "model_version": "v1.0.0",
+        "current_price": Decimal("1500.00"),
+        "benchmark_price": Decimal("24500.00"),
+        "composite_score": Decimal("72.50"),
+        "signal_label": "BUY",
+        "status": "PROVEN_EDGE",
+        "indicators": {"rsi": {"score": 75.0}},
+        "monte_carlo": {"p50": 1550.0},
+        "return_5d_stock": None,
+        "return_5d_benchmark": None,
+        "excess_return_5d": None,
+        "realized_5d_at": None,
+        "return_20d_stock": None,
+        "return_20d_benchmark": None,
+        "excess_return_20d": None,
+        "realized_20d_at": None,
+        "return_60d_stock": None,
+        "return_60d_benchmark": None,
+        "excess_return_60d": None,
+        "realized_60d_at": None,
+        "created_at": None,
+        "updated_at": None,
+    }
+    mock_result.mappings.return_value.one.return_value = mock_row
+
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        snap = CreateSignalSnapshotDTO(
+            snapshot_date=date(2026, 9, 28),
+            tradingsymbol="INFY",
+            current_price=Decimal("1500.00"),
+            composite_score=Decimal("72.50"),
+            signal_label="BUY",
+            status="PROVEN_EDGE",
+            indicators={"rsi": {"score": 75.0}},
+        )
+        res = record_signal_snapshot(snap)
+        assert res.id == 1
+        assert res.tradingsymbol == "INFY"
+        assert res.status == "PROVEN_EDGE"
+        assert res.composite_score == Decimal("72.50")
+
+    mock_result.mappings.return_value.all.return_value = [mock_row]
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        snapshots = get_signal_snapshots(tradingsymbol="INFY")
+        assert len(snapshots) == 1
+        assert snapshots[0].tradingsymbol == "INFY"
+
+    # Pending forward return query
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        pending = get_pending_forward_return_snapshots(horizon_days=20)
+        assert len(pending) == 1
+
+    # Invalid horizon raises ValueError
+    import pytest
+
+    with pytest.raises(ValueError, match="Invalid horizon_days"):
+        get_pending_forward_return_snapshots(horizon_days=15)
+
+    # Update forward returns
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        update_signal_forward_returns(
+            snapshot_id=1,
+            horizon="20d",
+            stock_return=Decimal("0.0520"),
+            bench_return=Decimal("0.0210"),
+            excess_return=Decimal("0.0310"),
+        )
+        assert mock_session.execute.called
+
+    with pytest.raises(ValueError, match="Invalid horizon"):
+        update_signal_forward_returns(
+            snapshot_id=1,
+            horizon="10d",
+            stock_return=Decimal("0.05"),
+            bench_return=Decimal("0.02"),
+            excess_return=Decimal("0.03"),
+        )
+
+
+def test_backtest_runs_repository():
+    mock_session = MagicMock()
+    mock_result = MagicMock()
+    mock_session.execute.return_value = mock_result
+    run_uuid = uuid4()
+
+    mock_run_row = {
+        "id": 5,
+        "run_id": run_uuid,
+        "tradingsymbol": "RELIANCE",
+        "model_version": "v1.0.0",
+        "train_start_date": date(2025, 1, 1),
+        "train_end_date": date(2025, 12, 31),
+        "test_start_date": date(2026, 1, 1),
+        "test_end_date": date(2026, 3, 31),
+        "train_window_days": 252,
+        "test_window_days": 63,
+        "total_folds": 4,
+        "strategy_cagr": 0.2450,
+        "strategy_sharpe": 1.45,
+        "strategy_sortino": 1.95,
+        "strategy_max_drawdown": -0.1250,
+        "strategy_win_rate": 0.6200,
+        "strategy_profit_factor": 1.85,
+        "total_trades": 18,
+        "stock_cagr": 0.1520,
+        "stock_sharpe": 0.95,
+        "stock_max_drawdown": -0.1850,
+        "benchmark_cagr": 0.1280,
+        "benchmark_sharpe": 0.85,
+        "benchmark_max_drawdown": -0.1600,
+        "excess_cagr_vs_stock": 0.0930,
+        "excess_cagr_vs_benchmark": 0.1170,
+        "total_cost_drag_bps": 45.0,
+        "status": "PROVEN_EDGE",
+        "passed_hurdle": True,
+        "hurdle_details": {"h1": True, "h2": True, "h3": True, "h4": True},
+        "created_at": None,
+    }
+    mock_result.mappings.return_value.one.return_value = mock_run_row
+
+    eval_dto = IndicatorEvaluationDTO(
+        name="RSI",
+        mean_ic=0.0820,
+        std_ic=0.0410,
+        information_ratio=2.0,
+        p_value=0.0120,
+        weight=0.60,
+        is_pruned=False,
+    )
+
+    run_dto = BacktestRunDTO(
+        run_id=run_uuid,
+        tradingsymbol="RELIANCE",
+        train_start_date=date(2025, 1, 1),
+        train_end_date=date(2025, 12, 31),
+        test_start_date=date(2026, 1, 1),
+        test_end_date=date(2026, 3, 31),
+        strategy_cagr=0.2450,
+        status="PROVEN_EDGE",
+        passed_hurdle=True,
+        indicators=[eval_dto],
+    )
+
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        saved = record_backtest_run(run_dto)
+        assert saved.id == 5
+        assert saved.tradingsymbol == "RELIANCE"
+        assert saved.status == "PROVEN_EDGE"
+        assert len(saved.indicators) == 1
+        assert saved.indicators[0].name == "RSI"
+
+    # get_latest_backtest_run
+    mock_eval_row = {
+        "indicator_name": "RSI",
+        "in_sample_ic": 0.09,
+        "in_sample_p_value": 0.01,
+        "out_sample_ic": 0.08,
+        "out_sample_p_value": 0.02,
+        "mean_ic": 0.0820,
+        "std_ic": 0.0410,
+        "information_ratio": 2.0,
+        "weight": 0.60,
+        "is_pruned": False,
+        "prune_reason": None,
+    }
+    mock_result.mappings.return_value.first.return_value = mock_run_row
+    mock_result.mappings.return_value.all.return_value = [mock_eval_row]
+
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        latest = get_latest_backtest_run("RELIANCE")
+        assert latest is not None
+        assert latest.tradingsymbol == "RELIANCE"
+        assert len(latest.indicators) == 1
+        assert latest.indicators[0].information_ratio == 2.0
+
+    # Test non-existent backtest run returns None
+    mock_result.mappings.return_value.first.return_value = None
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        assert get_latest_backtest_run("NONEXISTENT") is None
+
+
+def test_historical_bars_repository():
+    mock_session = MagicMock()
+    mock_result = MagicMock()
+    mock_session.execute.return_value = mock_result
+
+    # Empty list returns 0
+    assert upsert_historical_bars([]) == 0
+
+    bars = [
+        HistoricalBarDTO(
+            tradingsymbol="INFY",
+            bar_date=date(2026, 9, 25),
+            open=Decimal("1480.00"),
+            high=Decimal("1510.00"),
+            low=Decimal("1475.00"),
+            close=Decimal("1500.00"),
+            volume=2500000,
+        ),
+        HistoricalBarDTO(
+            tradingsymbol="INFY",
+            bar_date=date(2026, 9, 28),
+            open=Decimal("1500.00"),
+            high=Decimal("1525.00"),
+            low=Decimal("1495.00"),
+            close=Decimal("1520.00"),
+            volume=3100000,
+        ),
+    ]
+
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        count = upsert_historical_bars(bars)
+        assert count == 2
+
+    mock_rows = [
+        {
+            "tradingsymbol": "INFY",
+            "bar_date": date(2026, 9, 25),
+            "open": Decimal("1480.00"),
+            "high": Decimal("1510.00"),
+            "low": Decimal("1475.00"),
+            "close": Decimal("1500.00"),
+            "volume": 2500000,
+            "created_at": None,
+        },
+        {
+            "tradingsymbol": "INFY",
+            "bar_date": date(2026, 9, 28),
+            "open": Decimal("1500.00"),
+            "high": Decimal("1525.00"),
+            "low": Decimal("1495.00"),
+            "close": Decimal("1520.00"),
+            "volume": 3100000,
+            "created_at": None,
+        },
+    ]
+    mock_result.mappings.return_value.all.return_value = mock_rows
+
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        res = get_historical_bars("INFY", start_date=date(2026, 9, 1), end_date=date(2026, 9, 28))
+        assert len(res) == 2
+        assert res[0].close == Decimal("1500.00")
+        assert res[1].close == Decimal("1520.00")

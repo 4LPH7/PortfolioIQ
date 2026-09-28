@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -295,3 +295,148 @@ class TaxHarvestingSummaryDTO(BaseDTO):
     ltcg_exemption_remaining: Decimal
     is_q4: bool
     opportunities: list[TaxHarvestingOpportunityDTO] = []
+
+
+# ============================================================
+# Phase 5: Quantitative Signal Engine DTOs
+# ============================================================
+
+
+class IndicatorEvaluationDTO(BaseDTO):
+    name: str
+    in_sample_ic: float | None = None
+    in_sample_p_value: float | None = None
+    out_sample_ic: float | None = None
+    out_sample_p_value: float | None = None
+    mean_ic: float = 0.0
+    std_ic: float = 0.0
+    information_ratio: float = 0.0
+    p_value: float = 1.0
+    weight: float = 0.0
+    is_pruned: bool = True
+    prune_reason: str | None = None
+    score: float = 50.0
+
+
+class CalibratedMonteCarloDTO(BaseDTO):
+    horizon_days: int = 30
+    current_price: float = 0.0
+    degrees_of_freedom: float = 5.0
+    scale_multiplier: float = 1.0
+    empirical_coverage_80: float = 80.0
+    p10: float = 0.0
+    p25: float = 0.0
+    p50: float = 0.0
+    p75: float = 0.0
+    p90: float = 0.0
+    prob_profit: float = 50.0
+    fan_dates: list[str] = []
+    fan_p10: list[float] = []
+    fan_p50: list[float] = []
+    fan_p90: list[float] = []
+
+
+class BacktestRunDTO(BaseDTO):
+    id: int | None = None
+    run_id: UUID | str
+    tradingsymbol: str
+    model_version: str = "v1.0.0"
+    train_start_date: date
+    train_end_date: date
+    test_start_date: date
+    test_end_date: date
+    train_window_days: int = 252
+    test_window_days: int = 63
+    total_folds: int = 1
+    strategy_cagr: float | None = None
+    strategy_sharpe: float | None = None
+    strategy_sortino: float | None = None
+    strategy_max_drawdown: float | None = None
+    strategy_win_rate: float | None = None
+    strategy_profit_factor: float | None = None
+    total_trades: int = 0
+    stock_cagr: float | None = None
+    stock_sharpe: float | None = None
+    stock_max_drawdown: float | None = None
+    benchmark_cagr: float | None = None
+    benchmark_sharpe: float | None = None
+    benchmark_max_drawdown: float | None = None
+    excess_cagr_vs_stock: float | None = None
+    excess_cagr_vs_benchmark: float | None = None
+    total_cost_drag_bps: float = 0.0
+    status: Literal["PROVEN_EDGE", "UNPROVEN_NOISE", "PENDING"] = "UNPROVEN_NOISE"
+    passed_hurdle: bool = False
+    hurdle_details: dict[str, Any] = {}
+    indicators: list[IndicatorEvaluationDTO] = []
+    created_at: datetime | None = None
+
+
+class SignalSnapshotDTO(BaseDTO):
+    id: int | None = None
+    snapshot_date: date
+    user_id: str = "default"
+    tradingsymbol: str
+    model_version: str = "v1.0.0"
+    current_price: Decimal
+    benchmark_price: Decimal | None = None
+    composite_score: Decimal
+    signal_label: Literal["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL"]
+    status: Literal["PROVEN_EDGE", "UNPROVEN_NOISE", "PENDING"] = "PENDING"
+    indicators: dict[str, Any] = {}
+    monte_carlo: dict[str, Any] = {}
+    return_5d_stock: Decimal | None = None
+    return_5d_benchmark: Decimal | None = None
+    excess_return_5d: Decimal | None = None
+    realized_5d_at: date | None = None
+    return_20d_stock: Decimal | None = None
+    return_20d_benchmark: Decimal | None = None
+    excess_return_20d: Decimal | None = None
+    realized_20d_at: date | None = None
+    return_60d_stock: Decimal | None = None
+    return_60d_benchmark: Decimal | None = None
+    excess_return_60d: Decimal | None = None
+    realized_60d_at: date | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class CreateSignalSnapshotDTO(BaseDTO):
+    snapshot_date: date
+    user_id: str = "default"
+    tradingsymbol: str
+    model_version: str = "v1.0.0"
+    current_price: Decimal
+    benchmark_price: Decimal | None = None
+    composite_score: Decimal
+    signal_label: Literal["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL"]
+    status: Literal["PROVEN_EDGE", "UNPROVEN_NOISE", "PENDING"] = "PENDING"
+    indicators: dict[str, Any] = {}
+    monte_carlo: dict[str, Any] = {}
+
+
+class HoldingSignalDTO(BaseDTO):
+    symbol: str
+    tradingsymbol: str
+    current_price: float
+    composite_score: float
+    signal_label: str
+    status: Literal["PROVEN_EDGE", "UNPROVEN_NOISE", "PENDING"] = "PENDING"
+    evidence_badge: str = ""
+    indicators: list[IndicatorEvaluationDTO] = []
+    monte_carlo: CalibratedMonteCarloDTO | None = None
+    backtest_summary: dict[str, Any] | None = None
+    avg_buy_price: float = 0.0
+    data_start: str = ""
+    data_end: str = ""
+    data_points: int = 0
+
+
+class HistoricalBarDTO(BaseDTO):
+    tradingsymbol: str
+    bar_date: date
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+    volume: int = 0
+    created_at: datetime | None = None
