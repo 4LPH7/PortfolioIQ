@@ -6,8 +6,8 @@ progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 25
-  completed_plans: 16
-  percent: 64
+  completed_plans: 17
+  percent: 68
 ---
 <!-- STATE-MD-SCHEMA:END:frontmatter -->
 
@@ -23,11 +23,11 @@ See: .planning/ROADMAP.md (updated 2026-09-28)
 ## Current Position
 
 Phase: 4 of 9 (Phase 4: Portfolio Analytics That Actually Mean Something)
-Plan: Plan 04-03 complete (Wave 2). Ready for Plan 04-04 (Wave 3).
-Status: Plan 04-03 executed (daily snapshot recorder, margin delta sync, and baseline backfill tested). Ready for Plan 04-04.
-Last activity: 2026-09-28 — Executed Plan 04-03 (Daily Snapshot Recorder & Margin Delta Sync)
+Plan: Plan 04-04 complete (Wave 3). Ready for Plan 04-05 (Wave 3).
+Status: Plan 04-04 executed (Indian transaction cost model and execution-constrained rebalancer tested). Ready for Plan 04-05.
+Last activity: 2026-09-28 — Executed Plan 04-04 (Indian Transaction Cost Model & Rebalancer Sizing Constraints)
 
-Progress: [██████░░░░] 64%
+Progress: [███████░░░] 68%
 
 ## Performance Metrics
 

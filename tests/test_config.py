@@ -5,6 +5,8 @@ Verifies time format validation, fail-closed dry-run kill switch, and Settings d
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 import pytest
 
 from src.config.settings import Settings, get_settings, is_dry_run_enabled
@@ -93,6 +95,11 @@ class TestSettingsDefaultsAndProperties:
         assert settings.duplicate_window_sec == 300
         assert settings.rate_limit_mutations == "10 per minute"
         assert settings.rate_limit_default == "120 per minute"
+        assert settings.rebalancer_min_trade_value == Decimal("2000.00")
+        assert settings.rebalancer_cash_buffer_pct == Decimal("0.02")
+        assert settings.rebalancer_cash_buffer_floor == Decimal("5000.00")
+        assert settings.rebalancer_turnover_cap_pct == Decimal("0.15")
+        assert settings.rebalancer_adv_limit_pct == Decimal("0.01")
 
     def test_production_environment_flag(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("KITE_API_KEY", "dummy_key")

@@ -7,6 +7,7 @@ All configuration is strongly typed and validated at startup.
 from __future__ import annotations
 
 import os
+from decimal import Decimal
 from functools import lru_cache
 from typing import Literal
 
@@ -112,6 +113,34 @@ class Settings(BaseSettings):
         description="Seconds to look back for duplicate orders",
     )
     max_rebalance_orders: int = Field(10, ge=1, le=50)
+    rebalancer_min_trade_value: Decimal = Field(
+        Decimal("2000.00"),
+        ge=Decimal("0.00"),
+        description="Minimum trade value in INR below which rebalance orders are suppressed (unless liquidating)",
+    )
+    rebalancer_cash_buffer_pct: Decimal = Field(
+        Decimal("0.02"),
+        ge=Decimal("0.00"),
+        le=Decimal("0.50"),
+        description="Target minimum cash reserve buffer as percentage of AUM (e.g. 0.02 = 2%)",
+    )
+    rebalancer_cash_buffer_floor: Decimal = Field(
+        Decimal("5000.00"),
+        ge=Decimal("0.00"),
+        description="Absolute floor for cash reserve buffer in INR",
+    )
+    rebalancer_turnover_cap_pct: Decimal = Field(
+        Decimal("0.15"),
+        ge=Decimal("0.01"),
+        le=Decimal("1.00"),
+        description="Maximum daily portfolio turnover permitted as percentage of AUM (e.g. 0.15 = 15%)",
+    )
+    rebalancer_adv_limit_pct: Decimal = Field(
+        Decimal("0.01"),
+        ge=Decimal("0.001"),
+        le=Decimal("0.10"),
+        description="Maximum single-order size as fraction of 20-day Average Daily Volume (e.g. 0.01 = 1%)",
+    )
 
     # ------------------------------------------------------------------ #
     # Exports
