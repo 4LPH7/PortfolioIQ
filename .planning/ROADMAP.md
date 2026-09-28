@@ -71,11 +71,17 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 **Definition of done:** All active equity holdings are polled via batched Kite REST quotes (< 7% rate limit consumption); Gatekeeper validates price freshness (< 60s) with fail-closed on-demand broker refresh; post-sync holdings reconciliation audits all settlement and corporate action transitions; exchange trading calendar is database-backed with Diwali Muhurat special session support and offline JSON fallback; all tests pass cleanly with >= 85% critical coverage. Verified in `03-VERIFICATION.md`.
 
 ## Phase 4: Portfolio Analytics That Actually Mean Something
-**Status:** Unplanned
+**Status:** In Progress (Planning Complete — Ready for Wave 1 Execution)
 **Goal:** move past "P&L and a pie chart" into real portfolio science. Timeframe: 2–3 weeks.
 
-- Add to analytics: TWR, IRR, CAGR, Sharpe, Sortino, max drawdown, Beta, alpha, Realized P&L, Tax/expense adjusted returns.
-- Add to rebalancer: Transaction cost modeling, Tax-aware rebalancing, Minimum trade value, Liquidity constraints, Cash reserve constraints.
+- [ ] **Plan 04-01 (Wave 1):** Historical NAV & Cash Flow Schema (`017_portfolio_snapshots.sql`, `018_portfolio_cash_flows.sql`), Pydantic DTOs & Typed Repository Layer.
+- [ ] **Plan 04-02 (Wave 2):** Quantitative Return & Attribution Engine (`src/analytics/performance.py`: TWR, XIRR solver, Sharpe, Sortino, Drawdown, Beta/Alpha).
+- [ ] **Plan 04-03 (Wave 2):** Daily Snapshot Recorder, Morning Cash Margin Delta Sync & Baseline Backfill (`src/analytics/snapshot_recorder.py`, `scheduler/jobs.py`).
+- [ ] **Plan 04-04 (Wave 3):** Indian Transaction Cost Model & Rebalancer Sizing Constraints (`src/analytics/cost_calculator.py` & `src/analytics/rebalancer.py`).
+- [ ] **Plan 04-05 (Wave 3):** Tax-Loss Harvesting Engine, 30-Day LTCG Lock & FY Exemption Tracker (`src/analytics/tax_guard.py`).
+- [ ] **Plan 04-06 (Wave 4):** Analytics REST Endpoints, Rebalance Preview & Full Verification (`src/api/v1/blueprint.py`).
+
+**Definition of done:** True Time-Weighted Return (TWR) and Money-Weighted Return (XIRR) are tracked daily alongside NIFTY 50/500 TRI benchmarks; risk metrics (Sharpe, Sortino, Max Drawdown, Beta, Jensen's Alpha) are computed with a 30-day warmup gate; the rebalancer enforces realistic execution constraints (₹2,000 min trade, 2% cash buffer, 15% daily turnover cap, 1% ADV limit) and realistic Indian delivery fees (STT, DP charges, GST); capital gains tax-loss harvesting and annual ₹1.25L LTCG exemptions are automated; all tests pass cleanly with >= 85% critical coverage.
 
 ## Phase 5: Make the Signal Engine Evidence-Based
 **Status:** Unplanned
