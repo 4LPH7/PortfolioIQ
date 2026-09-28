@@ -278,3 +278,224 @@ def test_get_holdings_reconciliation_authorized(client: FlaskClient, api_key: st
         assert res.json["ok"] is True
         assert len(res.json["data"]) == 1
         assert res.json["data"][0]["reconciliation_reason"] == "TRADE_FILL"
+
+
+# ─────────────────────────────────────────────────────────────
+# Phase 4 Analytics & Rebalancing Endpoints
+# ─────────────────────────────────────────────────────────────
+def test_get_analytics_performance_unauthorized(client: FlaskClient) -> None:
+    res = client.get("/api/v1/analytics/performance")
+    assert res.status_code == 401
+    assert res.json["ok"] is False
+
+
+def test_get_analytics_performance_authorized(client: FlaskClient, api_key: str) -> None:
+    from src.models.dtos import PerformanceMetricsDTO
+
+    mock_metrics = PerformanceMetricsDTO(
+        user_id="default",
+        twr_pct=15.5,
+        cagr_pct=14.2,
+        xirr_pct=16.0,
+        sharpe_ratio=1.45,
+        sortino_ratio=2.10,
+        max_drawdown_pct=-8.5,
+        current_drawdown_pct=-2.1,
+        high_water_mark=112.5,
+        beta=0.92,
+        alpha_annual_pct=3.5,
+        r_squared=0.88,
+        tracking_error_pct=4.2,
+        history_days=120,
+        is_warmup_period=False,
+        gross_return_pct=16.0,
+        stt_drag_bps=12.5,
+        fee_drag_bps=2.1,
+        tax_drag_bps=15.0,
+        net_realized_return_pct=15.7,
+    )
+    with patch(
+        "src.analytics.performance.compute_portfolio_performance_summary",
+        return_value=mock_metrics,
+    ):
+        res = client.get(
+            "/api/v1/analytics/performance?benchmark=NIFTY+50+TRI&window=1y",
+            headers={"X-API-Key": api_key},
+        )
+        assert res.status_code == 200
+        assert res.json["ok"] is True
+        assert res.json["data"]["twr_pct"] == 15.5
+        assert res.json["data"]["sharpe_ratio"] == 1.45
+        assert res.json["data"]["beta"] == 0.92
+
+
+def test_get_analytics_snapshots_unauthorized(client: FlaskClient) -> None:
+    res = client.get("/api/v1/analytics/snapshots")
+    assert res.status_code == 401
+
+
+def test_get_analytics_snapshots_authorized(client: FlaskClient, api_key: str) -> None:
+    from datetime import date
+    from decimal import Decimal
+
+    from src.models.dtos import PortfolioDailySnapshotDTO
+
+    mock_snapshots = [
+        PortfolioDailySnapshotDTO(
+            id=1,
+            snapshot_date=date(2026, 9, 28),
+            user_id="default",
+            total_equity_value=Decimal("450000.00"),
+            cash_balance=Decimal("50000.00"),
+            total_nav=Decimal("500000.00"),
+            units=Decimal("5000.000000"),
+            unit_nav=Decimal("100.0000"),
+            daily_return_pct=Decimal("0.50"),
+            benchmark_name="NIFTY 50 TRI",
+            benchmark_value=Decimal("25000.00"),
+            benchmark_daily_return_pct=Decimal("0.35"),
+        )
+    ]
+    with patch("src.db.repository.get_daily_snapshots", return_value=mock_snapshots):
+        res = client.get(
+            "/api/v1/analytics/snapshots?limit=30",
+            headers={"X-API-Key": api_key},
+        )
+        assert res.status_code == 200
+        assert res.json["ok"] is True
+        assert res.json["data"][0]["unit_nav"] == "100.0000"
+
+
+def test_get_analytics_tax_harvesting_unauthorized(client: FlaskClient) -> None:
+    res = client.get("/api/v1/analytics/tax-harvesting")
+    assert res.status_code == 401
+
+
+def test_get_analytics_tax_harvesting_authorized(client: FlaskClient, api_key: str) -> None:
+    from decimal import Decimal
+
+    from src.models.dtos import TaxHarvestingSummaryDTO
+
+    mock_tax_summary = TaxHarvestingSummaryDTO(
+        fy_year="FY 2026-27",
+        ltcg_exemption_limit=Decimal("125000.00"),
+        ltcg_realized_ytd=Decimal("20000.00"),
+        ltcg_exemption_remaining=Decimal("105000.00"),
+        is_q4=False,
+        opportunities=[],
+    )
+    with patch(
+        "src.analytics.tax_guard.get_annual_tax_harvesting_summary",
+        return_value=mock_tax_summary,
+    ):
+        res = client.get(
+            "/api/v1/analytics/tax-harvesting",
+            headers={"X-API-Key": api_key},
+        )
+        assert res.status_code == 200
+        assert res.json["ok"] is True
+        assert res.json["data"]["fy_year"] == "FY 2026-27"
+        assert res.json["data"]["ltcg_exemption_remaining"] == "105000.00"
+
+
+def test_portfolio_cash_flows_unauthorized(client: FlaskClient) -> None:
+    res_get = client.get("/api/v1/portfolio/cash-flows")
+    assert res_get.status_code == 401
+
+    res_post = client.post(
+        "/api/v1/portfolio/cash-flows",
+        json={"flow_date": "2026-09-28", "flow_type": "DEPOSIT", "amount": 50000},
+    )
+    assert res_post.status_code == 401
+
+
+def test_portfolio_cash_flows_authorized(client: FlaskClient, api_key: str) -> None:
+    from datetime import date
+    from decimal import Decimal
+
+    from src.models.dtos import PortfolioCashFlowDTO
+
+    mock_flow = PortfolioCashFlowDTO(
+        id=1,
+        user_id="default",
+        flow_date=date(2026, 9, 28),
+        flow_type="DEPOSIT",
+        amount=Decimal("50000.00"),
+        source="MANUAL",
+        notes="Salary injection",
+    )
+    with (
+        patch("src.db.repository.get_cash_flows", return_value=[mock_flow]),
+        patch("src.db.repository.record_cash_flow", return_value=mock_flow),
+    ):
+        # Test GET
+        res_get = client.get(
+            "/api/v1/portfolio/cash-flows",
+            headers={"X-API-Key": api_key},
+        )
+        assert res_get.status_code == 200
+        assert res_get.json["ok"] is True
+        assert len(res_get.json["data"]) == 1
+        assert res_get.json["data"][0]["amount"] == "50000.00"
+
+        # Test POST
+        res_post = client.post(
+            "/api/v1/portfolio/cash-flows",
+            headers={"X-API-Key": api_key},
+            json={
+                "flow_date": "2026-09-28",
+                "flow_type": "DEPOSIT",
+                "amount": 50000.0,
+                "notes": "Salary injection",
+            },
+        )
+        assert res_post.status_code == 201
+        assert res_post.json["ok"] is True
+        assert res_post.json["data"]["flow_type"] == "DEPOSIT"
+
+
+def test_post_rebalance_preview_unauthorized(client: FlaskClient) -> None:
+    res = client.post("/api/v1/rebalance/preview", json={})
+    assert res.status_code == 401
+
+
+def test_post_rebalance_preview_authorized(client: FlaskClient, api_key: str) -> None:
+    mock_summary = {
+        "total_orders": 2,
+        "sell_orders": 1,
+        "buy_orders": 1,
+        "total_sell_value": 25000.0,
+        "total_buy_value": 20000.0,
+        "total_charges": 45.5,
+        "total_turnover": 45000.0,
+        "turnover_cap": 75000.0,
+        "turnover_cap_reached": False,
+        "cash_buffer_retained": 5000.0,
+        "orders_suppressed_min_trade": 0,
+        "orders_scaled_adv": 0,
+        "net_cash_impact": 5000.0,
+        "drift_signals_addressed": 2,
+        "tax_warnings": 0,
+        "orders": [
+            {
+                "symbol": "RELIANCE",
+                "exchange": "NSE",
+                "side": "SELL",
+                "quantity": 10,
+                "price": 2500.0,
+                "value": 25000.0,
+                "reason": "SECTOR_DRIFT",
+                "charges": 29.8,
+            }
+        ],
+    }
+    with patch("src.analytics.rebalancer.get_rebalance_summary", return_value=mock_summary):
+        res = client.post(
+            "/api/v1/rebalance/preview",
+            headers={"X-API-Key": api_key},
+            json={"min_trade_value": 2000.0, "turnover_cap_pct": 0.15},
+        )
+        assert res.status_code == 200
+        assert res.json["ok"] is True
+        assert res.json["data"]["total_orders"] == 2
+        assert res.json["data"]["total_charges"] == 45.5

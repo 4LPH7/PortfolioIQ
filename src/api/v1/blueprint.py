@@ -21,7 +21,7 @@ from src.db.repository import (
     list_app_configs,
     update_app_config,
 )
-from src.models.dtos import CreateMarketCalendarDTO, UpdateConfigDTO
+from src.models.dtos import CreateCashFlowDTO, CreateMarketCalendarDTO, UpdateConfigDTO
 
 api_v1_bp = Blueprint("api_v1", __name__)
 
@@ -284,3 +284,150 @@ def get_holdings_reconciliation():
 
     logs = get_holdings_reconciliation_logs(user_id="default", limit=limit, reason=reason)
     return jsonify({"ok": True, "data": [entry.model_dump() for entry in logs]}), 200
+
+
+# ─────────────────────────────────────────────────────────────
+# Phase 4: Portfolio Analytics & Constrained Rebalancing
+# ─────────────────────────────────────────────────────────────
+@api_v1_bp.route("/analytics/performance", methods=["GET"])
+@require_api_key
+def get_analytics_performance():
+    """
+    Returns quantitative return metrics (TWR, XIRR), risk ratios (Sharpe, Sortino,
+    Max Drawdown, Beta, Jensen's Alpha), and basis-point drag attribution.
+    """
+    from src.analytics.performance import compute_portfolio_performance_summary
+
+    benchmark = request.args.get("benchmark", "NIFTY 50 TRI")
+    try:
+        rf_rate = float(request.args.get("risk_free_rate", 0.065))
+    except ValueError:
+        rf_rate = 0.065
+
+    window = request.args.get("window", "all")
+    user_id = request.args.get("user_id", "default")
+
+    summary = compute_portfolio_performance_summary(
+        user_id=user_id,
+        benchmark_name=benchmark,
+        rf_annual=rf_rate,
+        window=window,
+    )
+    return jsonify({"ok": True, "data": summary.model_dump(mode="json")}), 200
+
+
+@api_v1_bp.route("/analytics/snapshots", methods=["GET"])
+@require_api_key
+def get_analytics_snapshots():
+    """Returns historical daily snapshots (equity curve & benchmark comparison)."""
+    from datetime import date
+
+    from src.db.repository import get_daily_snapshots
+
+    user_id = request.args.get("user_id", "default")
+    start_str = request.args.get("start_date")
+    end_str = request.args.get("end_date")
+    try:
+        limit = min(int(request.args.get("limit", 365)), 500)
+    except ValueError:
+        limit = 365
+
+    start_date = date.fromisoformat(start_str) if start_str else None
+    end_date = date.fromisoformat(end_str) if end_str else None
+
+    snapshots = get_daily_snapshots(
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        limit=limit,
+    )
+    return jsonify({"ok": True, "data": [s.model_dump(mode="json") for s in snapshots]}), 200
+
+
+@api_v1_bp.route("/analytics/tax-harvesting", methods=["GET"])
+@require_api_key
+def get_analytics_tax_harvesting():
+    """Returns tax-loss harvesting opportunities, near-LTCG locks, and Q4 gain harvesting."""
+    from datetime import date
+
+    from src.analytics.tax_guard import get_annual_tax_harvesting_summary
+
+    user_id = request.args.get("user_id", "default")
+    ref_date_str = request.args.get("ref_date")
+    ref_date = date.fromisoformat(ref_date_str) if ref_date_str else None
+
+    summary = get_annual_tax_harvesting_summary(user_id=user_id, ref_date=ref_date)
+    return jsonify({"ok": True, "data": summary.model_dump(mode="json")}), 200
+
+
+@api_v1_bp.route("/portfolio/cash-flows", methods=["GET"])
+@require_api_key
+def get_portfolio_cash_flows():
+    """Returns ledger of portfolio cash deposits, withdrawals, and corporate action flows."""
+    from datetime import date
+
+    from src.db.repository import get_cash_flows
+
+    user_id = request.args.get("user_id", "default")
+    start_str = request.args.get("start_date")
+    try:
+        limit = min(int(request.args.get("limit", 50)), 200)
+    except ValueError:
+        limit = 50
+
+    start_date = date.fromisoformat(start_str) if start_str else None
+    flows = get_cash_flows(user_id=user_id, start_date=start_date, limit=limit)
+    return jsonify({"ok": True, "data": [cf.model_dump(mode="json") for cf in flows]}), 200
+
+
+@api_v1_bp.route("/portfolio/cash-flows", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+@validate_json(CreateCashFlowDTO)
+def post_portfolio_cash_flow(payload: CreateCashFlowDTO):
+    """Records an external cash flow deposit or withdrawal."""
+    from src.db.repository import record_cash_flow
+
+    recorded = record_cash_flow(payload)
+    return jsonify({"ok": True, "data": recorded.model_dump(mode="json")}), 201
+
+
+@api_v1_bp.route("/rebalance/preview", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+def post_rebalance_preview():
+    """
+    Generates a dry-run rebalance manifest with trade sizing reasons,
+    itemized Indian delivery cost breakdown, and estimated tax liabilities.
+    """
+    from decimal import Decimal
+
+    from src.analytics.rebalancer import get_rebalance_summary
+
+    body = request.get_json(silent=True) or {}
+    user_id = body.get("user_id", "default")
+
+    min_trade = (
+        Decimal(str(body["min_trade_value"]))
+        if "min_trade_value" in body and body["min_trade_value"] is not None
+        else None
+    )
+    turnover_cap = (
+        Decimal(str(body["turnover_cap_pct"]))
+        if "turnover_cap_pct" in body and body["turnover_cap_pct"] is not None
+        else None
+    )
+    cash_buffer = (
+        Decimal(str(body["cash_buffer_pct"]))
+        if "cash_buffer_pct" in body and body["cash_buffer_pct"] is not None
+        else None
+    )
+
+    summary = get_rebalance_summary(
+        user_id=user_id,
+        dry_run=True,
+        min_trade_value=min_trade,
+        turnover_cap_pct=turnover_cap,
+        cash_buffer_pct=cash_buffer,
+    )
+    return jsonify({"ok": True, "data": summary}), 200
