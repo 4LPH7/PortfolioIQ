@@ -187,3 +187,58 @@ def test_get_settings_config(client: FlaskClient, api_key: str) -> None:
         assert res.json["ok"] is True
         assert len(res.json["data"]) == 2
         assert res.json["data"][0]["key"] == "k1"
+
+
+def test_get_market_calendar_endpoint(client: FlaskClient, api_key: str) -> None:
+    from datetime import date
+
+    from src.models.dtos import MarketCalendarDTO
+
+    mock_items = [
+        MarketCalendarDTO(
+            id=1,
+            holiday_date=date(2026, 11, 8),
+            holiday_name="Diwali Muhurat",
+            session_type="MUHURAT",
+            is_trading_holiday=False,
+            special_session_open="18:15:00",
+            special_session_close="19:15:00",
+        )
+    ]
+    with patch("src.db.repository.get_market_calendar_entries", return_value=mock_items):
+        res = client.get("/api/v1/market/calendar", headers={"X-API-Key": api_key})
+        assert res.status_code == 200
+        assert res.json["ok"] is True
+        assert len(res.json["data"]) == 1
+        assert res.json["data"][0]["holiday_name"] == "Diwali Muhurat"
+
+
+def test_post_market_calendar_unauthorized(client: FlaskClient) -> None:
+    res = client.post(
+        "/api/v1/market/calendar", json={"holiday_date": "2026-11-08", "holiday_name": "Test"}
+    )
+    assert res.status_code == 401
+
+
+def test_post_market_calendar_authorized(client: FlaskClient, api_key: str) -> None:
+    from datetime import date
+
+    from src.models.dtos import MarketCalendarDTO
+
+    mock_dto = MarketCalendarDTO(
+        id=1, holiday_date=date(2026, 11, 8), holiday_name="Diwali Muhurat"
+    )
+    with patch("src.db.repository.upsert_market_calendar_entry", return_value=mock_dto):
+        res = client.post(
+            "/api/v1/market/calendar",
+            headers={"X-API-Key": api_key},
+            json={
+                "holiday_date": "2026-11-08",
+                "holiday_name": "Diwali Muhurat",
+                "session_type": "MUHURAT",
+                "is_trading_holiday": False,
+            },
+        )
+        assert res.status_code == 200
+        assert res.json["ok"] is True
+        assert res.json["data"]["holiday_name"] == "Diwali Muhurat"

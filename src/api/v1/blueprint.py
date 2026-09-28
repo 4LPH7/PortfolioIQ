@@ -21,7 +21,7 @@ from src.db.repository import (
     list_app_configs,
     update_app_config,
 )
-from src.models.dtos import UpdateConfigDTO
+from src.models.dtos import CreateMarketCalendarDTO, UpdateConfigDTO
 
 api_v1_bp = Blueprint("api_v1", __name__)
 
@@ -41,6 +41,44 @@ def market_status():
     from src.ingestion.market_hours import get_market_status
 
     return jsonify({"ok": True, "data": get_market_status()})
+
+
+@api_v1_bp.route("/market/calendar", methods=["GET"])
+def get_market_calendar():
+    year_str = request.args.get("year")
+    year = int(year_str) if year_str and year_str.isdigit() else None
+    segment = request.args.get("segment", "equity")
+    from src.db.repository import get_market_calendar_entries
+
+    entries = get_market_calendar_entries(year=year, segment=segment)
+    data = []
+    for e in entries:
+        dump = e.model_dump()
+        if dump.get("holiday_date"):
+            dump["holiday_date"] = dump["holiday_date"].isoformat()
+        if dump.get("created_at"):
+            dump["created_at"] = dump["created_at"].isoformat()
+        data.append(dump)
+    return jsonify({"ok": True, "data": data})
+
+
+@api_v1_bp.route("/market/calendar", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+@validate_json(CreateMarketCalendarDTO)
+def post_market_calendar(payload: CreateMarketCalendarDTO):
+    from src.db.repository import upsert_market_calendar_entry
+    from src.ingestion.market_hours import _get_calendar_records
+
+    dto = upsert_market_calendar_entry(payload)
+    _get_calendar_records.cache_clear()
+
+    dump = dto.model_dump()
+    if dump.get("holiday_date"):
+        dump["holiday_date"] = dump["holiday_date"].isoformat()
+    if dump.get("created_at"):
+        dump["created_at"] = dump["created_at"].isoformat()
+    return jsonify({"ok": True, "data": dump})
 
 
 # ─────────────────────────────────────────────────────────────

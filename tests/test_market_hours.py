@@ -48,9 +48,17 @@ def mock_db_holidays():
         datetime.date(2026, 10, 2),  # Gandhi Jayanti
         datetime.date(2026, 12, 25),  # Christmas
     }
+    records = {d: {"holiday_date": d, "is_trading_holiday": True} for d in nse_holidays_2026}
+    # Add Muhurat trading session
+    records[datetime.date(2026, 11, 8)] = {
+        "holiday_date": datetime.date(2026, 11, 8),
+        "is_trading_holiday": False,
+        "special_session_open": datetime.time(18, 15),
+        "special_session_close": datetime.time(19, 15),
+    }
     with patch(
-        "src.ingestion.market_hours._get_holidays_for_year",
-        side_effect=lambda year: {d for d in nse_holidays_2026 if d.year == year},
+        "src.ingestion.market_hours._get_calendar_records",
+        side_effect=lambda year: {d: r for d, r in records.items() if d.year == year},
     ):
         yield
 
@@ -226,3 +234,47 @@ class TestSecondsUntilOpen:
             result = seconds_until_market_open()
         assert result > 0
         assert abs(result - 75 * 60) < 5  # ~4500 seconds (±5s tolerance)
+
+
+class TestMuhuratSpecialSession:
+    def test_muhurat_special_session_trading_hours(self):
+        dt = make_ist_datetime(2026, 11, 8, 18, 30)
+        assert is_market_open(dt) is True
+
+    def test_muhurat_session_boundaries(self):
+        dt_pre = make_ist_datetime(2026, 11, 8, 18, 0)
+        assert is_market_open(dt_pre) is False
+
+        dt_post = make_ist_datetime(2026, 11, 8, 19, 30)
+        assert is_market_open(dt_post) is False
+
+    def test_seconds_until_special_session(self):
+        # Time is 16:00 on Sunday, Muhurat is at 18:15
+        dt = make_ist_datetime(2026, 11, 8, 16, 0)
+        with patch("src.ingestion.market_hours.now_ist", return_value=dt):
+            result = seconds_until_market_open()
+        assert result == (2 * 3600) + (15 * 60)
+
+
+class TestOfflineFallback:
+    def test_offline_fallback_json_when_db_down(self):
+        # We need the original unpatched function, let's reload or import it fresh if needed
+        import src.ingestion.market_hours
+
+        # We need to test the logic of fallback.
+        # Since the autouse fixture mocks _get_calendar_records, we can test _get_calendar_records directly
+        # by restoring it temporarily.
+        patcher = patch("src.ingestion.market_hours.execute_sql")
+        mock_execute = patcher.start()
+        mock_execute.side_effect = Exception("DB Down")
+
+        try:
+            # Manually invoke the fallback logic
+            records = src.ingestion.market_hours._load_fallback_calendar()
+            assert any(r["holiday_date"] == "2026-01-26" for r in records)
+            assert any(r["holiday_date"] == "2026-11-08" for r in records)
+
+            # Since the db calendar function is mocked, we can't test is_market_open directly
+            # without unpatching. But we can test the fallback JSON parsing works.
+        finally:
+            patcher.stop()
