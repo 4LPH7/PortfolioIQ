@@ -94,6 +94,26 @@ def _token_expiry_check_job():
         logger.debug("[TOKEN] Kite token is valid.")
 
 
+def _eod_snapshot_job():
+    """End-of-day portfolio snapshot: records unitized NAV and benchmark comparison."""
+    from src.analytics.snapshot_recorder import record_daily_eod_snapshot
+    from src.ingestion.market_hours import is_market_day
+
+    if not is_market_day():
+        logger.info("[SNAPSHOT] Skipping — not a market day.")
+        return
+
+    try:
+        snapshot = record_daily_eod_snapshot()
+        logger.info(
+            "[SNAPSHOT] EOD Snapshot recorded: NAV={}, UnitNAV={}",
+            snapshot.total_nav,
+            snapshot.unit_nav,
+        )
+    except Exception as exc:
+        logger.exception("[SNAPSHOT] EOD Snapshot failed: {}", exc)
+
+
 def create_scheduler() -> BackgroundScheduler:
     """
     Create and configure the APScheduler with all PortfolioIQ jobs.
@@ -125,6 +145,15 @@ def create_scheduler() -> BackgroundScheduler:
         CronTrigger(hour=15, minute=45, day_of_week="mon-fri", timezone=IST),
         id="eod_export",
         name="End of Day Tableau Export",
+        replace_existing=True,
+    )
+
+    # EOD Portfolio Snapshot — 4:00 PM IST on weekdays
+    scheduler.add_job(
+        _eod_snapshot_job,
+        CronTrigger(hour=16, minute=0, day_of_week="mon-fri", timezone=IST),
+        id="eod_snapshot",
+        name="End of Day Portfolio Snapshot",
         replace_existing=True,
     )
 

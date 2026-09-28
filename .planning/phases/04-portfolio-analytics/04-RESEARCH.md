@@ -54,6 +54,7 @@ import numpy as np
 from datetime import date
 from scipy import optimize
 
+
 def calculate_xirr(cash_flows: list[tuple[date, float]], guess: float = 0.10) -> float | None:
     """
     Compute Money-Weighted Return (XIRR) using Newton-Raphson with Brentq fallback.
@@ -114,9 +115,7 @@ def calculate_xirr(cash_flows: list[tuple[date, float]], guess: float = 0.10) ->
 
 ```python
 def calculate_sharpe_sortino(
-    daily_returns: np.ndarray,
-    rf_annual: float = 0.065,
-    min_warmup_days: int = 30
+    daily_returns: np.ndarray, rf_annual: float = 0.065, min_warmup_days: int = 30
 ) -> tuple[float | None, float | None]:
     """
     Computes annualized Sharpe Ratio and Sortino Ratio.
@@ -136,7 +135,7 @@ def calculate_sharpe_sortino(
 
     # Sortino Ratio: Downside semi-deviation below Rf
     downside_deviations = np.minimum(0.0, excess_returns)
-    downside_dev = np.sqrt(np.mean(downside_deviations ** 2))
+    downside_dev = np.sqrt(np.mean(downside_deviations**2))
     sortino = float((mean_excess / downside_dev) * np.sqrt(252)) if downside_dev > 1e-8 else None
 
     return sharpe, sortino
@@ -154,6 +153,7 @@ class DrawdownMetrics:
     recovery_date: date | None
     is_recovered: bool
 
+
 def calculate_drawdown_series(dates: list[date], unit_navs: np.ndarray) -> DrawdownMetrics:
     hwm_series = np.maximum.accumulate(unit_navs)
     drawdowns = (unit_navs - hwm_series) / hwm_series
@@ -162,7 +162,7 @@ def calculate_drawdown_series(dates: list[date], unit_navs: np.ndarray) -> Drawd
     max_dd = float(drawdowns[trough_idx])
 
     # Find the peak date preceding the maximum drawdown trough
-    peak_idx = int(np.argmax(unit_navs[:trough_idx + 1]))
+    peak_idx = int(np.argmax(unit_navs[: trough_idx + 1]))
 
     # Find recovery date (if recovered)
     recovery_idx = None
@@ -187,12 +187,15 @@ def calculate_drawdown_series(dates: list[date], unit_navs: np.ndarray) -> Drawd
 Relative to benchmark (Default: NIFTY 50 TRI, with NIFTY 500 TRI support):
 ```python
 def calculate_beta_alpha(
-    portfolio_returns: np.ndarray,
-    benchmark_returns: np.ndarray,
-    rf_annual: float = 0.065
+    portfolio_returns: np.ndarray, benchmark_returns: np.ndarray, rf_annual: float = 0.065
 ) -> dict[str, float | None]:
     if len(portfolio_returns) < 30 or len(benchmark_returns) < 30:
-        return {"beta": None, "alpha_annual_pct": None, "r_squared": None, "tracking_error_pct": None}
+        return {
+            "beta": None,
+            "alpha_annual_pct": None,
+            "r_squared": None,
+            "tracking_error_pct": None,
+        }
 
     rf_daily = (1.0 + rf_annual) ** (1.0 / 252.0) - 1.0
     cov_matrix = np.cov(portfolio_returns, benchmark_returns)
@@ -200,7 +203,12 @@ def calculate_beta_alpha(
     var_b = cov_matrix[1, 1]
 
     if var_b < 1e-9:
-        return {"beta": None, "alpha_annual_pct": None, "r_squared": None, "tracking_error_pct": None}
+        return {
+            "beta": None,
+            "alpha_annual_pct": None,
+            "r_squared": None,
+            "tracking_error_pct": None,
+        }
 
     beta = cov_pb / var_b
     mean_p = np.mean(portfolio_returns)
@@ -214,7 +222,7 @@ def calculate_beta_alpha(
     std_p = np.std(portfolio_returns, ddof=1)
     std_b = np.std(benchmark_returns, ddof=1)
     corr = cov_pb / (std_p * std_b) if (std_p * std_b) > 1e-9 else 0.0
-    r_squared = corr ** 2
+    r_squared = corr**2
 
     # Tracking Error & Information Ratio
     excess_vs_bm = portfolio_returns - benchmark_returns
