@@ -19,9 +19,90 @@ from src.db.connection import get_db_session
 from src.ingestion.kite_auth import get_authenticated_kite
 
 
-def sync_holdings() -> int:
+def _classify_quantity_discrepancy(
+    session: Any, token: int, delta: int, last_synced_at: datetime | None
+) -> str:
+    """Classify the reason for a quantity discrepancy using audit trails."""
+    if last_synced_at:
+        # Check order_audit_trail
+        fills = session.execute(
+            text("""
+                SELECT SUM(CASE WHEN transaction_type = 'BUY' THEN requested_quantity 
+                                WHEN transaction_type = 'SELL' THEN -requested_quantity 
+                                ELSE 0 END) as net_fills
+                FROM order_audit_trail
+                WHERE instrument_token = :token 
+                  AND status IN ('COMPLETED', 'FILLED')
+                  AND executed_at > :last_sync
+            """),
+            {"token": token, "last_sync": last_synced_at},
+        ).fetchone()
+
+        if fills and fills.net_fills == delta:
+            return "TRADE_FILL"
+
+    # Check corporate actions
+    ca_check = session.execute(
+        text("""
+            SELECT action_type FROM corporate_actions
+            WHERE instrument_token = :token
+              AND ex_date >= NOW() - INTERVAL '14 days'
+        """),
+        {"token": token},
+    ).fetchone()
+
+    if ca_check:
+        if ca_check.action_type == "SPLIT":
+            return "CORPORATE_ACTION_SPLIT"
+        elif ca_check.action_type == "BONUS":
+            return "CORPORATE_ACTION_BONUS"
+
+    return "DISCREPANCY"
+
+
+def _record_reconciliation_log(
+    session: Any,
+    user_id: str,
+    instrument_token: int,
+    tradingsymbol: str,
+    old_quantity: int,
+    new_quantity: int,
+    old_avg_price: float,
+    new_avg_price: float,
+    delta_quantity: int,
+    reconciliation_reason: str,
+) -> None:
+    """Helper to insert records into holdings_reconciliation_log."""
+    session.execute(
+        text("""
+            INSERT INTO holdings_reconciliation_log (
+                user_id, instrument_token, tradingsymbol,
+                old_quantity, new_quantity, old_avg_price, new_avg_price,
+                delta_quantity, reconciliation_reason, detected_at
+            ) VALUES (
+                :user_id, :token, :symbol,
+                :old_qty, :new_qty, :old_avg, :new_avg,
+                :delta, :reason, NOW()
+            )
+        """),
+        {
+            "user_id": user_id,
+            "token": instrument_token,
+            "symbol": tradingsymbol,
+            "old_qty": old_quantity,
+            "new_qty": new_quantity,
+            "old_avg": old_avg_price,
+            "new_avg": new_avg_price,
+            "delta": delta_quantity,
+            "reason": reconciliation_reason,
+        },
+    )
+
+
+def sync_holdings(user_id: str = "default") -> int:
     """
     Pull holdings from Kite API and upsert into user_holdings table.
+    Performs reconciliation against local holdings.
 
     Returns:
         Number of holdings upserted.
@@ -37,17 +118,107 @@ def sync_holdings() -> int:
 
     if not raw_holdings:
         logger.warning("Kite returned 0 holdings. Portfolio may be empty.")
-        return 0
-
-    logger.info("Fetched {} holdings from Kite", len(raw_holdings))
 
     upserted = 0
     with get_db_session() as session:
+        # 1. Load local holdings
+        local_rows = session.execute(
+            text("""
+                SELECT instrument_token, tradingsymbol, quantity, t1_quantity, average_price, last_synced_at
+                FROM user_holdings
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id},
+        ).fetchall()
+
+        local_holdings = {
+            r.instrument_token: {
+                "tradingsymbol": r.tradingsymbol,
+                "quantity": r.quantity,
+                "t1_quantity": r.t1_quantity,
+                "average_price": float(r.average_price),
+                "last_synced_at": r.last_synced_at,
+            }
+            for r in local_rows
+        }
+
+        processed_tokens = set()
+
         for h in raw_holdings:
             instrument_token = h.get("instrument_token")
             if not instrument_token:
                 logger.warning("Skipping holding with no instrument_token: {}", h)
                 continue
+
+            processed_tokens.add(instrument_token)
+
+            new_qty = h.get("quantity", 0)
+            new_t1 = h.get("t1_quantity", 0)
+            new_total = new_qty + new_t1
+            new_avg_price = float(h.get("average_price", 0))
+            tradingsymbol = h.get("tradingsymbol", "")
+
+            if instrument_token not in local_holdings:
+                _record_reconciliation_log(
+                    session,
+                    user_id,
+                    instrument_token,
+                    tradingsymbol,
+                    0,
+                    new_total,
+                    0.0,
+                    new_avg_price,
+                    new_total,
+                    "INITIAL_SYNC",
+                )
+            else:
+                local_h = local_holdings[instrument_token]
+                old_qty = local_h["quantity"]
+                old_t1 = local_h["t1_quantity"]
+                old_total = old_qty + old_t1
+                old_avg_price = local_h["average_price"]
+                last_synced_at = local_h["last_synced_at"]
+
+                delta = new_total - old_total
+
+                if delta == 0:
+                    if old_t1 > 0 and new_t1 == 0 and new_qty == old_total:
+                        _record_reconciliation_log(
+                            session,
+                            user_id,
+                            instrument_token,
+                            tradingsymbol,
+                            old_total,
+                            new_total,
+                            old_avg_price,
+                            new_avg_price,
+                            0,
+                            "T1_SETTLEMENT",
+                        )
+                else:
+                    reason = _classify_quantity_discrepancy(
+                        session, instrument_token, delta, last_synced_at
+                    )
+                    if reason == "DISCREPANCY":
+                        logger.warning(
+                            "UNEXPLAINED QUANTITY JUMP for {}: old={}, new={}, delta={}",
+                            tradingsymbol,
+                            old_total,
+                            new_total,
+                            delta,
+                        )
+                    _record_reconciliation_log(
+                        session,
+                        user_id,
+                        instrument_token,
+                        tradingsymbol,
+                        old_total,
+                        new_total,
+                        old_avg_price,
+                        new_avg_price,
+                        delta,
+                        reason,
+                    )
 
             # Ensure instrument exists in master (upsert minimal record)
             _ensure_instrument_exists(session, h)
@@ -117,7 +288,7 @@ def sync_holdings() -> int:
                         updated_at          = NOW()
                 """),
                 {
-                    "user_id": "default",
+                    "user_id": user_id,
                     "instrument_token": instrument_token,
                     "tradingsymbol": h.get("tradingsymbol", ""),
                     "exchange": h.get("exchange", "NSE"),
@@ -139,6 +310,44 @@ def sync_holdings() -> int:
                 },
             )
             upserted += 1
+
+        # Check for missing holdings
+        for token, local_h in local_holdings.items():
+            if token not in processed_tokens:
+                old_total = local_h["quantity"] + local_h["t1_quantity"]
+                if old_total > 0:
+                    reason = _classify_quantity_discrepancy(
+                        session, token, -old_total, local_h["last_synced_at"]
+                    )
+                    if reason == "DISCREPANCY":
+                        logger.warning(
+                            "UNEXPLAINED QUANTITY JUMP (MISSING) for {}: old={}, new=0, delta={}",
+                            local_h["tradingsymbol"],
+                            old_total,
+                            -old_total,
+                        )
+                    _record_reconciliation_log(
+                        session,
+                        user_id,
+                        token,
+                        local_h["tradingsymbol"],
+                        old_total,
+                        0,
+                        local_h["average_price"],
+                        0.0,
+                        -old_total,
+                        reason,
+                    )
+
+                    # Zero out missing holding
+                    session.execute(
+                        text("""
+                            UPDATE user_holdings
+                            SET quantity = 0, t1_quantity = 0, updated_at = NOW(), last_synced_at = NOW()
+                            WHERE user_id = :user_id AND instrument_token = :token
+                        """),
+                        {"user_id": user_id, "token": token},
+                    )
 
     logger.success("Holdings sync complete. {} holdings upserted.", upserted)
     return upserted

@@ -242,3 +242,39 @@ def test_post_market_calendar_authorized(client: FlaskClient, api_key: str) -> N
         assert res.status_code == 200
         assert res.json["ok"] is True
         assert res.json["data"]["holiday_name"] == "Diwali Muhurat"
+
+
+def test_get_holdings_reconciliation_unauthorized(client: FlaskClient) -> None:
+    res = client.get("/api/v1/holdings/reconciliation")
+    assert res.status_code == 401
+
+
+def test_get_holdings_reconciliation_authorized(client: FlaskClient, api_key: str) -> None:
+    from datetime import datetime
+
+    from src.models.dtos import HoldingsReconciliationDTO
+
+    mock_logs = [
+        HoldingsReconciliationDTO(
+            id=1,
+            user_id="default",
+            instrument_token=123,
+            tradingsymbol="TEST",
+            old_quantity=10,
+            new_quantity=20,
+            old_avg_price=100.0,
+            new_avg_price=100.0,
+            delta_quantity=10,
+            reconciliation_reason="TRADE_FILL",
+            detected_at=datetime(2026, 9, 28, 10, 0, 0),
+        )
+    ]
+    with patch("src.db.repository.get_holdings_reconciliation_logs", return_value=mock_logs):
+        res = client.get(
+            "/api/v1/holdings/reconciliation?limit=10&reason=TRADE_FILL",
+            headers={"X-API-Key": api_key},
+        )
+        assert res.status_code == 200
+        assert res.json["ok"] is True
+        assert len(res.json["data"]) == 1
+        assert res.json["data"][0]["reconciliation_reason"] == "TRADE_FILL"

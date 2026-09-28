@@ -267,3 +267,20 @@ def manual_sync():
 def db_stats():
     data = get_database_stats()
     return jsonify({"ok": True, "data": data})
+
+
+@api_v1_bp.route("/holdings/reconciliation", methods=["GET"])
+@require_api_key
+def get_holdings_reconciliation():
+    """Retrieve holdings reconciliation audit logs."""
+    from src.db.repository import get_holdings_reconciliation_logs
+
+    try:
+        limit = min(int(request.args.get("limit", 50)), 200)
+    except ValueError:
+        limit = 50
+
+    reason = request.args.get("reason")
+
+    logs = get_holdings_reconciliation_logs(user_id="default", limit=limit, reason=reason)
+    return jsonify({"ok": True, "data": [entry.model_dump() for entry in logs]}), 200
