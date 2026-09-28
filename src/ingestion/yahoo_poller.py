@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging as std_logging  # tenacity uses standard logging
 import time
+import warnings
 from datetime import datetime
 from typing import Any
 
@@ -34,6 +35,12 @@ from src.config.settings import get_settings
 from src.db.connection import get_db_session
 from src.ingestion.instrument_mapper import get_yf_tickers_for_holdings
 from src.ingestion.market_hours import is_market_open, now_ist, seconds_until_market_open
+
+warnings.warn(
+    "yahoo_poller is deprecated for live pricing; use src.ingestion.kite_quote_poller instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 IST = pytz.timezone("Asia/Kolkata")
 
@@ -264,6 +271,8 @@ def run_polling_daemon() -> None:
 
     logger.info("=" * 50)
     logger.info("YAHOO FINANCE POLLING DAEMON STARTED")
+    logger.warning("DEPRECATION WARNING: This module is deprecated.")
+    logger.warning("Please migrate to src.ingestion.kite_quote_poller")
     logger.info("Interval: {}s | Dry-run: {}", settings.polling_interval_sec, settings.is_dry_run)
     logger.info("=" * 50)
 
