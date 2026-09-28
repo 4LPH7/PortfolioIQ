@@ -1,0 +1,151 @@
+{
+  "exchange": "NSE",
+  "segment": "equity",
+  "year": 2026,
+  "holidays": [
+    {
+      "holiday_date": "2026-01-26",
+      "holiday_name": "Republic Day",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Republic Day (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-03-03",
+      "holiday_name": "Holi",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Holi (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-03-26",
+      "holiday_name": "Shri Ram Navami",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Shri Ram Navami (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-03-31",
+      "holiday_name": "Shri Mahavir Jayanti",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Shri Mahavir Jayanti (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-04-03",
+      "holiday_name": "Good Friday",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Good Friday (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-04-14",
+      "holiday_name": "Dr. B.R. Ambedkar Jayanti",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Dr. B.R. Ambedkar Jayanti (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-05-01",
+      "holiday_name": "Maharashtra Day",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Maharashtra Day (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-05-28",
+      "holiday_name": "Bakri Id",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Bakri Id (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-06-26",
+      "holiday_name": "Muharram",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Muharram (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-09-14",
+      "holiday_name": "Ganesh Chaturthi",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Ganesh Chaturthi (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-10-02",
+      "holiday_name": "Mahatma Gandhi Jayanti",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Mahatma Gandhi Jayanti (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-10-20",
+      "holiday_name": "Dussehra",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Dussehra (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-11-08",
+      "holiday_name": "Diwali - Muhurat Trading",
+      "session_type": "MUHURAT",
+      "is_trading_holiday": false,
+      "special_session_open": "18:15:00",
+      "special_session_close": "19:15:00",
+      "description": "Diwali Laxmi Pujan (Muhurat Trading evening session 18:15-19:15 IST)"
+    },
+    {
+      "holiday_date": "2026-11-10",
+      "holiday_name": "Diwali - Balipratipada",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Diwali - Balipratipada (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-11-24",
+      "holiday_name": "Prakash Gurpurb Sri Guru Nanak Dev",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Prakash Gurpurb Sri Guru Nanak Dev (Exchange Closed)"
+    },
+    {
+      "holiday_date": "2026-12-25",
+      "holiday_name": "Christmas",
+      "session_type": "CLOSED",
+      "is_trading_holiday": true,
+      "special_session_open": null,
+      "special_session_close": null,
+      "description": "Christmas (Exchange Closed)"
+    }
+  ]
+}

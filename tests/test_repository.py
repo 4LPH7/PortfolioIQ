@@ -3,6 +3,7 @@ Tests for src/db/repository.py and src/models/dtos.py
 Verifies DTO validation, parameterized SQL execution, and append-only audit enforcement.
 """
 
+from datetime import date
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -10,14 +11,21 @@ from uuid import uuid4
 from src.db.repository import (
     get_app_config,
     get_current_holdings,
+    get_holdings_reconciliation_logs,
+    get_market_calendar_entries,
     record_broker_execution,
+    record_holdings_reconciliation,
     record_order_attempt,
     update_app_config,
+    upsert_market_calendar_entry,
 )
 from src.models.dtos import (
     AppConfigDTO,
     BrokerExecutionDTO,
+    CreateMarketCalendarDTO,
     HoldingDTO,
+    HoldingsReconciliationDTO,
+    MarketCalendarDTO,
     OrderAttemptDTO,
 )
 
@@ -249,3 +257,89 @@ def test_app_config_get_and_update():
         assert mock_session.execute.called
         query_text = str(mock_session.execute.call_args[0][0])
         assert "UPDATE system_config SET value = :value" in query_text
+
+
+def test_market_calendar_repository_crud():
+    mock_session = MagicMock()
+    mock_result = MagicMock()
+    mock_session.execute.return_value = mock_result
+
+    # Test upsert
+    mock_row = {
+        "id": 1,
+        "holiday_date": date(2026, 11, 8),
+        "exchange": "NSE",
+        "segment": "equity",
+        "holiday_name": "Diwali Muhurat",
+        "session_type": "MUHURAT",
+        "is_trading_holiday": False,
+        "special_session_open": "18:15:00",
+        "special_session_close": "19:15:00",
+        "description": "Diwali",
+        "created_at": None,
+    }
+    mock_result.mappings.return_value.one.return_value = mock_row
+
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        entry = CreateMarketCalendarDTO(
+            holiday_date=date(2026, 11, 8),
+            holiday_name="Diwali Muhurat",
+            session_type="MUHURAT",
+            is_trading_holiday=False,
+            special_session_open="18:15:00",
+            special_session_close="19:15:00",
+        )
+        res = upsert_market_calendar_entry(entry)
+        assert isinstance(res, MarketCalendarDTO)
+        assert res.session_type == "MUHURAT"
+
+    # Test get
+    mock_result.mappings.return_value.all.return_value = [mock_row]
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        entries = get_market_calendar_entries(year=2026)
+        assert len(entries) == 1
+        assert entries[0].holiday_name == "Diwali Muhurat"
+
+
+def test_holdings_reconciliation_repository():
+    mock_session = MagicMock()
+    mock_result = MagicMock()
+    mock_session.execute.return_value = mock_result
+
+    mock_row = {
+        "id": 1,
+        "user_id": "default",
+        "instrument_token": 123456,
+        "tradingsymbol": "RELIANCE",
+        "old_quantity": 10,
+        "new_quantity": 15,
+        "old_avg_price": Decimal("2500"),
+        "new_avg_price": Decimal("2500"),
+        "delta_quantity": 5,
+        "reconciliation_reason": "T1_SETTLEMENT",
+        "detected_at": None,
+    }
+    mock_result.mappings.return_value.one.return_value = mock_row
+
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        entry = HoldingsReconciliationDTO(
+            instrument_token=123456,
+            tradingsymbol="RELIANCE",
+            old_quantity=10,
+            new_quantity=15,
+            delta_quantity=5,
+            reconciliation_reason="T1_SETTLEMENT",
+        )
+        res = record_holdings_reconciliation(entry)
+        assert res.id == 1
+        assert res.reconciliation_reason == "T1_SETTLEMENT"
+
+    mock_result.mappings.return_value.all.return_value = [mock_row]
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        logs = get_holdings_reconciliation_logs(reason="T1_SETTLEMENT")
+        assert len(logs) == 1
+        assert logs[0].tradingsymbol == "RELIANCE"

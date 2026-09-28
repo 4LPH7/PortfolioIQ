@@ -17,7 +17,10 @@ from src.db.connection import get_db_session
 from src.models.dtos import (
     AppConfigDTO,
     BrokerExecutionDTO,
+    CreateMarketCalendarDTO,
     HoldingDTO,
+    HoldingsReconciliationDTO,
+    MarketCalendarDTO,
     OrderAttemptDTO,
     ValidationCheckDTO,
 )
@@ -357,3 +360,99 @@ def get_database_stats() -> dict[str, int]:
         result = session.execute(query)
         row = result.mappings().first()
         return dict(row) if row else {}
+
+
+def get_market_calendar_entries(
+    year: int | None = None, segment: str = "equity"
+) -> list[MarketCalendarDTO]:
+    """Retrieve market calendar entries for a given year and segment."""
+    where_clause = "WHERE segment = :segment"
+    params: dict[str, Any] = {"segment": segment}
+    if year is not None:
+        where_clause += " AND EXTRACT(YEAR FROM holiday_date) = :year"
+        params["year"] = year
+
+    query = text(f"""
+        SELECT id, holiday_date, exchange, segment, holiday_name, session_type,
+               is_trading_holiday, special_session_open, special_session_close,
+               description, created_at
+        FROM market_calendar
+        {where_clause}
+        ORDER BY holiday_date ASC
+    """)
+    with get_db_session() as session:
+        result = session.execute(query, params)
+        return [MarketCalendarDTO.model_validate(dict(r)) for r in result.mappings().all()]
+
+
+def upsert_market_calendar_entry(entry: CreateMarketCalendarDTO) -> MarketCalendarDTO:
+    """Upsert a market calendar entry."""
+    query = text("""
+        INSERT INTO market_calendar (
+            holiday_date, exchange, segment, holiday_name, session_type,
+            is_trading_holiday, special_session_open, special_session_close,
+            description, created_at
+        )
+        VALUES (
+            :holiday_date, :exchange, :segment, :holiday_name, :session_type,
+            :is_trading_holiday, CAST(:special_session_open AS TIME), CAST(:special_session_close AS TIME),
+            :description, NOW()
+        )
+        ON CONFLICT (holiday_date, exchange) DO UPDATE SET
+            segment = EXCLUDED.segment,
+            holiday_name = EXCLUDED.holiday_name,
+            session_type = EXCLUDED.session_type,
+            is_trading_holiday = EXCLUDED.is_trading_holiday,
+            special_session_open = EXCLUDED.special_session_open,
+            special_session_close = EXCLUDED.special_session_close,
+            description = EXCLUDED.description
+        RETURNING *
+    """)
+    with get_db_session() as session:
+        result = session.execute(query, entry.model_dump(exclude_unset=True, exclude_none=True))
+        row = result.mappings().one()
+        return MarketCalendarDTO.model_validate(dict(row))
+
+
+def record_holdings_reconciliation(entry: HoldingsReconciliationDTO) -> HoldingsReconciliationDTO:
+    """Record a holdings reconciliation log entry."""
+    query = text("""
+        INSERT INTO holdings_reconciliation_log (
+            user_id, instrument_token, tradingsymbol, old_quantity, new_quantity,
+            old_avg_price, new_avg_price, delta_quantity, reconciliation_reason, detected_at
+        )
+        VALUES (
+            :user_id, :instrument_token, :tradingsymbol, :old_quantity, :new_quantity,
+            :old_avg_price, :new_avg_price, :delta_quantity, :reconciliation_reason, NOW()
+        )
+        RETURNING *
+    """)
+    dump = entry.model_dump()
+    dump.pop("id", None)
+    dump.pop("detected_at", None)
+    with get_db_session() as session:
+        result = session.execute(query, dump)
+        row = result.mappings().one()
+        return HoldingsReconciliationDTO.model_validate(dict(row))
+
+
+def get_holdings_reconciliation_logs(
+    user_id: str = "default", limit: int = 50, reason: str | None = None
+) -> list[HoldingsReconciliationDTO]:
+    """Retrieve holdings reconciliation logs."""
+    where_clause = "WHERE user_id = :user_id"
+    params: dict[str, Any] = {"user_id": user_id, "limit": limit}
+
+    if reason is not None:
+        where_clause += " AND reconciliation_reason = :reason"
+        params["reason"] = reason
+
+    query = text(f"""
+        SELECT * FROM holdings_reconciliation_log
+        {where_clause}
+        ORDER BY detected_at DESC
+        LIMIT :limit
+    """)
+    with get_db_session() as session:
+        result = session.execute(query, params)
+        return [HoldingsReconciliationDTO.model_validate(dict(r)) for r in result.mappings().all()]

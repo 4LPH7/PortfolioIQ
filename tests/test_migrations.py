@@ -140,3 +140,39 @@ def test_run_migrations_executes_unapplied(tmp_path: Path):
             for call in mock_cursor.execute.call_args_list
         )
         assert mock_conn.commit.called
+
+
+def test_phase_3_table_structures():
+    """Verify table structures for holdings_reconciliation_log and market_calendar enhancements."""
+    from sqlalchemy import text
+    from sqlalchemy.exc import OperationalError
+
+    from src.db.connection import get_db_session
+
+    try:
+        with get_db_session() as session:
+            # Check holdings_reconciliation_log exists
+            result = session.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'holdings_reconciliation_log'"
+                )
+            )
+            columns = {r[0] for r in result.fetchall()}
+            assert "reconciliation_reason" in columns
+            assert "delta_quantity" in columns
+            assert "instrument_token" in columns
+
+            # Check market_calendar enhancements
+            result = session.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'market_calendar'"
+                )
+            )
+            columns = {r[0] for r in result.fetchall()}
+            assert "segment" in columns
+            assert "is_trading_holiday" in columns
+            assert "special_session_open" in columns
+            assert "special_session_close" in columns
+            assert "description" in columns
+    except OperationalError:
+        pytest.skip("Database not available")

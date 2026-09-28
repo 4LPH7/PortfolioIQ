@@ -133,3 +133,51 @@ class AppConfigDTO(BaseDTO):
 class UpdateConfigDTO(BaseModel):
     key: str
     value: str
+
+
+class MarketCalendarDTO(BaseDTO):
+    id: int | None = None
+    holiday_date: date
+    exchange: str = "NSE"
+    segment: str = "equity"
+    holiday_name: str
+    session_type: str = "CLOSED"
+    is_trading_holiday: bool = True
+    special_session_open: str | None = None
+    special_session_close: str | None = None
+    description: str | None = None
+    created_at: datetime | None = None
+
+
+class CreateMarketCalendarDTO(BaseModel):
+    holiday_date: date
+    exchange: str = "NSE"
+    segment: str = "equity"
+    holiday_name: str
+    session_type: Literal["CLOSED", "MUHURAT", "HALF_DAY"] = "CLOSED"
+    is_trading_holiday: bool = True
+    special_session_open: str | None = None
+    special_session_close: str | None = None
+    description: str | None = None
+
+
+class HoldingsReconciliationDTO(BaseDTO):
+    id: int | None = None
+    user_id: str = "default"
+    instrument_token: int
+    tradingsymbol: str
+    old_quantity: int
+    new_quantity: int
+    old_avg_price: Decimal | None = None
+    new_avg_price: Decimal | None = None
+    delta_quantity: int
+    reconciliation_reason: Literal[
+        "T1_SETTLEMENT",
+        "TRADE_FILL",
+        "CORPORATE_ACTION_SPLIT",
+        "CORPORATE_ACTION_BONUS",
+        "EXTERNAL_TRANSFER",
+        "INITIAL_SYNC",
+        "DISCREPANCY",
+    ]
+    detected_at: datetime | None = None
