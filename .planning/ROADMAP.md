@@ -59,16 +59,16 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 **Definition of done:** All 166 tests pass cleanly with zero skipped and zero failed, safety-critical coverage is 100%, code formatting and linting is 100% clean under Ruff, and CI/CD enforces automated tests, migration checks, and post-deploy smoke tests with automated rollback. Verified in `02-VERIFICATION.md`.
 
 ## Phase 3: Data Quality & Market Infrastructure
-**Status:** In Progress (Planning Complete — Ready for Wave 1 Execution)
+**Status:** Complete
 **Goal:** the numbers on screen are numbers you'd trust with real money. Timeframe: 1–2 weeks.
 
-- [ ] **Plan 03-01 (Wave 1):** Database Migrations (`015_holdings_reconciliation_log.sql`, `016_market_calendar.sql`), Static JSON Fallback (`src/config/nse_holidays.json`), Pydantic DTOs & Typed Repository Layer.
-- [ ] **Plan 03-02 (Wave 2):** Database-Backed Market Hours & Special Sessions Engine (`src/ingestion/market_hours.py`) with Caching & Offline JSON Fallback + Calendar REST API.
-- [ ] **Plan 03-03 (Wave 2):** Zerodha Kite Connect REST Batch Quote Poller Daemon (`src/ingestion/kite_quote_poller.py`) and Deprecation of Yahoo Finance Polling.
-- [ ] **Plan 03-04 (Wave 3):** Gatekeeper 60s Freshness Policy & Synchronous Fail-Closed On-Demand Broker Quote Refresh (`src/execution/validators/slippage_check.py`).
-- [ ] **Plan 03-05 (Wave 3):** Broker Holdings Reconciliation Runner (`src/ingestion/kite_sync.py`), Unexplained Quantity Jump Detection & Reconciliation Audit API.
+- [x] **Plan 03-01 (Wave 1):** Database Migrations (`015_holdings_reconciliation_log.sql`, `016_market_calendar.sql`), Static JSON Fallback (`src/config/nse_holidays.json`), Pydantic DTOs & Typed Repository Layer.
+- [x] **Plan 03-02 (Wave 2):** Database-Backed Market Hours & Special Sessions Engine (`src/ingestion/market_hours.py`) with Caching & Offline JSON Fallback + Calendar REST API.
+- [x] **Plan 03-03 (Wave 2):** Zerodha Kite Connect REST Batch Quote Poller Daemon (`src/ingestion/kite_quote_poller.py`) and Deprecation of Yahoo Finance Polling.
+- [x] **Plan 03-04 (Wave 3):** Gatekeeper 60s Freshness Policy & Synchronous Fail-Closed On-Demand Broker Quote Refresh (`src/execution/validators/slippage_check.py`).
+- [x] **Plan 03-05 (Wave 3):** Broker Holdings Reconciliation Runner (`src/ingestion/kite_sync.py`), Unexplained Quantity Jump Detection & Reconciliation Audit API.
 
-**Definition of done:** All active equity holdings are polled via batched Kite REST quotes (< 7% rate limit consumption); Gatekeeper validates price freshness (< 60s) with fail-closed on-demand broker refresh; post-sync holdings reconciliation audits all settlement and corporate action transitions; exchange trading calendar is database-backed with Diwali Muhurat special session support and offline JSON fallback; all tests pass cleanly with >= 85% critical coverage.
+**Definition of done:** All active equity holdings are polled via batched Kite REST quotes (< 7% rate limit consumption); Gatekeeper validates price freshness (< 60s) with fail-closed on-demand broker refresh; post-sync holdings reconciliation audits all settlement and corporate action transitions; exchange trading calendar is database-backed with Diwali Muhurat special session support and offline JSON fallback; all tests pass cleanly with >= 85% critical coverage. Verified in `03-VERIFICATION.md`.
 
 ## Phase 4: Portfolio Analytics That Actually Mean Something
 **Status:** Unplanned
