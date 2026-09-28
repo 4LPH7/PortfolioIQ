@@ -176,3 +176,40 @@ def test_phase_3_table_structures():
             assert "description" in columns
     except OperationalError:
         pytest.skip("Database not available")
+
+
+def test_phase_4_table_structures():
+    """Verify table structures for portfolio_daily_snapshots and portfolio_cash_flows."""
+    from sqlalchemy import text
+    from sqlalchemy.exc import OperationalError
+
+    from src.db.connection import get_db_session
+
+    try:
+        with get_db_session() as session:
+            # Check portfolio_daily_snapshots exists
+            result = session.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'portfolio_daily_snapshots'"
+                )
+            )
+            columns = {r[0] for r in result.fetchall()}
+            assert "snapshot_date" in columns
+            assert "unit_nav" in columns
+            assert "units" in columns
+            assert "daily_return_pct" in columns
+            assert "benchmark_name" in columns
+
+            # Check portfolio_cash_flows exists
+            result = session.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'portfolio_cash_flows'"
+                )
+            )
+            columns = {r[0] for r in result.fetchall()}
+            assert "flow_date" in columns
+            assert "flow_type" in columns
+            assert "amount" in columns
+            assert "source" in columns
+    except OperationalError:
+        pytest.skip("Database not available")

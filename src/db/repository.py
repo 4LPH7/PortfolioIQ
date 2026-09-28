@@ -6,6 +6,7 @@ Adheres to strict append-only constraints for audit tables.
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -17,11 +18,15 @@ from src.db.connection import get_db_session
 from src.models.dtos import (
     AppConfigDTO,
     BrokerExecutionDTO,
+    CreateCashFlowDTO,
     CreateMarketCalendarDTO,
+    CreateSnapshotDTO,
     HoldingDTO,
     HoldingsReconciliationDTO,
     MarketCalendarDTO,
     OrderAttemptDTO,
+    PortfolioCashFlowDTO,
+    PortfolioDailySnapshotDTO,
     ValidationCheckDTO,
 )
 
@@ -456,3 +461,139 @@ def get_holdings_reconciliation_logs(
     with get_db_session() as session:
         result = session.execute(query, params)
         return [HoldingsReconciliationDTO.model_validate(dict(r)) for r in result.mappings().all()]
+
+
+def record_daily_snapshot(snapshot: CreateSnapshotDTO) -> PortfolioDailySnapshotDTO:
+    """Record or update a daily portfolio snapshot (upsert on user_id, snapshot_date)."""
+    query = text("""
+        INSERT INTO portfolio_daily_snapshots (
+            snapshot_date, user_id, total_equity_value, cash_balance, total_nav,
+            units, unit_nav, daily_return_pct, benchmark_name, benchmark_value,
+            benchmark_daily_return_pct, net_external_flow, gross_daily_return_pct,
+            stt_drag_bps, fee_drag_bps, tax_drag_bps, created_at
+        )
+        VALUES (
+            :snapshot_date, :user_id, :total_equity_value, :cash_balance, :total_nav,
+            :units, :unit_nav, :daily_return_pct, :benchmark_name, :benchmark_value,
+            :benchmark_daily_return_pct, :net_external_flow, :gross_daily_return_pct,
+            :stt_drag_bps, :fee_drag_bps, :tax_drag_bps, NOW()
+        )
+        ON CONFLICT (user_id, snapshot_date) DO UPDATE SET
+            total_equity_value = EXCLUDED.total_equity_value,
+            cash_balance = EXCLUDED.cash_balance,
+            total_nav = EXCLUDED.total_nav,
+            units = EXCLUDED.units,
+            unit_nav = EXCLUDED.unit_nav,
+            daily_return_pct = EXCLUDED.daily_return_pct,
+            benchmark_name = EXCLUDED.benchmark_name,
+            benchmark_value = EXCLUDED.benchmark_value,
+            benchmark_daily_return_pct = EXCLUDED.benchmark_daily_return_pct,
+            net_external_flow = EXCLUDED.net_external_flow,
+            gross_daily_return_pct = EXCLUDED.gross_daily_return_pct,
+            stt_drag_bps = EXCLUDED.stt_drag_bps,
+            fee_drag_bps = EXCLUDED.fee_drag_bps,
+            tax_drag_bps = EXCLUDED.tax_drag_bps
+        RETURNING *
+    """)
+    with get_db_session() as session:
+        result = session.execute(query, snapshot.model_dump())
+        row = result.mappings().one()
+        return PortfolioDailySnapshotDTO.model_validate(dict(row))
+
+
+def get_daily_snapshots(
+    user_id: str = "default",
+    start_date: date | None = None,
+    end_date: date | None = None,
+    limit: int = 365,
+) -> list[PortfolioDailySnapshotDTO]:
+    """Retrieve daily portfolio snapshots for a user in ascending chronological order."""
+    where_clauses = ["user_id = :user_id"]
+    params: dict[str, Any] = {"user_id": user_id, "limit": limit}
+
+    if start_date is not None:
+        where_clauses.append("snapshot_date >= :start_date")
+        params["start_date"] = start_date
+
+    if end_date is not None:
+        where_clauses.append("snapshot_date <= :end_date")
+        params["end_date"] = end_date
+
+    where_sql = "WHERE " + " AND ".join(where_clauses)
+    query = text(f"""
+        SELECT * FROM portfolio_daily_snapshots
+        {where_sql}
+        ORDER BY snapshot_date ASC
+        LIMIT :limit
+    """)
+    with get_db_session() as session:
+        result = session.execute(query, params)
+        return [PortfolioDailySnapshotDTO.model_validate(dict(r)) for r in result.mappings().all()]
+
+
+def record_cash_flow(flow: CreateCashFlowDTO) -> PortfolioCashFlowDTO:
+    """Record an external cash flow into the cash flows ledger."""
+    query = text("""
+        INSERT INTO portfolio_cash_flows (
+            user_id, flow_date, flow_type, amount, units_affected,
+            nav_per_unit, source, external_reference, notes, created_at
+        )
+        VALUES (
+            :user_id, :flow_date, :flow_type, :amount, :units_affected,
+            :nav_per_unit, :source, :external_reference, :notes, NOW()
+        )
+        RETURNING *
+    """)
+    with get_db_session() as session:
+        result = session.execute(query, flow.model_dump())
+        row = result.mappings().one()
+        return PortfolioCashFlowDTO.model_validate(dict(row))
+
+
+def get_cash_flows(
+    user_id: str = "default",
+    start_date: date | None = None,
+    limit: int = 100,
+) -> list[PortfolioCashFlowDTO]:
+    """Retrieve cash flow entries for a user in descending chronological order."""
+    where_clauses = ["user_id = :user_id"]
+    params: dict[str, Any] = {"user_id": user_id, "limit": limit}
+
+    if start_date is not None:
+        where_clauses.append("flow_date >= :start_date")
+        params["start_date"] = start_date
+
+    where_sql = "WHERE " + " AND ".join(where_clauses)
+    query = text(f"""
+        SELECT * FROM portfolio_cash_flows
+        {where_sql}
+        ORDER BY flow_date DESC, id DESC
+        LIMIT :limit
+    """)
+    with get_db_session() as session:
+        result = session.execute(query, params)
+        return [PortfolioCashFlowDTO.model_validate(dict(r)) for r in result.mappings().all()]
+
+
+def get_realized_ltcg_ytd(
+    user_id: str = "default",
+    fy_start_date: date | None = None,
+) -> Decimal:
+    """Calculate total realized Long-Term Capital Gains (LTCG) in the current financial year."""
+    if fy_start_date is None:
+        today = date.today()
+        fy_year = today.year if today.month >= 4 else today.year - 1
+        fy_start_date = date(fy_year, 4, 1)
+
+    query = text("""
+        SELECT COALESCE(SUM(realized_pnl), 0) AS total_ltcg
+        FROM holding_tax_lots
+        WHERE user_id = :user_id
+          AND holding_period_category = 'LTCG'
+          AND updated_at >= :fy_start_date
+          AND remaining_quantity = 0
+    """)
+    with get_db_session() as session:
+        result = session.execute(query, {"user_id": user_id, "fy_start_date": fy_start_date})
+        row = result.mappings().first()
+        return Decimal(str(row["total_ltcg"])) if row else Decimal("0.00")

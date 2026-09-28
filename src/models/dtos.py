@@ -181,3 +181,117 @@ class HoldingsReconciliationDTO(BaseDTO):
         "DISCREPANCY",
     ]
     detected_at: datetime | None = None
+
+
+class PortfolioDailySnapshotDTO(BaseDTO):
+    id: int | None = None
+    snapshot_date: date
+    user_id: str = "default"
+    total_equity_value: Decimal
+    cash_balance: Decimal
+    total_nav: Decimal
+    units: Decimal = Decimal("1.000000")
+    unit_nav: Decimal = Decimal("100.0000")
+    daily_return_pct: Decimal | None = None
+    benchmark_name: str = "NIFTY 50 TRI"
+    benchmark_value: Decimal | None = None
+    benchmark_daily_return_pct: Decimal | None = None
+    net_external_flow: Decimal = Decimal("0.00")
+    gross_daily_return_pct: Decimal | None = None
+    stt_drag_bps: Decimal | None = Decimal("0.00")
+    fee_drag_bps: Decimal | None = Decimal("0.00")
+    tax_drag_bps: Decimal | None = Decimal("0.00")
+    created_at: datetime | None = None
+
+
+class CreateSnapshotDTO(BaseDTO):
+    snapshot_date: date
+    user_id: str = "default"
+    total_equity_value: Decimal
+    cash_balance: Decimal
+    total_nav: Decimal
+    units: Decimal = Decimal("1.000000")
+    unit_nav: Decimal = Decimal("100.0000")
+    daily_return_pct: Decimal | None = None
+    benchmark_name: str = "NIFTY 50 TRI"
+    benchmark_value: Decimal | None = None
+    benchmark_daily_return_pct: Decimal | None = None
+    net_external_flow: Decimal = Decimal("0.00")
+    gross_daily_return_pct: Decimal | None = None
+    stt_drag_bps: Decimal | None = Decimal("0.00")
+    fee_drag_bps: Decimal | None = Decimal("0.00")
+    tax_drag_bps: Decimal | None = Decimal("0.00")
+
+
+class PortfolioCashFlowDTO(BaseDTO):
+    id: int | None = None
+    user_id: str = "default"
+    flow_date: date
+    flow_type: Literal["DEPOSIT", "WITHDRAWAL", "DIVIDEND", "CHARGE", "INTEREST"]
+    amount: Decimal
+    units_affected: Decimal | None = None
+    nav_per_unit: Decimal | None = None
+    source: Literal["MANUAL", "AUTO_MARGIN_SYNC", "CORPORATE_ACTION", "BROKER_LEDGER"] = "MANUAL"
+    external_reference: str | None = None
+    notes: str | None = None
+    created_at: datetime | None = None
+
+
+class CreateCashFlowDTO(BaseDTO):
+    user_id: str = "default"
+    flow_date: date
+    flow_type: Literal["DEPOSIT", "WITHDRAWAL", "DIVIDEND", "CHARGE", "INTEREST"]
+    amount: Decimal
+    units_affected: Decimal | None = None
+    nav_per_unit: Decimal | None = None
+    source: Literal["MANUAL", "AUTO_MARGIN_SYNC", "CORPORATE_ACTION", "BROKER_LEDGER"] = "MANUAL"
+    external_reference: str | None = None
+    notes: str | None = None
+
+
+class PerformanceMetricsDTO(BaseDTO):
+    user_id: str = "default"
+    twr_pct: float
+    cagr_pct: float | None = None
+    xirr_pct: float | None = None
+    sharpe_ratio: float | None = None
+    sortino_ratio: float | None = None
+    max_drawdown_pct: float
+    current_drawdown_pct: float
+    high_water_mark: float
+    beta: float | None = None
+    alpha_annual_pct: float | None = None
+    r_squared: float | None = None
+    tracking_error_pct: float | None = None
+    history_days: int
+    is_warmup_period: bool = False
+
+    # Drag attribution
+    gross_return_pct: float
+    stt_drag_bps: float = 0.0
+    fee_drag_bps: float = 0.0
+    tax_drag_bps: float = 0.0
+    net_realized_return_pct: float
+
+
+class TaxHarvestingOpportunityDTO(BaseDTO):
+    tradingsymbol: str
+    lot_id: int
+    buy_date: date
+    quantity: int
+    buy_price: Decimal
+    current_price: Decimal
+    unrealized_pnl: Decimal
+    tax_type: Literal["STCG", "LTCG"]
+    potential_tax_savings: Decimal
+    action_type: Literal["LOSS_HARVEST", "GAIN_HARVEST", "NEAR_LTCG_DEFER"]
+    days_to_ltcg: int | None = None
+
+
+class TaxHarvestingSummaryDTO(BaseDTO):
+    fy_year: str
+    ltcg_exemption_limit: Decimal = Decimal("125000.00")
+    ltcg_realized_ytd: Decimal
+    ltcg_exemption_remaining: Decimal
+    is_q4: bool
+    opportunities: list[TaxHarvestingOpportunityDTO] = []

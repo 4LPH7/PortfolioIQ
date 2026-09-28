@@ -27,11 +27,11 @@ def _classify_quantity_discrepancy(
         # Check order_audit_trail
         fills = session.execute(
             text("""
-                SELECT SUM(CASE WHEN transaction_type = 'BUY' THEN requested_quantity 
-                                WHEN transaction_type = 'SELL' THEN -requested_quantity 
+                SELECT SUM(CASE WHEN transaction_type = 'BUY' THEN requested_quantity
+                                WHEN transaction_type = 'SELL' THEN -requested_quantity
                                 ELSE 0 END) as net_fills
                 FROM order_audit_trail
-                WHERE instrument_token = :token 
+                WHERE instrument_token = :token
                   AND status IN ('COMPLETED', 'FILLED')
                   AND executed_at > :last_sync
             """),

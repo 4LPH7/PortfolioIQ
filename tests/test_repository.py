@@ -10,10 +10,15 @@ from uuid import uuid4
 
 from src.db.repository import (
     get_app_config,
+    get_cash_flows,
     get_current_holdings,
+    get_daily_snapshots,
     get_holdings_reconciliation_logs,
     get_market_calendar_entries,
+    get_realized_ltcg_ytd,
     record_broker_execution,
+    record_cash_flow,
+    record_daily_snapshot,
     record_holdings_reconciliation,
     record_order_attempt,
     update_app_config,
@@ -22,7 +27,9 @@ from src.db.repository import (
 from src.models.dtos import (
     AppConfigDTO,
     BrokerExecutionDTO,
+    CreateCashFlowDTO,
     CreateMarketCalendarDTO,
+    CreateSnapshotDTO,
     HoldingDTO,
     HoldingsReconciliationDTO,
     MarketCalendarDTO,
@@ -343,3 +350,108 @@ def test_holdings_reconciliation_repository():
         logs = get_holdings_reconciliation_logs(reason="T1_SETTLEMENT")
         assert len(logs) == 1
         assert logs[0].tradingsymbol == "RELIANCE"
+
+
+def test_portfolio_daily_snapshots_repository():
+    mock_session = MagicMock()
+    mock_result = MagicMock()
+    mock_session.execute.return_value = mock_result
+
+    mock_row = {
+        "id": 1,
+        "snapshot_date": date(2026, 9, 28),
+        "user_id": "default",
+        "total_equity_value": Decimal("100000.00"),
+        "cash_balance": Decimal("5000.00"),
+        "total_nav": Decimal("105000.00"),
+        "units": Decimal("1050.000000"),
+        "unit_nav": Decimal("100.0000"),
+        "daily_return_pct": Decimal("0.0000"),
+        "benchmark_name": "NIFTY 50 TRI",
+        "benchmark_value": Decimal("25000.00"),
+        "benchmark_daily_return_pct": Decimal("0.0050"),
+        "net_external_flow": Decimal("0.00"),
+        "gross_daily_return_pct": Decimal("0.0000"),
+        "stt_drag_bps": Decimal("0.00"),
+        "fee_drag_bps": Decimal("0.00"),
+        "tax_drag_bps": Decimal("0.00"),
+        "created_at": None,
+    }
+    mock_result.mappings.return_value.one.return_value = mock_row
+
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        snapshot = CreateSnapshotDTO(
+            snapshot_date=date(2026, 9, 28),
+            total_equity_value=Decimal("100000.00"),
+            cash_balance=Decimal("5000.00"),
+            total_nav=Decimal("105000.00"),
+            units=Decimal("1050.000000"),
+            unit_nav=Decimal("100.0000"),
+        )
+        res = record_daily_snapshot(snapshot)
+        assert res.id == 1
+        assert res.total_nav == Decimal("105000.00")
+        assert res.unit_nav == Decimal("100.0000")
+
+    mock_result.mappings.return_value.all.return_value = [mock_row]
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        snapshots = get_daily_snapshots(user_id="default", start_date=date(2026, 9, 1))
+        assert len(snapshots) == 1
+        assert snapshots[0].benchmark_name == "NIFTY 50 TRI"
+
+
+def test_portfolio_cash_flows_repository():
+    mock_session = MagicMock()
+    mock_result = MagicMock()
+    mock_session.execute.return_value = mock_result
+
+    mock_row = {
+        "id": 10,
+        "user_id": "default",
+        "flow_date": date(2026, 9, 28),
+        "flow_type": "DEPOSIT",
+        "amount": Decimal("50000.00"),
+        "units_affected": Decimal("500.000000"),
+        "nav_per_unit": Decimal("100.0000"),
+        "source": "MANUAL",
+        "external_reference": "TXN12345",
+        "notes": "Bank transfer",
+        "created_at": None,
+    }
+    mock_result.mappings.return_value.one.return_value = mock_row
+
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        flow = CreateCashFlowDTO(
+            flow_date=date(2026, 9, 28),
+            flow_type="DEPOSIT",
+            amount=Decimal("50000.00"),
+            units_affected=Decimal("500.000000"),
+            nav_per_unit=Decimal("100.0000"),
+            notes="Bank transfer",
+        )
+        res = record_cash_flow(flow)
+        assert res.id == 10
+        assert res.amount == Decimal("50000.00")
+        assert res.flow_type == "DEPOSIT"
+
+    mock_result.mappings.return_value.all.return_value = [mock_row]
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        flows = get_cash_flows(user_id="default")
+        assert len(flows) == 1
+        assert flows[0].source == "MANUAL"
+
+
+def test_get_realized_ltcg_ytd_repository():
+    mock_session = MagicMock()
+    mock_result = MagicMock()
+    mock_session.execute.return_value = mock_result
+    mock_result.mappings.return_value.first.return_value = {"total_ltcg": Decimal("45000.00")}
+
+    with patch("src.db.repository.get_db_session") as mock_get_session:
+        mock_get_session.return_value.__enter__.return_value = mock_session
+        ltcg = get_realized_ltcg_ytd(user_id="default", fy_start_date=date(2026, 4, 1))
+        assert ltcg == Decimal("45000.00")
