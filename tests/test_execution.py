@@ -90,50 +90,182 @@ class TestSlippageValidator:
     """Tests for src/execution/validators/slippage_check.py."""
 
     @patch("src.execution.validators.slippage_check.execute_sql")
-    def test_no_live_price_passes_with_warning(self, mock_sql, sample_buy_order) -> None:
-        # First call: system_config, second call: live_prices
-        mock_sql.side_effect = [[{"value": "2.0"}], []]
+    def test_slippage_rejects_inactive_instrument(self, mock_sql, sample_buy_order) -> None:
+        # Mock instrument_master returning inactive
+        mock_sql.return_value = [{"is_active": False}]
         passed, msg = validate_slippage(sample_buy_order)
-        assert passed is True
-        assert "No live price available" in msg
+        assert passed is False
+        assert "inactive or delisted" in msg
 
+    @patch("src.execution.validators.slippage_check.is_market_open", return_value=False)
     @patch("src.execution.validators.slippage_check.execute_sql")
-    def test_stale_live_price_passes(self, mock_sql, sample_buy_order) -> None:
+    def test_slippage_missing_price_market_closed_passes(
+        self, mock_sql, mock_open, sample_buy_order
+    ) -> None:
         mock_sql.side_effect = [
-            [],  # default slippage bound 2.0
-            [{"last_price": "1600.00", "is_stale": True}],
+            [{"is_active": True}],  # instrument_master
+            [{"key": "slippage_bound_pct", "value": "2.0"}],  # config
+            [],  # live_prices
         ]
         passed, msg = validate_slippage(sample_buy_order)
         assert passed is True
-        assert "Live price is stale" in msg
+        assert "No live price outside market hours" in msg
 
+    @patch("src.execution.validators.slippage_check._refresh_on_demand_price", return_value=None)
+    @patch("src.execution.validators.slippage_check.is_market_open", return_value=True)
     @patch("src.execution.validators.slippage_check.execute_sql")
-    def test_zero_or_negative_price_fails(self, mock_sql, sample_buy_order) -> None:
+    def test_slippage_missing_price_market_open_broker_fails_closed(
+        self, mock_sql, mock_open, mock_refresh, sample_buy_order
+    ) -> None:
         mock_sql.side_effect = [
-            [{"value": "2.0"}],
-            [{"last_price": "0.00", "is_stale": False}],
+            [{"is_active": True}],  # instrument_master
+            [{"key": "slippage_bound_pct", "value": "2.0"}],  # config
+            [],  # live_prices
         ]
         passed, msg = validate_slippage(sample_buy_order)
         assert passed is False
-        assert "zero or negative" in msg
+        assert "on-demand broker refresh failed" in msg
+        mock_refresh.assert_called_once_with(sample_buy_order)
 
+    @patch("src.execution.validators.slippage_check.now_ist")
+    @patch("src.execution.validators.slippage_check._refresh_on_demand_price")
+    @patch("src.execution.validators.slippage_check.is_market_open", return_value=True)
     @patch("src.execution.validators.slippage_check.execute_sql")
-    def test_slippage_within_bound_passes(self, mock_sql, sample_buy_order) -> None:
-        # Estimated 1500, live 1515 => slippage 1% (limit 2%)
+    def test_stale_live_price_passes(
+        self, mock_sql, mock_open, mock_refresh, mock_now, sample_buy_order
+    ) -> None:
+        from datetime import datetime
+
+        from src.ingestion.market_hours import IST
+
+        mock_now.return_value = IST.localize(datetime(2026, 9, 28, 10, 15, 0))
+
         mock_sql.side_effect = [
-            [{"value": "2.0"}],
-            [{"last_price": "1515.00", "is_stale": False}],
+            [{"is_active": True}],  # instrument_master
+            [
+                {"key": "slippage_bound_pct", "value": "2.0"},
+                {"key": "price_staleness_threshold_sec", "value": "60"},
+            ],  # config
+            [
+                {
+                    "last_price": "1600.00",
+                    "is_stale": False,
+                    "last_updated": datetime(2026, 9, 28, 10, 10, 0),
+                }
+            ],  # live_prices (stale)
+        ]
+        mock_refresh.return_value = Decimal("1515.00")  # Fresh price, 1% slippage
+
+        passed, msg = validate_slippage(sample_buy_order)
+        assert passed is True
+        assert "Slippage OK" in msg
+        mock_refresh.assert_called_once_with(sample_buy_order)
+
+    @patch("src.execution.validators.slippage_check.now_ist")
+    @patch("src.execution.validators.slippage_check._refresh_on_demand_price", return_value=None)
+    @patch("src.execution.validators.slippage_check.is_market_open", return_value=True)
+    @patch("src.execution.validators.slippage_check.execute_sql")
+    def test_stale_live_price_fails_closed_when_refresh_fails(
+        self, mock_sql, mock_open, mock_refresh, mock_now, sample_buy_order
+    ) -> None:
+        from datetime import datetime
+
+        from src.ingestion.market_hours import IST
+
+        mock_now.return_value = IST.localize(datetime(2026, 9, 28, 10, 15, 0))
+
+        mock_sql.side_effect = [
+            [{"is_active": True}],  # instrument_master
+            [
+                {"key": "slippage_bound_pct", "value": "2.0"},
+                {"key": "price_staleness_threshold_sec", "value": "60"},
+            ],  # config
+            [
+                {
+                    "last_price": "1600.00",
+                    "is_stale": False,
+                    "last_updated": datetime(2026, 9, 28, 10, 10, 0),
+                }
+            ],  # live_prices (stale)
+        ]
+
+        passed, msg = validate_slippage(sample_buy_order)
+        assert passed is False
+        assert "on-demand broker refresh failed" in msg
+
+    @patch("src.execution.validators.slippage_check.now_ist")
+    @patch("src.execution.validators.slippage_check.is_market_open", return_value=True)
+    @patch("src.execution.validators.slippage_check.execute_sql")
+    def test_zero_or_negative_price_fails(
+        self, mock_sql, mock_open, mock_now, sample_buy_order
+    ) -> None:
+        from datetime import datetime
+
+        from src.ingestion.market_hours import IST
+
+        mock_now.return_value = IST.localize(datetime(2026, 9, 28, 10, 15, 0))
+        mock_sql.side_effect = [
+            [{"is_active": True}],
+            [{"key": "slippage_bound_pct", "value": "2.0"}],
+            [
+                {
+                    "last_price": "0.00",
+                    "is_stale": False,
+                    "last_updated": datetime(2026, 9, 28, 10, 14, 50),
+                }
+            ],  # fresh
+        ]
+        passed, msg = validate_slippage(sample_buy_order)
+        assert passed is False
+        assert "zero or unavailable" in msg
+
+    @patch("src.execution.validators.slippage_check.now_ist")
+    @patch("src.execution.validators.slippage_check.is_market_open", return_value=True)
+    @patch("src.execution.validators.slippage_check.execute_sql")
+    def test_slippage_within_bound_passes(
+        self, mock_sql, mock_open, mock_now, sample_buy_order
+    ) -> None:
+        from datetime import datetime
+
+        from src.ingestion.market_hours import IST
+
+        mock_now.return_value = IST.localize(datetime(2026, 9, 28, 10, 15, 0))
+        mock_sql.side_effect = [
+            [{"is_active": True}],
+            [{"key": "slippage_bound_pct", "value": "2.0"}],
+            [
+                {
+                    "last_price": "1515.00",
+                    "is_stale": False,
+                    "last_updated": datetime(2026, 9, 28, 10, 14, 50),
+                }
+            ],  # fresh
         ]
         passed, msg = validate_slippage(sample_buy_order)
         assert passed is True
         assert "Slippage OK" in msg
 
+    @patch("src.execution.validators.slippage_check.now_ist")
+    @patch("src.execution.validators.slippage_check.is_market_open", return_value=True)
     @patch("src.execution.validators.slippage_check.execute_sql")
-    def test_slippage_exceeds_bound_fails(self, mock_sql, sample_buy_order) -> None:
-        # Estimated 1500, live 1575 => slippage 5% (limit 2%)
+    def test_slippage_exceeds_bound_fails(
+        self, mock_sql, mock_open, mock_now, sample_buy_order
+    ) -> None:
+        from datetime import datetime
+
+        from src.ingestion.market_hours import IST
+
+        mock_now.return_value = IST.localize(datetime(2026, 9, 28, 10, 15, 0))
         mock_sql.side_effect = [
-            [{"value": "2.0"}],
-            [{"last_price": "1575.00", "is_stale": False}],
+            [{"is_active": True}],
+            [{"key": "slippage_bound_pct", "value": "2.0"}],
+            [
+                {
+                    "last_price": "1575.00",
+                    "is_stale": False,
+                    "last_updated": datetime(2026, 9, 28, 10, 14, 50),
+                }
+            ],  # fresh
         ]
         passed, msg = validate_slippage(sample_buy_order)
         assert passed is False
