@@ -6,8 +6,8 @@ progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 25
-  completed_plans: 17
-  percent: 68
+  completed_plans: 18
+  percent: 72
 ---
 <!-- STATE-MD-SCHEMA:END:frontmatter -->
 
@@ -23,11 +23,11 @@ See: .planning/ROADMAP.md (updated 2026-09-28)
 ## Current Position
 
 Phase: 4 of 9 (Phase 4: Portfolio Analytics That Actually Mean Something)
-Plan: Plan 04-04 complete (Wave 3). Ready for Plan 04-05 (Wave 3).
-Status: Plan 04-04 executed (Indian transaction cost model and execution-constrained rebalancer tested). Ready for Plan 04-05.
-Last activity: 2026-09-28 — Executed Plan 04-04 (Indian Transaction Cost Model & Rebalancer Sizing Constraints)
+Plan: Plan 04-05 complete (Wave 3). Ready for Plan 04-06 (Wave 4).
+Status: Plan 04-05 executed (tax-loss harvesting engine, 30-day LTCG lock, and FY exemption tracker tested). Ready for Plan 04-06.
+Last activity: 2026-09-28 — Executed Plan 04-05 (Tax-Loss Harvesting Engine & FY Exemption Tracker)
 
-Progress: [███████░░░] 68%
+Progress: [███████░░░] 72%
 
 ## Performance Metrics
 

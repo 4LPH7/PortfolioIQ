@@ -78,7 +78,7 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 - [x] **Plan 04-02 (Wave 2):** Quantitative Return & Attribution Engine (`src/analytics/performance.py`: TWR, XIRR solver, Sharpe, Sortino, Drawdown, Beta/Alpha).
 - [x] **Plan 04-03 (Wave 2):** Daily Snapshot Recorder, Morning Cash Margin Delta Sync & Baseline Backfill (`src/analytics/snapshot_recorder.py`, `scheduler/jobs.py`).
 - [x] **Plan 04-04 (Wave 3):** Indian Transaction Cost Model & Rebalancer Sizing Constraints (`src/analytics/cost_calculator.py` & `src/analytics/rebalancer.py`).
-- [ ] **Plan 04-05 (Wave 3):** Tax-Loss Harvesting Engine, 30-Day LTCG Lock & FY Exemption Tracker (`src/analytics/tax_guard.py`).
+- [x] **Plan 04-05 (Wave 3):** Tax-Loss Harvesting Engine, 30-Day LTCG Lock & FY Exemption Tracker (`src/analytics/tax_guard.py`).
 - [ ] **Plan 04-06 (Wave 4):** Analytics REST Endpoints, Rebalance Preview & Full Verification (`src/api/v1/blueprint.py`).
 
 **Definition of done:** True Time-Weighted Return (TWR) and Money-Weighted Return (XIRR) are tracked daily alongside NIFTY 50/500 TRI benchmarks; risk metrics (Sharpe, Sortino, Max Drawdown, Beta, Jensen's Alpha) are computed with a 30-day warmup gate; the rebalancer enforces realistic execution constraints (₹2,000 min trade, 2% cash buffer, 15% daily turnover cap, 1% ADV limit) and realistic Indian delivery fees (STT, DP charges, GST); capital gains tax-loss harvesting and annual ₹1.25L LTCG exemptions are automated; all tests pass cleanly with >= 85% critical coverage.
