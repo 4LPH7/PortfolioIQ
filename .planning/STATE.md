@@ -18,23 +18,23 @@ progress:
 See: .planning/ROADMAP.md (updated 2026-09-28)
 
 **Core value:** Production-grade personal algorithmic portfolio management and trading safety platform.
-**Current focus:** Phase 4: Portfolio Analytics That Actually Mean Something (Complete)
+**Current focus:** Phase 5: Make the Signal Engine Evidence-Based (Planning)
 
 ## Current Position
 
-Phase: 4 of 9 (Phase 4: Portfolio Analytics That Actually Mean Something)
-Plan: All 6 plans (04-01 through 04-06) complete.
-Status: Phase 4 Complete. All quantitative analytics, cash flow ledgers, cost models, tax guard, and REST APIs implemented and verified.
-Last activity: 2026-09-28 — Executed Plan 04-06 (Analytics REST Endpoints & API Integration)
+Phase: 5 of 9 (Phase 5: Make the Signal Engine Evidence-Based)
+Plan: Ready to research & plan Phase 5.
+Status: Context gathered and decisions locked (05-CONTEXT.md). Ready for research and wave planning.
+Last activity: 2026-09-28 — Completed Phase 5 discussion and created 05-CONTEXT.md
 
 Progress: [████████░░] 76%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: 22 min
-- Total execution time: 2.5 hours
+- Total plans completed: 19
+- Average duration: ~20 min
+- Total execution time: ~6.5 hours
 
 **By Phase:**
 
@@ -43,6 +43,8 @@ Progress: [████████░░] 76%
 | 00-stop-the-bleeding | 1 | 45m | 45m |
 | 01-a-reliable-backend-core | 3 | 55m | 18m |
 | 02-testing-ci-cd | 4 | 70m | 17m |
+| 03-data-quality-market-infrastructure | 5 | 85m | 17m |
+| 04-portfolio-analytics | 6 | 110m | 18m |
 
 ## Accumulated Context
 
@@ -61,12 +63,26 @@ Progress: [████████░░] 76%
 - [Phase 02]: Use Python standard library (urllib.request, json, time, argparse) for scripts/smoke_test.py to enable zero-dependency deployment smoke testing.
 - [Phase 02]: Standardize PostgreSQL service container credentials in CI matching docker-compose.yml and conftest.py defaults.
 - [Phase 02]: Automate deployment rollback in GitHub Actions to previous known-good commit (HEAD~1) upon smoke test failure.
+- [Phase 03]: Switch price ingestion to batched Zerodha Kite Connect REST quotes (<7% rate limit) and deprecate Yahoo Finance poller.
+- [Phase 03]: Implement 60s price freshness policy in Gatekeeper with synchronous fail-closed on-demand broker quote refresh.
+- [Phase 03]: Database-backed `market_calendar` table with offline JSON fallback and Diwali Muhurat special session support.
+- [Phase 03]: Daily holdings reconciliation detecting T1 settlement transitions and unexplained corporate action quantity jumps.
+- [Phase 04]: Dual return metrics: Time-Weighted Return (TWR) for strategy performance and XIRR for rupee-weighted investor cash flows.
+- [Phase 04]: Unitized daily NAV ledger (`portfolio_daily_snapshots`) base 100, paired with explicit cash flows ledger (`portfolio_cash_flows`).
+- [Phase 04]: 30-day warmup gate before displaying annualized risk ratios (Sharpe, Sortino, Beta, Alpha).
+- [Phase 04]: Execution-constrained rebalancer enforcing ₹2,000 min trade, 2% cash buffer, 15% turnover cap, and 1% ADV liquidity limit.
+- [Phase 04]: Realistic Indian transaction fee modeling (STT, DP charges, GST) and tax-loss harvesting with 30-day LTCG threshold protection.
+- [Phase 05]: Dedicated `signal_snapshots` table tracking daily EOD signal state, model version, and multi-horizon forward returns (5, 20, 60 trading days) against stock and NIFTY 50 TRI benchmark.
+- [Phase 05]: Rolling walk-forward backtest engine (252-train / 63-test) with Spearman rank IC evaluation; prune indicators with $IC \le 0$ or $p > 0.05$.
+- [Phase 05]: Strict evidence hurdle gate (`PROVEN_EDGE` vs `UNPROVEN_NOISE`); rebalancer blocked from generating trade proposals on unproven signals.
+- [Phase 05]: Fat-tailed Monte Carlo simulation (Student's t / empirical bootstrap) with calibrated 80% and 95% cones; ban point target prices in favor of P10, P50, P90 dispersion percentiles.
+- [Phase 05]: Systematic API & UI terminology migration from "prediction" to "signal" (`/api/v1/signals`, `HoldingSignalDTO`).
 
 ### Blockers/Concerns
-None. Entire test suite (166 tests) passing cleanly with zero skipped and zero failed.
+None. Entire test suite (239 tests) passing cleanly with 100% safety-critical coverage.
 
 ## Session Continuity
 
-Last session: 2026-09-27
-Stopped at: Phase 2 100% complete and verified. Ready to discuss/plan Phase 3 (Data Quality & Market Infrastructure).
-Resume file: .planning/ROADMAP.md
+Last session: 2026-09-28
+Stopped at: Phase 5 context gathered and decisions locked (05-CONTEXT.md). Ready for research and wave planning.
+Resume file: .planning/phases/05-make-the-signal-engine-evidence-based/05-CONTEXT.md
