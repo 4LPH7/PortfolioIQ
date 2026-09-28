@@ -75,7 +75,7 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 **Goal:** move past "P&L and a pie chart" into real portfolio science. Timeframe: 2–3 weeks.
 
 - [x] **Plan 04-01 (Wave 1):** Historical NAV & Cash Flow Schema (`017_portfolio_snapshots.sql`, `018_portfolio_cash_flows.sql`), Pydantic DTOs & Typed Repository Layer.
-- [ ] **Plan 04-02 (Wave 2):** Quantitative Return & Attribution Engine (`src/analytics/performance.py`: TWR, XIRR solver, Sharpe, Sortino, Drawdown, Beta/Alpha).
+- [x] **Plan 04-02 (Wave 2):** Quantitative Return & Attribution Engine (`src/analytics/performance.py`: TWR, XIRR solver, Sharpe, Sortino, Drawdown, Beta/Alpha).
 - [ ] **Plan 04-03 (Wave 2):** Daily Snapshot Recorder, Morning Cash Margin Delta Sync & Baseline Backfill (`src/analytics/snapshot_recorder.py`, `scheduler/jobs.py`).
 - [ ] **Plan 04-04 (Wave 3):** Indian Transaction Cost Model & Rebalancer Sizing Constraints (`src/analytics/cost_calculator.py` & `src/analytics/rebalancer.py`).
 - [ ] **Plan 04-05 (Wave 3):** Tax-Loss Harvesting Engine, 30-Day LTCG Lock & FY Exemption Tracker (`src/analytics/tax_guard.py`).
