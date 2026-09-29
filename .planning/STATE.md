@@ -6,8 +6,8 @@ progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 32
-  completed_plans: 23
-  percent: 71
+  completed_plans: 24
+  percent: 75
 ---
 <!-- STATE-MD-SCHEMA:END:frontmatter -->
 
@@ -23,16 +23,16 @@ See: .planning/ROADMAP.md (updated 2026-09-28)
 ## Current Position
 
 Phase: 5 of 9 (Phase 5: Make the Signal Engine Evidence-Based)
-Plan: Plan 05-04 complete. Ready to execute Plan 05-05 (Wave 3: Calibrated Fat-Tailed Monte Carlo Simulation & Percentile Dispersion).
-Status: Plan 05-04 complete. Rolling walk-forward backtester, Indian transaction cost deductions, dual baseline attribution, and evidence hurdle gating verified.
-Last activity: 2026-09-29 — Executed Plan 05-04 (Rolling Walk-Forward Backtester, Dual Baseline Attribution & Delivery Cost Net Returns)
+Plan: Plan 05-05 complete. Ready to execute Plan 05-06 (Wave 4: Rebalancer Evidence Hurdle Gate & Fail-Closed Order Suppression).
+Status: Plan 05-05 complete. Calibrated Student's t Monte Carlo simulation, empirical conformal calibration, and percentile dispersion verified.
+Last activity: 2026-09-29 — Executed Plan 05-05 (Calibrated Fat-Tailed Monte Carlo Simulation & Percentile Dispersion)
 
-Progress: [███████░░░] 71%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
+- Total plans completed: 20
 - Average duration: ~20 min
 - Total execution time: ~6.5 hours
 
@@ -79,10 +79,10 @@ Progress: [███████░░░] 71%
 - [Phase 05]: Systematic API & UI terminology migration from "prediction" to "signal" (`/api/v1/signals`, `HoldingSignalDTO`).
 
 ### Blockers/Concerns
-None. Entire test suite (279 tests) passing cleanly with 100% safety-critical coverage.
+None. Entire test suite (294 tests) passing cleanly with 100% safety-critical coverage.
 
 ## Session Continuity
 
 Last session: 2026-09-29
-Stopped at: Plan 05-04 complete and verified. Ready to execute Plan 05-05.
-Resume file: .planning/phases/05-make-the-signal-engine-evidence-based/05-05-PLAN.md
+Stopped at: Plan 05-05 complete and verified. Ready to execute Plan 05-06.
+Resume file: .planning/phases/05-make-the-signal-engine-evidence-based/05-06-PLAN.md

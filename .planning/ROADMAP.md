@@ -91,7 +91,7 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 - [x] **Plan 05-02 (Wave 2):** Historical Price Caching & Incremental Bar Sync (`src/analytics/historical_cache.py`, `src/ingestion/ticker_map.py`).
 - [x] **Plan 05-03 (Wave 2):** Quantitative Indicator Evaluator, Spearman Rank IC Engine & Dynamic IR Weighting (`src/analytics/indicator_evaluator.py`).
 - [x] **Plan 05-04 (Wave 3):** Rolling Walk-Forward Backtester, Dual Baseline Attribution & Delivery Cost Net Returns (`src/analytics/walk_forward.py`).
-- [ ] **Plan 05-05 (Wave 3):** Calibrated Fat-Tailed Monte Carlo Simulation & Percentile Dispersion (`src/analytics/calibrated_monte_carlo.py`).
+- [x] **Plan 05-05 (Wave 3):** Calibrated Fat-Tailed Monte Carlo Simulation & Percentile Dispersion (`src/analytics/calibrated_monte_carlo.py`).
 - [ ] **Plan 05-06 (Wave 4):** Rebalancer Evidence Hurdle Gate & Fail-Closed Order Suppression (`src/analytics/rebalancer.py`).
 - [ ] **Plan 05-07 (Wave 4):** Signal Scheduler Jobs, REST Endpoints & Systematic Terminology Migration (`scheduler/jobs.py`, `src/api/v1/blueprint.py`).
 
