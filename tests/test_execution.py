@@ -271,6 +271,46 @@ class TestSlippageValidator:
         assert passed is False
         assert "Slippage too high" in msg
 
+    @patch("src.execution.validators.slippage_check.execute_sql")
+    @patch("src.execution.validators.slippage_check.get_authenticated_kite")
+    def test_refresh_on_demand_price_success(
+        self, mock_get_kite, mock_sql, sample_buy_order
+    ) -> None:
+        from src.execution.validators.slippage_check import _refresh_on_demand_price
+
+        mock_kite = MagicMock()
+        mock_kite.ltp.return_value = {"NSE:INFY": {"last_price": 1520.0}}
+        mock_get_kite.return_value = mock_kite
+
+        price = _refresh_on_demand_price(sample_buy_order)
+        assert price == Decimal("1520.0")
+        assert mock_sql.call_count == 1
+
+    @patch("src.execution.validators.slippage_check.get_authenticated_kite", return_value=None)
+    def test_refresh_on_demand_price_no_kite(self, mock_get_kite, sample_buy_order) -> None:
+        from src.execution.validators.slippage_check import _refresh_on_demand_price
+
+        price = _refresh_on_demand_price(sample_buy_order)
+        assert price is None
+
+    @patch("src.execution.validators.slippage_check.get_authenticated_kite")
+    def test_refresh_on_demand_price_symbol_missing_or_error(
+        self, mock_get_kite, sample_buy_order
+    ) -> None:
+        from src.execution.validators.slippage_check import _refresh_on_demand_price
+
+        mock_kite = MagicMock()
+        mock_kite.ltp.return_value = {}
+        mock_get_kite.return_value = mock_kite
+
+        price = _refresh_on_demand_price(sample_buy_order)
+        assert price is None
+
+        # Exception handling
+        mock_kite.ltp.side_effect = RuntimeError("Kite connection lost")
+        price_err = _refresh_on_demand_price(sample_buy_order)
+        assert price_err is None
+
 
 class TestConcentrationValidator:
     """Tests for src/execution/validators/concentration_check.py."""

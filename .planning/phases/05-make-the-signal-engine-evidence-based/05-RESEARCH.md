@@ -263,11 +263,13 @@ from scipy import stats
 
 from src.analytics.cost_calculator import compute_indian_delivery_charges
 
+
 @dataclass
 class IndicatorFoldResult:
     name: str
     ic: float
     p_value: float
+
 
 @dataclass
 class IndicatorSummary:
@@ -279,6 +281,7 @@ class IndicatorSummary:
     weight: float
     is_pruned: bool
     prune_reason: str | None = None
+
 
 def compute_indicator_ic(
     scores: pd.Series,
@@ -292,6 +295,7 @@ def compute_indicator_ic(
     ic = float(res.statistic) if not np.isnan(res.statistic) else 0.0
     p_val = float(res.pvalue) if not np.isnan(res.pvalue) else 1.0
     return ic, p_val
+
 
 def run_walk_forward_backtest(
     df: pd.DataFrame,
@@ -455,7 +459,10 @@ def compute_calibrated_monte_carlo(
     p90 = float(np.percentile(final_prices, 90))
 
     # Fan chart percentile series
-    fan_dates = [(pd.Timestamp.now() + pd.Timedelta(days=i + 1)).strftime("%Y-%m-%d") for i in range(horizon_days)]
+    fan_dates = [
+        (pd.Timestamp.now() + pd.Timedelta(days=i + 1)).strftime("%Y-%m-%d")
+        for i in range(horizon_days)
+    ]
     fan_p10 = [round(float(np.percentile(paths[:, i], 10)), 2) for i in range(horizon_days)]
     fan_p50 = [round(float(np.percentile(paths[:, i], 50)), 2) for i in range(horizon_days)]
     fan_p90 = [round(float(np.percentile(paths[:, i], 90)), 2) for i in range(horizon_days)]
