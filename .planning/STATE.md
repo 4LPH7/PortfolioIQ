@@ -6,8 +6,8 @@ progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 32
-  completed_plans: 20
-  percent: 63
+  completed_plans: 21
+  percent: 66
 ---
 <!-- STATE-MD-SCHEMA:END:frontmatter -->
 
@@ -23,11 +23,11 @@ See: .planning/ROADMAP.md (updated 2026-09-28)
 ## Current Position
 
 Phase: 5 of 9 (Phase 5: Make the Signal Engine Evidence-Based)
-Plan: Plan 05-01 complete. Ready to execute Plan 05-02 (Wave 2: Historical Price Caching & Incremental Bar Sync).
-Status: Plan 05-01 complete. Migrations 019, 020, 021 applied; DTOs and typed repository methods implemented and verified.
-Last activity: 2026-09-29 — Executed Plan 05-01 (Database Migrations & Data Layer)
+Plan: Plan 05-02 complete. Ready to execute Plan 05-03 (Wave 2: Quantitative Indicator Evaluator, Spearman Rank IC Engine & Dynamic IR Weighting).
+Status: Plan 05-02 complete. Historical bar caching and standardized ticker mapping implemented and verified.
+Last activity: 2026-09-29 — Executed Plan 05-02 (Historical Price Caching & Incremental Bar Sync)
 
-Progress: [██████░░░░] 63%
+Progress: [███████░░░] 66%
 
 ## Performance Metrics
 
@@ -79,10 +79,10 @@ Progress: [██████░░░░] 63%
 - [Phase 05]: Systematic API & UI terminology migration from "prediction" to "signal" (`/api/v1/signals`, `HoldingSignalDTO`).
 
 ### Blockers/Concerns
-None. Entire test suite (243 tests) passing cleanly with 100% safety-critical coverage.
+None. Entire test suite (252 tests) passing cleanly with 100% safety-critical coverage.
 
 ## Session Continuity
 
 Last session: 2026-09-29
-Stopped at: Plan 05-01 complete and verified. Ready to execute Plan 05-02.
-Resume file: .planning/phases/05-make-the-signal-engine-evidence-based/05-02-PLAN.md
+Stopped at: Plan 05-02 complete and verified. Ready to execute Plan 05-03.
+Resume file: .planning/phases/05-make-the-signal-engine-evidence-based/05-03-PLAN.md
