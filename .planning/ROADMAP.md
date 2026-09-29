@@ -98,17 +98,19 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 **Definition of done:** Technical indicators are evaluated independently via out-of-sample Spearman rank IC with negative-alpha/insignificant indicators automatically pruned; rolling walk-forward backtests (252-train / 63-test) evaluate strategy net returns against dual baselines (Stock B&H and NIFTY 50 TRI B&H) with realistic Indian transaction costs; Monte Carlo simulations use Student's t distribution with empirical coverage calibration (80%/95% cones) and dispersion percentiles (P10..P90) with point estimates banned; rebalancer strictly suppresses trade proposals on signals tagged as `UNPROVEN_NOISE`; signal snapshots track 5d, 20d, and 60d forward returns; all tests pass cleanly with >= 85% critical coverage. Verified in `05-VERIFICATION.md`.
 
 ## Phase 6: Product & UX Polish
-**Status:** Unplanned
+**Status:** Planned
 **Goal:** it feels like a finished product, not a prototype. Timeframe: 2–3 weeks.
 
-- Add login/session management.
-- Add onboarding + initial portfolio import.
-- Add a portfolio timeline / history view.
-- Add alerting for drift thresholds, stale prices, or failed syncs.
-- Add export to CSV/Excel/PDF.
-- Fix mobile navigation.
-- Accessibility pass.
-- Add a user-facing system status page.
+- [ ] **Plan 06-01 (Wave 1):** Backend Auth Verification, Alert Aggregator & System Telemetry REST APIs (`src/api/v1/blueprint.py`, `src/models/dtos.py`).
+- [ ] **Plan 06-02 (Wave 1):** Client Session Management, Auto-Inactivity Lock, Universal CSV Exporter & Toast System (`frontend/js/session.js`, `frontend/js/export.js`, `frontend/js/api.js`).
+- [ ] **Plan 06-03 (Wave 2):** 3-Step Guided Onboarding Wizard & CSV Portfolio Holdings Importer (`frontend/onboarding.html`, `POST /api/v1/holdings/import-csv`).
+- [ ] **Plan 06-04 (Wave 2):** In-App Notification Bell Drawer & Real-Time Alert Poller (`frontend/js/alerts.js`, `frontend/css/main.css`).
+- [ ] **Plan 06-05 (Wave 3):** Dedicated Portfolio Timeline Page & Interactive Equity Curve with Event Pins (`frontend/timeline.html`).
+- [ ] **Plan 06-06 (Wave 3):** User-Facing Live System Status Dashboard (`frontend/status.html`).
+- [ ] **Plan 06-07 (Wave 4):** Printable Monthly Performance & Tax Statement Report & CSV Export Buttons (`frontend/report.html`, `frontend/css/main.css`).
+- [ ] **Plan 06-08 (Wave 4):** Responsive Mobile Navigation & WCAG 2.1 AA Accessibility Pass (`frontend/css/main.css`, `tests/test_a11y_and_structure.py`).
+
+**Definition of done:** Authentication gates UI access behind a Master Key/PIN with 30-minute inactivity auto-lock; new portfolios can be ingested via live Zerodha sync or CSV drag-and-drop wizard; alerts for drift, stale prices, tax loss opportunities, and system health are surfaced via topbar notification drawer and toasts; all tables support instant CSV export; a formal print-ready monthly performance & tax statement is available; timeline renders NAV equity curve vs NIFTY 50 TRI with event markers; system status exposes real-time telemetry; mobile navigation is fully responsive and WCAG 2.1 AA accessibility standards are met; all tests pass cleanly with >= 85% critical coverage.
 
 ## Phase 7: Multi-User & Scale
 **Status:** Unplanned
