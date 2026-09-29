@@ -6,8 +6,8 @@ progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 32
-  completed_plans: 22
-  percent: 68
+  completed_plans: 23
+  percent: 71
 ---
 <!-- STATE-MD-SCHEMA:END:frontmatter -->
 
@@ -23,11 +23,11 @@ See: .planning/ROADMAP.md (updated 2026-09-28)
 ## Current Position
 
 Phase: 5 of 9 (Phase 5: Make the Signal Engine Evidence-Based)
-Plan: Plan 05-03 complete. Ready to execute Plan 05-04 (Wave 3: Rolling Walk-Forward Backtester, Dual Baseline Attribution & Delivery Cost Net Returns).
-Status: Plan 05-03 complete. Quantitative indicator evaluator, Spearman rank IC engine, statistical pruning, and dynamic IR weighting verified.
-Last activity: 2026-09-29 — Executed Plan 05-03 (Quantitative Indicator Evaluator, Spearman Rank IC Engine & Dynamic IR Weighting)
+Plan: Plan 05-04 complete. Ready to execute Plan 05-05 (Wave 3: Calibrated Fat-Tailed Monte Carlo Simulation & Percentile Dispersion).
+Status: Plan 05-04 complete. Rolling walk-forward backtester, Indian transaction cost deductions, dual baseline attribution, and evidence hurdle gating verified.
+Last activity: 2026-09-29 — Executed Plan 05-04 (Rolling Walk-Forward Backtester, Dual Baseline Attribution & Delivery Cost Net Returns)
 
-Progress: [███████░░░] 68%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
@@ -79,10 +79,10 @@ Progress: [███████░░░] 68%
 - [Phase 05]: Systematic API & UI terminology migration from "prediction" to "signal" (`/api/v1/signals`, `HoldingSignalDTO`).
 
 ### Blockers/Concerns
-None. Entire test suite (269 tests) passing cleanly with 100% safety-critical coverage.
+None. Entire test suite (279 tests) passing cleanly with 100% safety-critical coverage.
 
 ## Session Continuity
 
 Last session: 2026-09-29
-Stopped at: Plan 05-03 complete and verified. Ready to execute Plan 05-04.
-Resume file: .planning/phases/05-make-the-signal-engine-evidence-based/05-04-PLAN.md
+Stopped at: Plan 05-04 complete and verified. Ready to execute Plan 05-05.
+Resume file: .planning/phases/05-make-the-signal-engine-evidence-based/05-05-PLAN.md
