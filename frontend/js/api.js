@@ -9,8 +9,79 @@ const API_BASE = window.location.hostname === "localhost" || window.location.hos
   : "https://portfolioiq-z4r6.onrender.com/api/v1";
 
 function getApiKey() {
-  return localStorage.getItem("portfolioiq_api_key") || "dev-secret-key";
+  return (
+    sessionStorage.getItem("portfolioiq_session_key") ||
+    localStorage.getItem("portfolioiq_api_key") ||
+    "dev-secret-key"
+  );
 }
+
+function handleUnauthorized(errorData) {
+  const msg = errorData?.error?.message || "Session unauthorized or expired (401).";
+  if (window.PortfolioIQSession && typeof window.PortfolioIQSession.lock === "function") {
+    window.PortfolioIQSession.lock(msg);
+  }
+  if (typeof window.showToast === "function") {
+    window.showToast("Unauthorized (401). Please unlock session.", "error");
+  }
+}
+
+// ── Toast Notification System ─────────────────────────────────
+
+function getOrCreateToastContainer() {
+  let container = document.getElementById("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    container.className = "toast-container";
+    container.setAttribute("role", "region");
+    container.setAttribute("aria-live", "polite");
+    container.setAttribute("aria-label", "Notifications");
+    document.body.appendChild(container);
+  }
+  return container;
+}
+
+function showToast(message, type = "info", duration = 4000) {
+  const container = getOrCreateToastContainer();
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.setAttribute("role", "status");
+
+  const icons = {
+    info: "ℹ️",
+    success: "✅",
+    warn: "⚠️",
+    error: "❌",
+  };
+  const icon = icons[type] || "ℹ️";
+
+  toast.innerHTML = `
+    <span class="toast-icon" aria-hidden="true">${icon}</span>
+    <span class="toast-message">${message}</span>
+    <button type="button" class="toast-close" aria-label="Dismiss notification">×</button>
+  `;
+
+  const closeBtn = toast.querySelector(".toast-close");
+  const dismiss = () => {
+    toast.classList.add("toast-leaving");
+    setTimeout(() => {
+      if (toast.parentNode === container) {
+        container.removeChild(toast);
+      }
+    }, 250);
+  };
+
+  if (closeBtn) closeBtn.addEventListener("click", dismiss);
+
+  container.appendChild(toast);
+
+  if (duration > 0) {
+    setTimeout(dismiss, duration);
+  }
+  return toast;
+}
+window.showToast = showToast;
 
 function generateRequestId() {
   return "req_" + Math.random().toString(36).substring(2, 14);
@@ -38,6 +109,9 @@ async function apiGet(path, params = {}) {
     },
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    handleUnauthorized(data);
+  }
   if (!res.ok) {
     const errorMsg = data.error?.message || (typeof data.error === "string" ? data.error : `HTTP ${res.status}`);
     return { ok: false, error: errorMsg, ...data };
@@ -56,6 +130,9 @@ async function apiPost(path, body = {}) {
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    handleUnauthorized(data);
+  }
   if (!res.ok && data.error && typeof data.error === "object") {
     data.error_message = data.error.message;
   }
@@ -73,6 +150,9 @@ async function apiPatch(path, body = {}) {
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    handleUnauthorized(data);
+  }
   if (!res.ok && data.error && typeof data.error === "object") {
     data.error_message = data.error.message;
   }

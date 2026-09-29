@@ -102,7 +102,7 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 **Goal:** it feels like a finished product, not a prototype. Timeframe: 2–3 weeks.
 
 - [x] **Plan 06-01 (Wave 1):** Backend Auth Verification, Alert Aggregator & System Telemetry REST APIs (`src/api/v1/blueprint.py`, `src/models/dtos.py`).
-- [ ] **Plan 06-02 (Wave 1):** Client Session Management, Auto-Inactivity Lock, Universal CSV Exporter & Toast System (`frontend/js/session.js`, `frontend/js/export.js`, `frontend/js/api.js`).
+- [x] **Plan 06-02 (Wave 1):** Client Session Management, Auto-Inactivity Lock, Universal CSV Exporter & Toast System (`frontend/js/session.js`, `frontend/js/export.js`, `frontend/js/api.js`).
 - [ ] **Plan 06-03 (Wave 2):** 3-Step Guided Onboarding Wizard & CSV Portfolio Holdings Importer (`frontend/onboarding.html`, `POST /api/v1/holdings/import-csv`).
 - [ ] **Plan 06-04 (Wave 2):** In-App Notification Bell Drawer & Real-Time Alert Poller (`frontend/js/alerts.js`, `frontend/css/main.css`).
 - [ ] **Plan 06-05 (Wave 3):** Dedicated Portfolio Timeline Page & Interactive Equity Curve with Event Pins (`frontend/timeline.html`).

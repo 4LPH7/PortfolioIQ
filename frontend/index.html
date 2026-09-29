@@ -107,7 +107,12 @@
   </div>
 
   <!-- Holdings Table -->
-  <div class="section-header">Holdings</div>
+  <div class="flex justify-between items-center mb-sm">
+    <div class="section-header" style="margin:0">Holdings</div>
+    <button class="btn btn-sm btn-ghost export-btn" id="export-holdings-btn" onclick="exportTableToCSV('#holdings-table', 'portfolio_holdings.csv')">
+      📥 Export CSV
+    </button>
+  </div>
   <div id="holdings-wrap">
     <div class="card">
       <div class="loading-wrap"><div class="spinner"></div><span>Fetching portfolio…</span></div>
@@ -141,6 +146,8 @@
   <div class="dry-run-dot"></div>DRY RUN — No real orders
 </div>
 
+<script src="js/session.js"></script>
+<script src="js/export.js"></script>
 <script src="js/api.js"></script>
 <script>
 // Clock
@@ -248,7 +255,7 @@ function animateValue(el, end, prefix="₹", dp=2, durationMs=900) {
 
       document.getElementById("holdings-wrap").innerHTML = `
         <div class="table-wrap">
-          <table>
+          <table id="holdings-table">
             <thead><tr>
               <th>Symbol <span class="sort-icon">↕</span></th>
               <th>Exchange</th>
