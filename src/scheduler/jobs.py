@@ -114,6 +114,46 @@ def _eod_snapshot_job():
         logger.exception("[SNAPSHOT] EOD Snapshot failed: {}", exc)
 
 
+def record_daily_signals_job():
+    """End-of-day quantitative signal snapshot recording for active holdings."""
+    from src.analytics.signal_recorder import record_eod_signals
+    from src.ingestion.market_hours import is_market_day
+
+    if not is_market_day():
+        logger.info("[SIGNALS] Skipping — not a market day.")
+        return []
+
+    try:
+        snapshots = record_eod_signals()
+        logger.info("[SIGNALS] Recorded {} EOD signal snapshots.", len(snapshots))
+        return snapshots
+    except Exception as exc:
+        logger.exception("[SIGNALS] EOD signal recording failed: {}", exc)
+        return []
+
+
+def mature_forward_returns_job():
+    """Daily evaluation and maturation of realized forward returns for signals."""
+    from src.analytics.signal_recorder import mature_forward_returns
+    from src.ingestion.market_hours import is_market_day
+
+    if not is_market_day():
+        logger.info("[MATURATION] Skipping — not a market day.")
+        return {}
+
+    try:
+        matured = mature_forward_returns()
+        logger.info("[MATURATION] Forward return maturation complete: {}", matured)
+        return matured
+    except Exception as exc:
+        logger.exception("[MATURATION] Forward return maturation failed: {}", exc)
+        return {}
+
+
+_daily_signals_job = record_daily_signals_job
+_mature_forward_returns_job = mature_forward_returns_job
+
+
 def create_scheduler() -> BackgroundScheduler:
     """
     Create and configure the APScheduler with all PortfolioIQ jobs.
@@ -154,6 +194,24 @@ def create_scheduler() -> BackgroundScheduler:
         CronTrigger(hour=16, minute=0, day_of_week="mon-fri", timezone=IST),
         id="eod_snapshot",
         name="End of Day Portfolio Snapshot",
+        replace_existing=True,
+    )
+
+    # Daily EOD Signal Snapshots — 4:15 PM IST on weekdays
+    scheduler.add_job(
+        _daily_signals_job,
+        CronTrigger(hour=16, minute=15, day_of_week="mon-fri", timezone=IST),
+        id="daily_signals",
+        name="Daily EOD Signal Snapshots",
+        replace_existing=True,
+    )
+
+    # Mature Forward Returns — 4:30 PM IST on weekdays
+    scheduler.add_job(
+        _mature_forward_returns_job,
+        CronTrigger(hour=16, minute=30, day_of_week="mon-fri", timezone=IST),
+        id="mature_forward_returns",
+        name="Mature Signal Forward Returns",
         replace_existing=True,
     )
 

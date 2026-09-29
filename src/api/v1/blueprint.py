@@ -6,8 +6,6 @@ rebalancing, tax summaries, audit trails, and system settings.
 
 from __future__ import annotations
 
-from typing import Any
-
 from flask import Blueprint, jsonify, request
 
 from src.api.limiter import limiter
@@ -94,12 +92,13 @@ def portfolio_summary():
 
 
 # ─────────────────────────────────────────────────────────────
-# Stock Analyzer
+# Quantitative Signal Engine (Phase 5: Evidence-Based Signals)
 # ─────────────────────────────────────────────────────────────
-@api_v1_bp.route("/analysis/<symbol>")
+@api_v1_bp.route("/signals/<symbol>", methods=["GET"])
 @require_api_key
-def analyse_stock(symbol: str):
-    from src.analytics.predictor import analyse_holding
+def get_stock_signal(symbol: str):
+    """Retrieve evidence-based quantitative signal evaluation for a symbol."""
+    from src.analytics.signal_recorder import compute_holding_signal
     from src.analytics.valuator import get_valuation_summary
 
     summary = get_valuation_summary()
@@ -107,38 +106,86 @@ def analyse_stock(symbol: str):
         (h["avg_price"] for h in summary.get("holdings", []) if h["symbol"] == symbol),
         0.0,
     )
-    result = analyse_holding(symbol, avg_buy_price=avg_price)
+    sig = compute_holding_signal(symbol, avg_buy_price=avg_price)
+    return jsonify({"ok": True, "data": sig.model_dump(mode="json")})
 
-    if result.error:
-        return format_error_response(
-            code="NOT_FOUND",
-            message=result.error,
-            status_code=404,
+
+@api_v1_bp.route("/signals", methods=["GET"])
+@require_api_key
+def get_portfolio_signals():
+    """Retrieve evidence-based quantitative signals for all active portfolio holdings."""
+    from src.analytics.signal_recorder import compute_portfolio_signals
+
+    user_id = request.args.get("user_id", "default")
+    signals = compute_portfolio_signals(user_id=user_id)
+    return jsonify({"ok": True, "data": [s.model_dump(mode="json") for s in signals]})
+
+
+@api_v1_bp.route("/signals/backtest", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+def post_signal_backtest():
+    """Trigger an out-of-sample rolling walk-forward backtest for a symbol."""
+    payload = request.get_json(silent=True) or {}
+    symbol = payload.get("symbol") or payload.get("tradingsymbol")
+    if not symbol:
+        return format_error_response("VALIDATION_ERROR", "symbol or tradingsymbol is required", 400)
+
+    train_window = int(payload.get("train_window_days", 252))
+    test_window = int(payload.get("test_window_days", 63))
+
+    from src.analytics.signal_recorder import run_and_record_backtest
+
+    try:
+        run_dto = run_and_record_backtest(
+            symbol=symbol,
+            train_window=train_window,
+            test_window=test_window,
         )
+        return jsonify({"ok": True, "data": run_dto.model_dump(mode="json")})
+    except Exception as exc:
+        return format_error_response("BACKTEST_ERROR", str(exc), 500)
 
-    def _safe(obj: Any) -> dict[str, Any] | None:
-        if obj is None:
-            return None
-        d = obj.__dict__.copy()
-        d.pop("ohlcv", None)  # strip DataFrame — not JSON serialisable
-        return d
 
-    payload = {
-        "symbol": result.symbol,
-        "yf_ticker": result.yf_ticker,
-        "current_price": result.current_price,
-        "avg_buy_price": result.avg_buy_price,
-        "data_start": result.data_start,
-        "data_end": result.data_end,
-        "data_points": result.data_points,
-        "rsi": _safe(result.rsi),
-        "macd": _safe(result.macd),
-        "bollinger": _safe(result.bollinger),
-        "linear_regression": _safe(result.linear_regression),
-        "monte_carlo": _safe(result.monte_carlo),
-        "composite": _safe(result.composite),
-    }
-    return jsonify({"ok": True, "data": payload})
+@api_v1_bp.route("/signals/history", methods=["GET"])
+@require_api_key
+def get_signal_history():
+    """Retrieve historical daily signal snapshots with multi-horizon forward returns."""
+    symbol = request.args.get("symbol") or request.args.get("tradingsymbol")
+    if not symbol:
+        return format_error_response("VALIDATION_ERROR", "symbol or tradingsymbol is required", 400)
+
+    limit = int(request.args.get("limit", 60))
+    user_id = request.args.get("user_id", "default")
+
+    from src.db.repository import get_signal_snapshots
+
+    snapshots = get_signal_snapshots(tradingsymbol=symbol, user_id=user_id, limit=limit)
+    return jsonify({"ok": True, "data": [s.model_dump(mode="json") for s in snapshots]})
+
+
+# ─────────────────────────────────────────────────────────────
+# Legacy Stock Analyzer (Deprecated — Routes to Quantitative Signals)
+# ─────────────────────────────────────────────────────────────
+@api_v1_bp.route("/analysis/<symbol>", methods=["GET"])
+@require_api_key
+def analyse_stock(symbol: str):
+    """
+    Legacy analysis endpoint aliased to the quantitative signal engine.
+    Emits HTTP Warning 299 header advising migration to /api/v1/signals/<symbol>.
+    """
+    from src.analytics.signal_recorder import compute_holding_signal
+    from src.analytics.valuator import get_valuation_summary
+
+    summary = get_valuation_summary()
+    avg_price = next(
+        (h["avg_price"] for h in summary.get("holdings", []) if h["symbol"] == symbol),
+        0.0,
+    )
+    sig = compute_holding_signal(symbol, avg_buy_price=avg_price)
+    resp = jsonify({"ok": True, "data": sig.model_dump(mode="json")})
+    resp.headers["Warning"] = f'299 - "Deprecated endpoint. Use /api/v1/signals/{symbol} instead."'
+    return resp
 
 
 @api_v1_bp.route("/holdings/symbols")
