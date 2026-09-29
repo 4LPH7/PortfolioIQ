@@ -38,6 +38,7 @@ from src.analytics.tax_guard import TaxWarning, check_sell_tax_impact
 from src.analytics.valuator import compute_portfolio_valuation
 from src.config.settings import get_settings
 from src.db.connection import execute_sql
+from src.models.dtos import BacktestRunDTO, HoldingSignalDTO
 
 
 class OrderSide(StrEnum):
@@ -51,6 +52,7 @@ class OrderReason(StrEnum):
     HOLDING_DRIFT = "HOLDING_DRIFT"
     CASH_REBALANCE = "CASH_REBALANCE"
     MANUAL = "MANUAL"
+    TACTICAL_SIGNAL = "TACTICAL_SIGNAL"
 
 
 @dataclass
@@ -81,6 +83,10 @@ class RebalanceOrder:
     is_adv_capped: bool = False
     original_quantity: int | None = None
     adv_20: int | None = None
+
+    # Evidence status & badge (Phase 5 D-06)
+    evidence_status: str = "PENDING"
+    evidence_badge: str = ""
 
     def __post_init__(self):
         self.estimated_value = (self.estimated_price * self.quantity).quantize(
@@ -121,6 +127,7 @@ class RebalancePlan:
     cash_buffer_retained: Decimal = Decimal("0")
     orders_suppressed_min_trade: int = 0
     orders_scaled_adv: int = 0
+    orders_suppressed_unproven_noise: int = 0
 
     def add_order(self, order: RebalanceOrder):
         self.orders.append(order)
@@ -181,6 +188,110 @@ def _round_to_lot_size(quantity: int, lot_size: int = 1) -> int:
     return (quantity // lot_size) * lot_size
 
 
+def evaluate_evidence_hurdles(
+    backtest: BacktestRunDTO | None,
+) -> tuple[str, str, dict[str, bool]]:
+    """
+    Evaluates whether a backtest run satisfies all 4 quantitative evidence hurdles:
+    1. Predictive Power: Mean out-of-sample IC > 0 and p < 0.05 on at least one unpruned indicator.
+    2. Stock Timing Skill: Strategy net CAGR > Stock Buy-and-Hold CAGR.
+    3. Market Excess Alpha: Strategy net CAGR > NIFTY 50 TRI CAGR.
+    4. Trade Quality: Win Rate >= 50%, Profit Factor > 1.0, and Total Trades >= 5.
+
+    Returns:
+        (status, badge, checks_dict)
+        where status is "PROVEN_EDGE" | "UNPROVEN_NOISE" | "PENDING".
+    """
+    if backtest is None:
+        return (
+            "PENDING",
+            "PENDING (No Backtest)",
+            {
+                "predictive_power": False,
+                "stock_timing": False,
+                "market_alpha": False,
+                "trade_quality": False,
+            },
+        )
+
+    # Hurdle 1: Predictive Power (mean_ic > 0 and p < 0.05 on at least one unpruned indicator)
+    valid_indicators = [
+        ind
+        for ind in (backtest.indicators or [])
+        if not getattr(ind, "is_pruned", True)
+        and getattr(ind, "mean_ic", 0.0) > 0
+        and getattr(ind, "p_value", 1.0) < 0.05
+    ]
+    predictive_power = len(valid_indicators) > 0 or bool(
+        backtest.hurdle_details.get("predictive_power", False)
+    )
+
+    # Hurdle 2: Stock Timing Skill (CAGR_strategy, net > CAGR_stock)
+    strat_cagr = backtest.strategy_cagr
+    stock_cagr = backtest.stock_cagr
+    stock_timing = strat_cagr is not None and stock_cagr is not None and strat_cagr > stock_cagr
+
+    # Hurdle 3: Market Excess Alpha (CAGR_strategy, net > CAGR_benchmark)
+    bench_cagr = backtest.benchmark_cagr
+    market_alpha = strat_cagr is not None and bench_cagr is not None and strat_cagr > bench_cagr
+
+    # Hurdle 4: Trade Quality (Win Rate >= 50%, Profit Factor > 1.0, Trades >= 5)
+    win_rate = backtest.strategy_win_rate
+    pf = backtest.strategy_profit_factor
+    trades = backtest.total_trades
+    trade_quality = (
+        win_rate is not None and win_rate >= 0.50 and pf is not None and pf > 1.0 and trades >= 5
+    )
+
+    checks = {
+        "predictive_power": bool(predictive_power),
+        "stock_timing": bool(stock_timing),
+        "market_alpha": bool(market_alpha),
+        "trade_quality": bool(trade_quality),
+    }
+
+    if all(checks.values()):
+        status = "PROVEN_EDGE"
+        excess_cagr = (
+            backtest.excess_cagr_vs_benchmark
+            or (strat_cagr - bench_cagr if strat_cagr and bench_cagr else 0.0)
+        ) * 100.0
+        badge = f"PROVEN EDGE (Alpha: {excess_cagr:+.1f}%, Trades: {trades})"
+    else:
+        status = "UNPROVEN_NOISE"
+        failed = [k for k, v in checks.items() if not v]
+        badge = f"UNPROVEN NOISE (Failed: {', '.join(failed)})"
+
+    return status, badge, checks
+
+
+def resolve_evidence_status(
+    symbol: str,
+    backtest_lookup: dict[str, BacktestRunDTO] | None = None,
+    signal_lookup: dict[str, HoldingSignalDTO] | None = None,
+) -> tuple[str, str]:
+    """Resolves (evidence_status, evidence_badge) for a symbol using provided lookups."""
+    if signal_lookup and symbol in signal_lookup:
+        sig = signal_lookup[symbol]
+        status = getattr(sig, "status", "PENDING")
+        badge = getattr(sig, "evidence_badge", "")
+        if not badge:
+            badge = (
+                "PROVEN EDGE"
+                if status == "PROVEN_EDGE"
+                else "UNPROVEN NOISE"
+                if status == "UNPROVEN_NOISE"
+                else "PENDING (No Backtest)"
+            )
+        return status, badge
+
+    if backtest_lookup and symbol in backtest_lookup:
+        status, badge, _ = evaluate_evidence_hurdles(backtest_lookup[symbol])
+        return status, badge
+
+    return "PENDING", "PENDING (No Backtest)"
+
+
 def generate_rebalance_plan(
     user_id: str = "default",
     dry_run: bool = True,
@@ -191,10 +302,15 @@ def generate_rebalance_plan(
     turnover_cap_pct: Decimal | None = None,
     adv_limit_pct: Decimal | None = None,
     adv_lookup: dict[str, int] | None = None,
+    backtest_lookup: dict[str, BacktestRunDTO] | None = None,
+    signal_lookup: dict[str, HoldingSignalDTO] | None = None,
+    tactical_signals: list[HoldingSignalDTO] | None = None,
+    suppress_unproven_buys: bool = False,
 ) -> RebalancePlan:
     """
     Generate a complete rebalance plan incorporating Indian transaction cost modeling,
-    minimum trade size gating, cash buffer preservation, daily turnover limits, and ADV volume caps.
+    minimum trade size gating, cash buffer preservation, daily turnover limits, ADV volume caps,
+    and evidence hurdle gating for tactical signals.
 
     Args:
         user_id: Portfolio owner.
@@ -206,6 +322,10 @@ def generate_rebalance_plan(
         turnover_cap_pct: Override daily turnover cap % of AUM (default 0.15 = 15%).
         adv_limit_pct: Override ADV cap fraction (default 0.01 = 1%).
         adv_lookup: Optional dict mapping tradingsymbol -> 20-day Average Daily Volume.
+        backtest_lookup: Optional dict mapping tradingsymbol -> BacktestRunDTO for evidence hurdles.
+        signal_lookup: Optional dict mapping tradingsymbol -> HoldingSignalDTO.
+        tactical_signals: Optional list of tactical signal recommendations to gate and allocate.
+        suppress_unproven_buys: If True, also suppress drift buy orders for unproven scrips.
 
     Returns:
         RebalancePlan containing sized, constrained RebalanceOrder items.
@@ -247,9 +367,11 @@ def generate_rebalance_plan(
 
     signals = detect_drift(user_id, valuation)
     actionable = [s for s in signals if s.is_actionable]
-    if not actionable:
-        logger.info("No actionable drift signals. Portfolio is balanced.")
+    if not actionable and not tactical_signals:
+        logger.info("No actionable drift signals or tactical signals. Portfolio is balanced.")
         return plan
+    if not actionable:
+        logger.info("No actionable drift signals; evaluating tactical signals.")
 
     # Sort actionable signals by absolute drift magnitude descending (most severe breaches first)
     actionable.sort(key=lambda s: abs(s.drift_pct), reverse=True)
@@ -372,6 +494,12 @@ def generate_rebalance_plan(
                 )
                 seen_sell_symbols.add(sh.tradingsymbol)
 
+                ev_status, ev_badge = resolve_evidence_status(
+                    sh.tradingsymbol,
+                    backtest_lookup=backtest_lookup,
+                    signal_lookup=signal_lookup,
+                )
+
                 order = RebalanceOrder(
                     tradingsymbol=sh.tradingsymbol,
                     exchange=sh.exchange,
@@ -388,6 +516,8 @@ def generate_rebalance_plan(
                     is_adv_capped=is_adv_capped,
                     original_quantity=orig_qty if is_adv_capped else None,
                     adv_20=adv_val,
+                    evidence_status=ev_status,
+                    evidence_badge=ev_badge,
                 )
                 plan.add_order(order)
                 plan.drift_signals_addressed += 1
@@ -480,6 +610,12 @@ def generate_rebalance_plan(
             )
             seen_sell_symbols.add(signal.name)
 
+            ev_status, ev_badge = resolve_evidence_status(
+                signal.name,
+                backtest_lookup=backtest_lookup,
+                signal_lookup=signal_lookup,
+            )
+
             order = RebalanceOrder(
                 tradingsymbol=signal.name,
                 exchange=details.get("exchange", "NSE"),
@@ -496,6 +632,8 @@ def generate_rebalance_plan(
                 is_adv_capped=is_adv_capped,
                 original_quantity=orig_qty if is_adv_capped else None,
                 adv_20=adv_val,
+                evidence_status=ev_status,
+                evidence_badge=ev_badge,
             )
             plan.add_order(order)
             plan.drift_signals_addressed += 1
@@ -589,6 +727,20 @@ def generate_rebalance_plan(
         if buy_qty <= 0:
             continue
 
+        ev_status, ev_badge = resolve_evidence_status(
+            target_symbol,
+            backtest_lookup=backtest_lookup,
+            signal_lookup=signal_lookup,
+        )
+
+        if suppress_unproven_buys and ev_status == "UNPROVEN_NOISE":
+            plan.orders_suppressed_unproven_noise += 1
+            logger.warning(
+                "[GATE] Suppressed order for {}: Unproven signal (Failed Hurdle).",
+                target_symbol,
+            )
+            continue
+
         cost = compute_indian_delivery_charges(side="BUY", trade_value=order_val)
 
         order = RebalanceOrder(
@@ -608,6 +760,8 @@ def generate_rebalance_plan(
             is_adv_capped=is_adv_capped,
             original_quantity=orig_qty if is_adv_capped else None,
             adv_20=adv_val,
+            evidence_status=ev_status,
+            evidence_badge=ev_badge,
         )
         plan.add_order(order)
         plan.drift_signals_addressed += 1
@@ -616,9 +770,119 @@ def generate_rebalance_plan(
         if running_turnover >= turnover_cap:
             plan.turnover_cap_reached = True
 
+    # ─── TACTICAL SIGNAL ORDERS (Evidence-gated BUY signals) ───
+    if tactical_signals:
+        for sig in tactical_signals:
+            if len(plan.orders) >= max_orders:
+                break
+            if running_turnover >= turnover_cap:
+                plan.turnover_cap_reached = True
+                break
+            if usable_cash <= 0:
+                break
+
+            sym = getattr(sig, "tradingsymbol", None) or getattr(sig, "symbol", "")
+            if not sym:
+                continue
+
+            ev_status, ev_badge = resolve_evidence_status(
+                sym,
+                backtest_lookup=backtest_lookup,
+                signal_lookup=signal_lookup or {sym: sig},
+            )
+
+            # Fail-closed gate: strictly suppress UNPROVEN_NOISE
+            if ev_status == "UNPROVEN_NOISE":
+                plan.orders_suppressed_unproven_noise += 1
+                logger.warning(
+                    "[GATE] Suppressed order for {}: Unproven signal (Failed Hurdle).",
+                    sym,
+                )
+                continue
+
+            if ev_status != "PROVEN_EDGE":
+                continue
+
+            # Only BUY or STRONG_BUY (or composite_score >= 60.0)
+            sig_label = getattr(sig, "signal_label", "HOLD")
+            comp_score = getattr(sig, "composite_score", 50.0)
+            if sig_label not in ("BUY", "STRONG_BUY") and comp_score < 60.0:
+                continue
+
+            details = _get_holding_details(sym, user_id)
+            if details is None:
+                continue
+
+            current_price = Decimal(str(details["current_price"]))
+            if current_price <= 0:
+                continue
+
+            lot_size = int(details.get("lot_size") or 1)
+            rem_to = turnover_cap - running_turnover
+            # Sizing tactical tilt: 5% of AUM or min_trade_val
+            tactical_budget = min(
+                (Decimal("0.05") * aum).quantize(Decimal("0.01")),
+                usable_cash,
+                rem_to,
+            )
+            tactical_budget = max(tactical_budget, min_trade_val)
+            tactical_budget = min(tactical_budget, usable_cash, rem_to)
+
+            if tactical_budget < current_price:
+                continue
+
+            raw_buy_qty = int(
+                (tactical_budget / current_price).to_integral_value(rounding=ROUND_DOWN)
+            )
+
+            adv_val = adv_map.get(sym)
+            is_adv_capped = False
+            orig_qty = raw_buy_qty
+            if adv_val is not None and adv_val > 0:
+                max_adv_qty = int(
+                    (Decimal(str(adv_val)) * adv_pct).to_integral_value(rounding=ROUND_DOWN)
+                )
+                if raw_buy_qty > max_adv_qty:
+                    raw_buy_qty = max_adv_qty
+                    is_adv_capped = True
+
+            buy_qty = _round_to_lot_size(raw_buy_qty, lot_size)
+            order_val = (buy_qty * current_price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+            if order_val < min_trade_val:
+                plan.orders_suppressed_min_trade += 1
+                continue
+
+            if buy_qty <= 0:
+                continue
+
+            cost = compute_indian_delivery_charges(side="BUY", trade_value=order_val)
+            order = RebalanceOrder(
+                tradingsymbol=sym,
+                exchange=details.get("exchange", "NSE"),
+                instrument_token=details["instrument_token"],
+                side=OrderSide.BUY,
+                quantity=buy_qty,
+                estimated_price=current_price,
+                reason=OrderReason.TACTICAL_SIGNAL,
+                cost=cost,
+                charges_total=cost.total_charges,
+                is_full_liquidation=False,
+                is_adv_capped=is_adv_capped,
+                original_quantity=orig_qty if is_adv_capped else None,
+                adv_20=adv_val,
+                evidence_status=ev_status,
+                evidence_badge=ev_badge,
+            )
+            plan.add_order(order)
+            usable_cash -= order.estimated_value
+            running_turnover += order.estimated_value
+            if running_turnover >= turnover_cap:
+                plan.turnover_cap_reached = True
+
     logger.success(
         "Rebalance plan complete: {} orders ({} sells, {} buys), "
-        "total turnover: {} / cap {}, charges: {}, min_trade suppressed: {}, adv scaled: {}",
+        "total turnover: {} / cap {}, charges: {}, min_trade suppressed: {}, adv scaled: {}, unproven suppressed: {}",
         len(plan.orders),
         len(plan.sell_orders),
         len(plan.buy_orders),
@@ -627,6 +891,7 @@ def generate_rebalance_plan(
         plan.total_charges,
         plan.orders_suppressed_min_trade,
         plan.orders_scaled_adv,
+        plan.orders_suppressed_unproven_noise,
     )
     return plan
 
@@ -657,6 +922,7 @@ def get_rebalance_summary(user_id: str = "default", **kwargs: Any) -> dict[str, 
         "cash_buffer_retained": float(plan.cash_buffer_retained),
         "orders_suppressed_min_trade": plan.orders_suppressed_min_trade,
         "orders_scaled_adv": plan.orders_scaled_adv,
+        "orders_suppressed_unproven_noise": plan.orders_suppressed_unproven_noise,
         "net_cash_impact": float(plan.net_cash_impact),
         "drift_signals_addressed": plan.drift_signals_addressed,
         "tax_warnings": plan.tax_warnings_count,
@@ -686,6 +952,8 @@ def get_rebalance_summary(user_id: str = "default", **kwargs: Any) -> dict[str, 
                 "is_adv_capped": o.is_adv_capped,
                 "original_quantity": o.original_quantity,
                 "has_tax_warning": o.has_tax_warning,
+                "evidence_status": o.evidence_status,
+                "evidence_badge": o.evidence_badge,
                 "tax_warnings": [
                     {"type": w.warning_type, "message": w.message, "severity": w.severity}
                     for w in o.tax_warnings

@@ -92,7 +92,7 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 - [x] **Plan 05-03 (Wave 2):** Quantitative Indicator Evaluator, Spearman Rank IC Engine & Dynamic IR Weighting (`src/analytics/indicator_evaluator.py`).
 - [x] **Plan 05-04 (Wave 3):** Rolling Walk-Forward Backtester, Dual Baseline Attribution & Delivery Cost Net Returns (`src/analytics/walk_forward.py`).
 - [x] **Plan 05-05 (Wave 3):** Calibrated Fat-Tailed Monte Carlo Simulation & Percentile Dispersion (`src/analytics/calibrated_monte_carlo.py`).
-- [ ] **Plan 05-06 (Wave 4):** Rebalancer Evidence Hurdle Gate & Fail-Closed Order Suppression (`src/analytics/rebalancer.py`).
+- [x] **Plan 05-06 (Wave 4):** Rebalancer Evidence Hurdle Gate & Fail-Closed Order Suppression (`src/analytics/rebalancer.py`).
 - [ ] **Plan 05-07 (Wave 4):** Signal Scheduler Jobs, REST Endpoints & Systematic Terminology Migration (`scheduler/jobs.py`, `src/api/v1/blueprint.py`).
 
 **Definition of done:** Technical indicators are evaluated independently via out-of-sample Spearman rank IC with negative-alpha/insignificant indicators automatically pruned; rolling walk-forward backtests (252-train / 63-test) evaluate strategy net returns against dual baselines (Stock B&H and NIFTY 50 TRI B&H) with realistic Indian transaction costs; Monte Carlo simulations use Student's t distribution with empirical coverage calibration (80%/95% cones) and dispersion percentiles (P10..P90) with point estimates banned; rebalancer strictly suppresses trade proposals on signals tagged as `UNPROVEN_NOISE`; signal snapshots track 5d, 20d, and 60d forward returns; all tests pass cleanly with >= 85% critical coverage.

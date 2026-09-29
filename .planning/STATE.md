@@ -6,8 +6,8 @@ progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 32
-  completed_plans: 24
-  percent: 75
+  completed_plans: 25
+  percent: 78
 ---
 <!-- STATE-MD-SCHEMA:END:frontmatter -->
 
@@ -23,16 +23,16 @@ See: .planning/ROADMAP.md (updated 2026-09-28)
 ## Current Position
 
 Phase: 5 of 9 (Phase 5: Make the Signal Engine Evidence-Based)
-Plan: Plan 05-05 complete. Ready to execute Plan 05-06 (Wave 4: Rebalancer Evidence Hurdle Gate & Fail-Closed Order Suppression).
-Status: Plan 05-05 complete. Calibrated Student's t Monte Carlo simulation, empirical conformal calibration, and percentile dispersion verified.
-Last activity: 2026-09-29 — Executed Plan 05-05 (Calibrated Fat-Tailed Monte Carlo Simulation & Percentile Dispersion)
+Plan: Plan 05-06 complete. Ready to execute Plan 05-07 (Wave 4: Signal Scheduler Jobs, REST Endpoints & Systematic Terminology Migration).
+Status: Plan 05-06 complete. Rebalancer fail-closed evidence hurdle gate and tactical trade suppression verified.
+Last activity: 2026-09-29 — Executed Plan 05-06 (Rebalancer Evidence Hurdle Gate & Fail-Closed Order Suppression)
 
-Progress: [████████░░] 75%
+Progress: [████████░░] 78%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
+- Total plans completed: 21
 - Average duration: ~20 min
 - Total execution time: ~6.5 hours
 
@@ -79,10 +79,10 @@ Progress: [████████░░] 75%
 - [Phase 05]: Systematic API & UI terminology migration from "prediction" to "signal" (`/api/v1/signals`, `HoldingSignalDTO`).
 
 ### Blockers/Concerns
-None. Entire test suite (294 tests) passing cleanly with 100% safety-critical coverage.
+None. Entire test suite (312 tests) passing cleanly with 100% safety-critical coverage.
 
 ## Session Continuity
 
 Last session: 2026-09-29
-Stopped at: Plan 05-05 complete and verified. Ready to execute Plan 05-06.
-Resume file: .planning/phases/05-make-the-signal-engine-evidence-based/05-06-PLAN.md
+Stopped at: Plan 05-06 complete and verified. Ready to execute Plan 05-07.
+Resume file: .planning/phases/05-make-the-signal-engine-evidence-based/05-07-PLAN.md
