@@ -440,3 +440,40 @@ class HistoricalBarDTO(BaseDTO):
     close: Decimal
     volume: int = 0
     created_at: datetime | None = None
+
+
+# ─────────────────────────────────────────────────────────────
+# Phase 6 Product & UX Polish DTOs
+# ─────────────────────────────────────────────────────────────
+class AuthVerifyRequestDTO(BaseDTO):
+    api_key: str | None = None
+
+
+class AlertItemDTO(BaseDTO):
+    id: str
+    type: Literal["DRIFT", "PRICE_STALE", "TAX", "SYSTEM"]
+    severity: Literal["CRITICAL", "WARNING", "INFO"]
+    title: str
+    message: str
+    action_label: str = ""
+    action_url: str = ""
+    timestamp: datetime
+    metadata: dict[str, Any] = {}
+
+
+class AlertSummaryDTO(BaseDTO):
+    unread_count: int
+    alerts: list[AlertItemDTO]
+    system_healthy: bool
+
+
+class SystemStatusDTO(BaseDTO):
+    status: Literal["OK", "DEGRADED", "ERROR"]
+    timestamp: datetime
+    api_version: str = "v1"
+    environment: str
+    dry_run_mode: bool
+    database: dict[str, Any]
+    broker: dict[str, Any]
+    market: dict[str, Any]
+    scheduler: dict[str, Any]
