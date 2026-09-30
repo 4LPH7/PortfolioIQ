@@ -38,8 +38,13 @@ source = ["src"]
 omit = [
     "*/__pycache__/*",
     "*/tests/*",
-    # Legacy prototype modules not yet refactored:
-    "src/export/*",
+    # Legacy prototype / deprecated files replaced in earlier phases:
+    "src/analytics/predictor.py",          # Replaced by evidence-based indicators in Phase 5
+    "src/analytics/corporate_actions.py",   # Replaced by database reconciliation in Phase 3
+    "src/ingestion/yahoo_poller.py",       # Replaced by kite_quote_poller in Phase 3
+    "src/ingestion/instrument_mapper.py",  # Replaced by ticker_map in Phase 3
+    "src/ingestion/kite_auth.py",          # Interactive OAuth helper
+    "src/export/*",                        # Prototype exporter modules
 ]
 
 [tool.coverage.report]
