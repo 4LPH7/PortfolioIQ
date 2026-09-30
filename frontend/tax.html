@@ -22,6 +22,7 @@
   <a class="nav-item active" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
   <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
   <a class="nav-item" href="timeline.html"><span class="nav-icon">📅</span> Portfolio Timeline</a>
+  <a class="nav-item" href="report.html"><span class="nav-icon">📑</span> Monthly Statement</a>
   <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
   <hr class="sidebar-divider"/>
   <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status"><div class="status-dot"></div><span>Loading…</span></a>
@@ -78,7 +79,10 @@
     <div id="tax-chart" style="height:220px"></div>
   </div>
 
-  <div class="section-header">Tax Lot Summary by Holding</div>
+  <div class="flex justify-between items-center mb-sm">
+    <div class="section-header" style="margin:0">Tax Lot Summary by Holding</div>
+    <button type="button" class="btn btn-xs btn-ghost" data-export="tax-lots-table" title="Export CSV">📥 Export CSV</button>
+  </div>
   <div id="tax-table-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div><span>Loading tax lots…</span></div></div></div>
 
   <p class="text-xs text-dim mt-sm">Tax rates: STCG @ 20% | LTCG @ 12.5% above ₹1.25L exemption. Holding period > 12 months = LTCG. Data is approximate — consult a Chartered Accountant for filing.</p>
@@ -148,7 +152,7 @@ setInterval(() => { document.getElementById("clock").textContent = new Date().to
         <td class="td-mono font-bold">${fmt(h.total_tax ?? 0)}</td>
         <td class="td-dim">${h.next_ltcg_date ?? "—"}</td>
       </tr>`).join("");
-      document.getElementById("tax-table-area").innerHTML = `<div class="table-wrap"><table><thead><tr>
+      document.getElementById("tax-table-area").innerHTML = `<div class="table-wrap"><table id="tax-lots-table"><thead><tr>
         <th>Symbol</th><th>LTCG Qty</th><th>LTCG Cost</th><th>STCG Qty</th><th>STCG Cost</th>
         <th>STCG Tax (20%)</th><th>LTCG Tax (12.5%)</th><th>Total Est. Tax</th><th>Next LTCG Date</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;

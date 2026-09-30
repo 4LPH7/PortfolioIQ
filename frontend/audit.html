@@ -21,6 +21,7 @@
   <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
   <a class="nav-item active" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
   <a class="nav-item" href="timeline.html"><span class="nav-icon">📅</span> Portfolio Timeline</a>
+  <a class="nav-item" href="report.html"><span class="nav-icon">📑</span> Monthly Statement</a>
   <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
   <hr class="sidebar-divider"/>
   <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status"><div class="status-dot"></div><span>Loading…</span></a>
@@ -74,10 +75,16 @@
     <div class="kpi-card negative"><span class="kpi-icon">❌</span><div class="kpi-label">Failed</div><div class="kpi-value" id="k-failed">—</div></div>
   </div>
 
-  <div class="section-header">Order History</div>
+  <div class="flex justify-between items-center mb-sm">
+    <div class="section-header" style="margin:0">Order History</div>
+    <button type="button" class="btn btn-xs btn-ghost" data-export="audit-orders-table" title="Export CSV">📥 Export CSV</button>
+  </div>
   <div id="orders-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div></div></div></div>
 
-  <div class="section-header">Validation Log</div>
+  <div class="flex justify-between items-center mb-sm">
+    <div class="section-header" style="margin:0">Validation Log</div>
+    <button type="button" class="btn btn-xs btn-ghost" data-export="audit-validations-table" title="Export CSV">📥 Export CSV</button>
+  </div>
   <div id="val-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div></div></div></div>
 
   <div class="alert alert-info mt-md">
@@ -133,7 +140,7 @@ async function loadAudit() {
           <td class="td-dim td-mono" style="font-size:0.72rem">${ts}</td>
         </tr>`;
       }).join("");
-      document.getElementById("orders-area").innerHTML = `<div class="table-wrap"><table><thead><tr>
+      document.getElementById("orders-area").innerHTML = `<div class="table-wrap"><table id="audit-orders-table"><thead><tr>
         <th>ID</th><th>Symbol</th><th>Exchange</th><th>Side</th><th>Qty</th>
         <th>Price</th><th>Status</th><th>Reason</th><th>Mode</th><th>Time</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -156,7 +163,7 @@ async function loadAudit() {
           <td class="td-dim td-mono" style="font-size:0.72rem">${ts}</td>
         </tr>`;
       }).join("");
-      document.getElementById("val-area").innerHTML = `<div class="table-wrap"><table><thead><tr>
+      document.getElementById("val-area").innerHTML = `<div class="table-wrap"><table id="audit-validations-table"><thead><tr>
         <th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Result</th><th>Failure Reason</th><th>Time</th>
       </tr></thead><tbody>${vrows}</tbody></table></div>`;
     } else {

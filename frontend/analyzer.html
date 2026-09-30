@@ -23,6 +23,7 @@
   <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
   <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
   <a class="nav-item" href="timeline.html"><span class="nav-icon">📅</span> Portfolio Timeline</a>
+  <a class="nav-item" href="report.html"><span class="nav-icon">📑</span> Monthly Statement</a>
   <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
   <hr class="sidebar-divider"/>
   <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status"><div class="status-dot"></div><span>Loading…</span></a>
@@ -204,19 +205,45 @@ function renderResult(d) {
     <div class="tab-panel card" data-tab="bb" style="margin-top:0"><div id="tab-bb"></div></div>
     <div class="tab-panel card" data-tab="lr" style="margin-top:0"><div id="tab-lr"></div></div>
     <div class="tab-panel card" data-tab="mc" style="margin-top:0"><div id="tab-mc"></div></div>
+  </div>
+
+  <!-- Quantitative Signals Table -->
+  <div class="card mt-md">
+    <div class="card-header flex items-center justify-between" style="margin-bottom:0.75rem;">
+      <div class="card-title flex items-center gap-xs">
+        <span>🔬 Model Indicators &amp; Walk-Forward Weights</span>
+      </div>
+      <button type="button" class="btn btn-xs btn-ghost" data-export="analyzer-signals-table" title="Export CSV">
+        📥 Export CSV
+      </button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="analyzer-signals-table">
+        <thead>
+          <tr>
+            <th>Model Method</th>
+            <th>Signal</th>
+            <th>Indicator Reading</th>
+            <th class="text-right">Score</th>
+            <th class="text-right">Weight</th>
+          </tr>
+        </thead>
+        <tbody id="analyzer-signals-tbody"></tbody>
+      </table>
+    </div>
   </div>`;
 
   // Signal cards
   const methods = [
-    { label:"RSI", icon:"📊", res:d.rsi,
+    { label:"RSI", icon:"📊", res:d.rsi, weight:"20%", score: comp.rsi_score,
       detail: d.rsi ? `RSI ${d.rsi.current_rsi?.toFixed(1)} · ${d.rsi.overbought?"Overbought":d.rsi.oversold?"Oversold":"Neutral"}` : "—" },
-    { label:"MACD", icon:"〽️", res:d.macd,
+    { label:"MACD", icon:"〽️", res:d.macd, weight:"25%", score: comp.macd_score,
       detail: d.macd ? `${d.macd.is_crossover?"🚀 Bullish crossover! ":""}MACD ${d.macd.macd_line?.toFixed(3)} · Sig ${d.macd.signal_line?.toFixed(3)}` : "—" },
-    { label:"Bollinger", icon:"📉", res:d.bollinger,
+    { label:"Bollinger", icon:"📉", res:d.bollinger, weight:"20%", score: comp.bollinger_score,
       detail: d.bollinger ? `%B ${d.bollinger.percent_b?.toFixed(3)} · BW ${d.bollinger.bandwidth?.toFixed(3)}` : "—" },
-    { label:"Lin. Regression", icon:"📐", res:d.linear_regression,
+    { label:"Lin. Regression", icon:"📐", res:d.linear_regression, weight:"20%", score: comp.lr_score,
       detail: d.linear_regression ? `Slope ${d.linear_regression.slope_pct?.toFixed(3)}%/day · R² ${d.linear_regression.r_squared?.toFixed(3)}` : "—" },
-    { label:"Monte Carlo", icon:"🎲", res:d.monte_carlo,
+    { label:"Monte Carlo", icon:"🎲", res:d.monte_carlo, weight:"15%", score: d.monte_carlo?.prob_profit,
       detail: d.monte_carlo ? `P(profit) ${d.monte_carlo.prob_profit?.toFixed(0)}% · Median ${fmt(d.monte_carlo.p50)}` : "—" },
   ];
   document.getElementById("signal-cards").innerHTML = methods.map(m => {
@@ -228,6 +255,20 @@ function renderResult(d) {
       <div class="method-detail" style="color:var(--text-muted)">${m.detail}</div>
     </div>`;
   }).join("");
+
+  const sigTbody = document.getElementById("analyzer-signals-tbody");
+  if (sigTbody) {
+    sigTbody.innerHTML = methods.map(m => {
+      const sig = m.res?.signal || "HOLD";
+      return `<tr>
+        <td class="font-bold">${m.icon} ${m.label}</td>
+        <td>${signalBadge(sig)}</td>
+        <td class="text-sm text-muted">${m.detail}</td>
+        <td class="text-right font-mono font-medium">${m.score != null ? Math.round(m.score) : "—"}/100</td>
+        <td class="text-right font-mono text-accent font-bold">${m.weight}</td>
+      </tr>`;
+    }).join("");
+  }
 
   initTabs("charts-tabs");
 

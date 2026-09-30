@@ -21,6 +21,7 @@
   <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
   <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
   <a class="nav-item" href="timeline.html"><span class="nav-icon">📅</span> Portfolio Timeline</a>
+  <a class="nav-item" href="report.html"><span class="nav-icon">📑</span> Monthly Statement</a>
   <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
   <hr class="sidebar-divider"/>
   <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status"><div class="status-dot"></div><span>Loading…</span></a>
@@ -56,10 +57,16 @@
     <div class="kpi-card"><span class="kpi-icon">⚠️</span><div class="kpi-label">Tax Warnings</div><div class="kpi-value" id="k-tax">—</div></div>
   </div>
 
-  <div class="section-header">Drift Signals</div>
+  <div class="flex justify-between items-center mb-sm">
+    <div class="section-header" style="margin:0">Drift Signals</div>
+    <button type="button" class="btn btn-xs btn-ghost" data-export="drift-table" title="Export CSV">📥 Export CSV</button>
+  </div>
   <div id="drift-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div><span>Analysing drift…</span></div></div></div>
 
-  <div class="section-header">Proposed CNC Orders</div>
+  <div class="flex justify-between items-center mb-sm">
+    <div class="section-header" style="margin:0">Proposed CNC Orders</div>
+    <button type="button" class="btn btn-xs btn-ghost" data-export="rebalance-orders-table" title="Export CSV">📥 Export CSV</button>
+  </div>
   <div id="orders-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div></div></div></div>
 
   <div class="alert alert-info mt-md">
@@ -122,7 +129,7 @@ async function loadPage() {
           <td>${s.actionable?'<span class="badge badge-failed">Actionable</span>':'<span class="badge badge-hold">Within Threshold</span>'}</td>
         </tr>`;
       }).join("");
-      document.getElementById("drift-area").innerHTML = `<div class="table-wrap"><table><thead><tr>
+      document.getElementById("drift-area").innerHTML = `<div class="table-wrap"><table id="drift-table"><thead><tr>
         <th>Name</th><th>Current</th><th>Target</th><th>Drift</th><th>Magnitude</th><th>Severity</th><th>Status</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;
     } else {
@@ -145,7 +152,7 @@ async function loadPage() {
           <td class="td-dim">${o.reason||"—"}</td>
         </tr>`;
       }).join("");
-      document.getElementById("orders-area").innerHTML = `<div class="table-wrap"><table><thead><tr>
+      document.getElementById("orders-area").innerHTML = `<div class="table-wrap"><table id="rebalance-orders-table"><thead><tr>
         <th>Side</th><th>Symbol</th><th>Exchange</th><th>Qty</th><th>Est. Price</th><th>Est. Value</th><th>Reason</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;
     } else {

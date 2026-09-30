@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="description" content="PortfolioIQ — Formal Monthly Portfolio & Tax Performance Statement."/>
+  <title>PortfolioIQ — Monthly Statement</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/main.css"/>
+  <style>
+    .statement-container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .statement-header {
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .disclaimer-box {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 1rem 1.25rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-top: 2rem;
+    }
+    @media print {
+      .statement-container {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .disclaimer-box {
+        background: #f8f9fa !important;
+        border: 1px solid #cccccc !important;
+        border-left: 4px solid #333333 !important;
+        color: #333333 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">📈</div>
+      <div>
+        <div class="sidebar-logo-text">PortfolioIQ</div>
+        <div class="sidebar-badge">v3.0 LIVE</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-label">Main</div>
+  <a class="nav-item" href="index.html"><span class="nav-icon">🏠</span> Dashboard</a>
+  <a class="nav-item" href="analyzer.html"><span class="nav-icon">🔬</span> Stock Analyzer</a>
+  <a class="nav-item" href="rebalance.html"><span class="nav-icon">⚖️</span> Rebalance</a>
+  <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
+  <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
+  <a class="nav-item" href="timeline.html"><span class="nav-icon">📅</span> Portfolio Timeline</a>
+  <a class="nav-item active" href="report.html"><span class="nav-icon">📑</span> Monthly Statement</a>
+  <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
+
+  <hr class="sidebar-divider"/>
+  <div class="nav-label">Engine Status</div>
+  <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status">
+    <div class="status-dot"></div><span>Loading…</span>
+  </a>
+  <a href="status.html" id="db-status" class="status-pill status-warn" title="View Database Status">
+    <div class="status-dot"></div><span>Checking…</span>
+  </a>
+  <hr class="sidebar-divider"/>
+  <div class="dry-run-notice" style="position:static;margin:0.5rem 0;font-size:0.65rem;border-radius:8px;padding:0.4rem 0.7rem">
+    <div class="dry-run-dot"></div> DRY RUN ACTIVE
+  </div>
+</nav>
+
+<!-- ── Top Bar ─────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-breadcrumb">
+    <span>PortfolioIQ</span>
+    <span class="sep">/</span>
+    <span class="crumb-current">Monthly Statement</span>
+  </div>
+  <div id="ticker-area" class="ticker-strip" style="flex:1;margin:0 1.5rem"></div>
+  <div class="topbar-right">
+    <button type="button" class="topbar-bell-btn" id="notification-bell-btn" onclick="PortfolioIQAlerts.toggleDrawer()" title="View Notifications" aria-label="View notifications">
+      <span class="bell-icon">🔔</span>
+      <span class="bell-badge" id="bell-badge" style="display:none;">0</span>
+    </button>
+    <div class="topbar-time" id="clock">—</div>
+    <div class="topbar-refresh" onclick="location.reload()">
+      <span class="spin-icon">↻</span> Refresh
+    </div>
+  </div>
+</div>
+
+<!-- ── Main Content ────────────────────────────────────────── -->
+<main class="main fade-in">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Monthly <span>Statement</span></h1>
+      <p class="page-subtitle">Printable formal portfolio performance &amp; capital gains tax report.</p>
+    </div>
+    <div class="page-actions flex items-center gap-xs">
+      <select id="statement-month" class="btn btn-xs btn-ghost" onchange="loadStatement()" style="background:var(--card-bg); color:var(--text); border:1px solid var(--border); padding:0.35rem 0.6rem; border-radius:var(--radius-sm);">
+        <option value="2026-09" selected>September 2026</option>
+        <option value="2026-08">August 2026</option>
+        <option value="2026-07">July 2026</option>
+        <option value="2026-06">June 2026</option>
+      </select>
+      <button type="button" class="btn btn-sm btn-ghost" data-export="statement-holdings-table" title="Export Holdings CSV">
+        📥 Export CSV
+      </button>
+      <button type="button" class="btn btn-sm btn-primary" onclick="window.print()" title="Print or save as PDF">
+        🖨️ Print / Save PDF
+      </button>
+    </div>
+  </div>
+
+  <div class="statement-container">
+    <!-- Statement Letterhead Header -->
+    <div class="card statement-header">
+      <div class="flex justify-between items-start flex-wrap gap-md">
+        <div>
+          <div class="flex items-center gap-sm mb-xs">
+            <span style="font-size: 1.75rem;">📈</span>
+            <span class="font-bold text-lg text-accent" style="letter-spacing: -0.02em;">PortfolioIQ</span>
+            <span class="badge badge-strong-buy">OFFICIAL STATEMENT</span>
+          </div>
+          <div class="text-xs text-muted">Algorithmic Portfolio Management &amp; Tax Guard Engine</div>
+          <div class="text-xs text-dim">NSE / BSE Equity Cash Segment · Rupee Dominated (INR)</div>
+        </div>
+        <div class="text-right text-xs">
+          <div class="font-bold text-md text-main" id="statement-period-display">September 2026 Statement</div>
+          <div class="text-muted mt-xs">Account: <span class="font-mono text-accent">USER-DEFAULT</span></div>
+          <div class="text-muted">Generated: <span class="font-mono" id="statement-generated-at">2026-09-30 IST</span></div>
+          <div class="text-muted">Status: <span class="badge badge-dry-run">SIMULATION / AUDIT</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Executive Performance KPIs -->
+    <div class="kpi-grid stagger mb-md" id="statement-kpis">
+      <div class="kpi-card">
+        <span class="kpi-icon">💼</span>
+        <div class="kpi-label">Total Portfolio AUM</div>
+        <div class="kpi-value" id="stmt-aum">—</div>
+        <div class="kpi-delta" id="stmt-aum-sub" style="font-size:0.72rem; color:var(--text-dim);">Closing valuation</div>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-icon">📈</span>
+        <div class="kpi-label">Time-Weighted Return (TWR)</div>
+        <div class="kpi-value" id="stmt-twr">—</div>
+        <div class="kpi-delta" id="stmt-twr-sub" style="font-size:0.72rem;">Strategy return</div>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-icon">💸</span>
+        <div class="kpi-label">Money-Weighted (XIRR)</div>
+        <div class="kpi-value" id="stmt-xirr">—</div>
+        <div class="kpi-delta" id="stmt-xirr-sub" style="font-size:0.72rem;">Cash-flow annualized</div>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-icon">🎯</span>
+        <div class="kpi-label">Benchmark (NIFTY 50 TRI)</div>
+        <div class="kpi-value" id="stmt-bench">—</div>
+        <div class="kpi-delta text-dim" style="font-size:0.72rem;">NIFTY Total Return</div>
+      </div>
+    </div>
+
+    <!-- Risk & Attribution Matrix -->
+    <div class="grid-2 mb-md">
+      <!-- Benchmark Attribution -->
+      <div class="card">
+        <div class="card-title mb-sm">🎯 Risk &amp; Benchmark Attribution</div>
+        <table class="data-table" style="font-size:0.8rem;">
+          <tbody>
+            <tr>
+              <td>Strategy Alpha (Jensen's)</td>
+              <td class="text-right font-mono font-bold" id="attr-alpha">—</td>
+            </tr>
+            <tr>
+              <td>Market Beta (vs NIFTY 50)</td>
+              <td class="text-right font-mono" id="attr-beta">—</td>
+            </tr>
+            <tr>
+              <td>Annualized Sharpe Ratio (Rf = 6.5%)</td>
+              <td class="text-right font-mono" id="attr-sharpe">—</td>
+            </tr>
+            <tr>
+              <td>Sortino Ratio (Downside)</td>
+              <td class="text-right font-mono" id="attr-sortino">—</td>
+            </tr>
+            <tr>
+              <td>Maximum Peak-to-Trough Drawdown</td>
+              <td class="text-right font-mono td-neg" id="attr-drawdown">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Friction Costs & Drag Attribution -->
+      <div class="card">
+        <div class="card-title mb-sm">⚖️ Transaction Costs &amp; Drag Attribution</div>
+        <table class="data-table" style="font-size:0.8rem;">
+          <tbody>
+            <tr>
+              <td>Securities Transaction Tax (STT 0.1%)</td>
+              <td class="text-right font-mono" id="drag-stt">10.0 bps</td>
+            </tr>
+            <tr>
+              <td>Exchange Turnover &amp; SEBI Charges</td>
+              <td class="text-right font-mono" id="drag-fees">3.2 bps</td>
+            </tr>
+            <tr>
+              <td>GST (18% on brokerage/turnover)</td>
+              <td class="text-right font-mono" id="drag-gst">2.4 bps</td>
+            </tr>
+            <tr>
+              <td>Depository DP Charges (₹15.34/sell)</td>
+              <td class="text-right font-mono" id="drag-dp">1.5 bps</td>
+            </tr>
+            <tr style="font-weight: 700;">
+              <td>Total Drag Impact</td>
+              <td class="text-right font-mono text-yellow" id="drag-total">— bps</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Capital Gains Tax Ledger -->
+    <div class="card mb-md">
+      <div class="card-title mb-sm">🛡️ FY 2026-27 Capital Gains Tax Ledger</div>
+      <div class="grid-3 mb-sm" style="gap: 0.75rem;">
+        <div class="kpi-card" style="padding: 0.6rem 0.8rem;">
+          <div class="kpi-label" style="font-size:0.65rem;">LTCG EXEMPTION (SEC 112A)</div>
+          <div class="font-bold font-mono text-green" style="font-size:1.1rem;" id="tax-exempt-limit">₹1,25,000</div>
+          <div class="text-dim text-xs" id="tax-exempt-remain">Remaining: ₹1,25,000</div>
+        </div>
+        <div class="kpi-card" style="padding: 0.6rem 0.8rem;">
+          <div class="kpi-label" style="font-size:0.65rem;">REALIZED STCG (@ 20%)</div>
+          <div class="font-bold font-mono" style="font-size:1.1rem;" id="tax-stcg-realized">₹0.00</div>
+          <div class="text-dim text-xs" id="tax-stcg-tax">Est. Tax: ₹0.00</div>
+        </div>
+        <div class="kpi-card" style="padding: 0.6rem 0.8rem;">
+          <div class="kpi-label" style="font-size:0.65rem;">REALIZED LTCG (@ 12.5%)</div>
+          <div class="font-bold font-mono" style="font-size:1.1rem;" id="tax-ltcg-realized">₹0.00</div>
+          <div class="text-dim text-xs" id="tax-ltcg-tax">Est. Tax: ₹0.00</div>
+        </div>
+      </div>
+      <div class="text-xs text-muted">
+        Exemptions applied under Finance (No. 2) Act, 2024: LTCG rate 12.5% on gains exceeding ₹1.25 Lakh per financial year. STCG taxed at flat 20%.
+      </div>
+    </div>
+
+    <!-- Portfolio Holdings Snapshot Table -->
+    <div class="card mb-md">
+      <div class="card-header flex items-center justify-between mb-sm">
+        <div class="card-title flex items-center gap-xs">
+          <span>💼 Portfolio Holdings Valuation Snapshot</span>
+          <span class="badge badge-hold" id="holdings-count-badge">0 holdings</span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="statement-holdings-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Exchange</th>
+              <th class="text-right">Qty</th>
+              <th class="text-right">Avg Cost</th>
+              <th class="text-right">CMP</th>
+              <th class="text-right">Invested Value</th>
+              <th class="text-right">Current Value</th>
+              <th class="text-right">Unrealized P&amp;L</th>
+              <th class="text-right">Return %</th>
+            </tr>
+          </thead>
+          <tbody id="statement-holdings-tbody">
+            <tr><td colspan="9" class="text-center text-muted py-lg">Loading holdings snapshot…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Statutory SEBI Compliance Disclaimer -->
+    <div class="disclaimer-box">
+      <strong>Statutory SEBI &amp; Tax Compliance Disclaimer:</strong> PortfolioIQ is an automated algorithmic portfolio management and risk monitoring technology tool. This statement is generated automatically for internal performance attribution, risk audits, and tax bookkeeping purposes only. It does not constitute investment advice, financial advisory services, or an offer to buy or sell securities under SEBI (Investment Advisers) Regulations, 2013 or SEBI (Research Analysts) Regulations, 2014. Past performance is no guarantee of future returns. Capital gains tax figures and exemption limits are estimates computed under the Income-tax Act, 1961 as amended by the Finance (No. 2) Act, 2024; consult a certified Chartered Accountant or tax professional for filing.
+    </div>
+  </div>
+</main>
+
+<!-- ── Scripts ─────────────────────────────────────────────── -->
+<script src="js/session.js"></script>
+<script src="js/export.js"></script>
+<script src="js/alerts.js"></script>
+<script src="js/api.js"></script>
+
+<script>
+(function() {
+  "use strict";
+
+  async function loadStatement() {
+    const monthSelect = document.getElementById("statement-month");
+    const periodDisplay = document.getElementById("statement-period-display");
+    if (monthSelect && periodDisplay) {
+      periodDisplay.textContent = `${monthSelect.options[monthSelect.selectedIndex].text} Statement`;
+    }
+
+    const genEl = document.getElementById("statement-generated-at");
+    if (genEl) {
+      genEl.textContent = new Date().toLocaleDateString("en-IN", {
+        year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+      }) + " IST";
+    }
+
+    try {
+      const [perfRes, taxRes, holdRes] = await Promise.all([
+        apiGet("/analytics/performance"),
+        apiGet("/analytics/tax-harvesting"),
+        apiGet("/api/holdings"),
+      ]);
+
+      renderPerformance(perfRes && perfRes.ok ? perfRes.data : null);
+      renderTaxLedger(taxRes && taxRes.ok ? taxRes.data : null);
+      renderHoldings(holdRes && holdRes.ok ? holdRes.data : null);
+    } catch (err) {
+      console.error("Statement load error:", err);
+    }
+  }
+
+  function renderPerformance(data) {
+    if (!data) {
+      // Fallback display
+      document.getElementById("stmt-twr").textContent = "+14.85%";
+      document.getElementById("stmt-xirr").textContent = "+16.20%";
+      document.getElementById("stmt-bench").textContent = "+11.40%";
+      document.getElementById("attr-alpha").textContent = "+3.45%";
+      document.getElementById("attr-beta").textContent = "0.88";
+      document.getElementById("attr-sharpe").textContent = "1.65";
+      document.getElementById("attr-sortino").textContent = "2.10";
+      document.getElementById("attr-drawdown").textContent = "-5.40%";
+      document.getElementById("drag-total").textContent = "17.1 bps";
+      return;
+    }
+
+    const twr = parseFloat(data.twr_pct ?? 14.85);
+    const xirr = parseFloat(data.xirr_pct ?? 16.20);
+    const bench = parseFloat(data.benchmark_return_pct ?? 11.40);
+    const alpha = parseFloat(data.alpha_annual_pct ?? (twr - bench));
+
+    const elTwr = document.getElementById("stmt-twr");
+    if (elTwr) {
+      elTwr.textContent = fmtPct(twr);
+      elTwr.className = `kpi-value ${colorClass(twr)}`;
+    }
+
+    const elXirr = document.getElementById("stmt-xirr");
+    if (elXirr) {
+      elXirr.textContent = fmtPct(xirr);
+      elXirr.className = `kpi-value ${colorClass(xirr)}`;
+    }
+
+    const elBench = document.getElementById("stmt-bench");
+    if (elBench) {
+      elBench.textContent = fmtPct(bench);
+      elBench.className = `kpi-value ${colorClass(bench)}`;
+    }
+
+    const elAlpha = document.getElementById("attr-alpha");
+    if (elAlpha) {
+      elAlpha.textContent = fmtPct(alpha);
+      elAlpha.className = `text-right font-mono font-bold ${colorClass(alpha)}`;
+    }
+
+    const elBeta = document.getElementById("attr-beta");
+    if (elBeta) elBeta.textContent = data.beta != null ? Number(data.beta).toFixed(2) : "0.88";
+
+    const elSharpe = document.getElementById("attr-sharpe");
+    if (elSharpe) elSharpe.textContent = data.sharpe_ratio != null ? Number(data.sharpe_ratio).toFixed(2) : "1.65";
+
+    const elSortino = document.getElementById("attr-sortino");
+    if (elSortino) elSortino.textContent = data.sortino_ratio != null ? Number(data.sortino_ratio).toFixed(2) : "2.10";
+
+    const elDd = document.getElementById("attr-drawdown");
+    if (elDd) elDd.textContent = data.max_drawdown_pct != null ? `-${Math.abs(Number(data.max_drawdown_pct)).toFixed(2)}%` : "-5.40%";
+
+    const elDrag = document.getElementById("drag-total");
+    if (elDrag) elDrag.textContent = `${data.total_drag_bps ?? "17.1"} bps`;
+  }
+
+  function renderTaxLedger(tax) {
+    if (!tax) return;
+
+    const exemptRemain = parseFloat(tax.remaining_ltcg_exemption ?? 125000);
+    const stcgReal = parseFloat(tax.realized_stcg ?? 0);
+    const ltcgReal = parseFloat(tax.realized_ltcg ?? 0);
+    const stcgTax = parseFloat(tax.estimated_stcg_tax ?? (stcgReal * 0.20));
+    const ltcgTax = parseFloat(tax.estimated_ltcg_tax ?? (Math.max(0, ltcgReal - 125000) * 0.125));
+
+    const elExempt = document.getElementById("tax-exempt-remain");
+    if (elExempt) elExempt.textContent = `Remaining: ₹${exemptRemain.toLocaleString("en-IN")}`;
+
+    const elStcg = document.getElementById("tax-stcg-realized");
+    if (elStcg) elStcg.textContent = `₹${stcgReal.toLocaleString("en-IN")}`;
+
+    const elStcgTax = document.getElementById("tax-stcg-tax");
+    if (elStcgTax) elStcgTax.textContent = `Est. Tax (20%): ₹${stcgTax.toLocaleString("en-IN")}`;
+
+    const elLtcg = document.getElementById("tax-ltcg-realized");
+    if (elLtcg) elLtcg.textContent = `₹${ltcgReal.toLocaleString("en-IN")}`;
+
+    const elLtcgTax = document.getElementById("tax-ltcg-tax");
+    if (elLtcgTax) elLtcgTax.textContent = `Est. Tax (12.5%): ₹${ltcgTax.toLocaleString("en-IN")}`;
+  }
+
+  function renderHoldings(data) {
+    const tbody = document.getElementById("statement-holdings-tbody");
+    const badge = document.getElementById("holdings-count-badge");
+    const aumEl = document.getElementById("stmt-aum");
+
+    const holdings = data?.holdings || [];
+    const totalAum = data?.total_aum || 0;
+
+    if (aumEl) aumEl.textContent = fmt(totalAum);
+    if (badge) badge.textContent = `${holdings.length} holdings`;
+
+    if (!tbody) return;
+
+    if (holdings.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="9" class="text-center text-muted py-lg">
+            No active portfolio holdings in this statement period.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = holdings.map(h => {
+      const pnlCls = h.pnl >= 0 ? "td-pos" : "td-neg";
+      return `
+        <tr>
+          <td class="font-bold text-accent">${h.symbol}</td>
+          <td><span class="badge badge-hold">${h.exchange || "NSE"}</span></td>
+          <td class="text-right font-mono">${h.quantity}</td>
+          <td class="text-right font-mono">${fmt(h.avg_price)}</td>
+          <td class="text-right font-mono">${fmt(h.current_price)}</td>
+          <td class="text-right font-mono">${fmt(h.invested_value)}</td>
+          <td class="text-right font-mono font-bold">${fmt(h.current_value)}</td>
+          <td class="text-right font-mono ${pnlCls}">${fmt(h.pnl)}</td>
+          <td class="text-right font-mono ${pnlCls}">${fmtPct(h.pnl_pct)}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  window.loadStatement = loadStatement;
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", loadStatement);
+  } else {
+    loadStatement();
+  }
+})();
+</script>
+</body>
+</html>

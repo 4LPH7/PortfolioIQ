@@ -1750,10 +1750,16 @@ code {
    PRINT STYLES (@media print)
    ═══════════════════════════════════════════════════════════════ */
 @media print {
+  @page {
+    size: A4;
+    margin: 12mm 15mm;
+  }
+
   body {
     background: #ffffff !important;
     color: #000000 !important;
     display: block !important;
+    font-size: 11pt !important;
   }
 
   body::before,
@@ -1766,10 +1772,15 @@ code {
   #notification-drawer,
   .drawer-backdrop,
   .topbar-bell-btn,
+  .page-actions,
   .btn,
   .btn-action,
   .export-btn,
   .refresh-btn,
+  .range-btn,
+  [data-export],
+  button,
+  select,
   .topbar-refresh {
     display: none !important;
   }
@@ -1780,6 +1791,13 @@ code {
     max-width: 100% !important;
   }
 
+  .statement-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   .card,
   .table-wrap,
   table {
@@ -1787,11 +1805,46 @@ code {
     box-shadow: none !important;
     background: #ffffff !important;
     color: #000000 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .card {
+    margin-bottom: 1rem !important;
+    padding: 1rem !important;
   }
 
   th, td {
     color: #000000 !important;
     border-bottom: 1px solid #dddddd !important;
+    padding: 0.4rem 0.6rem !important;
+  }
+
+  .kpi-grid,
+  .grid-2,
+  .grid-3 {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.75rem !important;
+  }
+
+  .kpi-card {
+    flex: 1 1 140px !important;
+    border: 1px solid #dddddd !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .kpi-value {
+    color: #000000 !important;
+  }
+
+  .badge {
+    border: 1px solid #666666 !important;
+    color: #000000 !important;
+    background: transparent !important;
   }
 
   a {

@@ -107,7 +107,7 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 - [x] **Plan 06-04 (Wave 2):** In-App Notification Bell Drawer & Real-Time Alert Poller (`frontend/js/alerts.js`, `frontend/css/main.css`).
 - [x] **Plan 06-05 (Wave 3):** Dedicated Portfolio Timeline Page & Interactive Equity Curve with Event Pins (`frontend/timeline.html`).
 - [x] **Plan 06-06 (Wave 3):** User-Facing Live System Status Dashboard (`frontend/status.html`).
-- [ ] **Plan 06-07 (Wave 4):** Printable Monthly Performance & Tax Statement Report & CSV Export Buttons (`frontend/report.html`, `frontend/css/main.css`).
+- [x] **Plan 06-07 (Wave 4):** Printable Monthly Performance & Tax Statement Report & CSV Export Buttons (`frontend/report.html`, `frontend/css/main.css`).
 - [ ] **Plan 06-08 (Wave 4):** Responsive Mobile Navigation & WCAG 2.1 AA Accessibility Pass (`frontend/css/main.css`, `tests/test_a11y_and_structure.py`).
 
 **Definition of done:** Authentication gates UI access behind a Master Key/PIN with 30-minute inactivity auto-lock; new portfolios can be ingested via live Zerodha sync or CSV drag-and-drop wizard; alerts for drift, stale prices, tax loss opportunities, and system health are surfaced via topbar notification drawer and toasts; all tables support instant CSV export; a formal print-ready monthly performance & tax statement is available; timeline renders NAV equity curve vs NIFTY 50 TRI with event markers; system status exposes real-time telemetry; mobile navigation is fully responsive and WCAG 2.1 AA accessibility standards are met; all tests pass cleanly with >= 85% critical coverage.
