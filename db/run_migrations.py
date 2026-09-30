@@ -200,8 +200,14 @@ def run_migrations(dry_run: bool = False, baseline: bool = False) -> None:
                 print("OK")
             except Exception as exc:
                 conn.rollback()
-                print(f"FAILED\n\nERROR in {f.name}:\n{exc}\n")
-                print("Migration halted and rolled back. Fix the issue and re-run.")
+                print(
+                    f"::error file=db/migrations/{f.name}::Migration {f.name} failed: {exc}",
+                    file=sys.stderr,
+                )
+                print(f"FAILED\n\nERROR in {f.name}:\n{exc}\n", file=sys.stderr)
+                print(
+                    "Migration halted and rolled back. Fix the issue and re-run.", file=sys.stderr
+                )
                 raise
 
         cursor.close()

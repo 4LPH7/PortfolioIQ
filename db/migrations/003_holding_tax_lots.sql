@@ -16,15 +16,8 @@ CREATE TABLE IF NOT EXISTS holding_tax_lots (
     quantity            INTEGER NOT NULL,              -- Total shares in this lot
     remaining_quantity  INTEGER NOT NULL,              -- After partial sells (FIFO)
 
-    -- Tax classification — auto-computed, stored for query performance
-    -- LTCG threshold: held > 365 days for equity (Indian tax law)
-    tax_type            TEXT GENERATED ALWAYS AS (
-                            CASE
-                                WHEN buy_date < CURRENT_DATE - INTERVAL '365 days'
-                                THEN 'LTCG'
-                                ELSE 'STCG'
-                            END
-                        ) STORED
+    -- Tax classification — STCG (held <= 365 days) vs LTCG (held > 365 days)
+    tax_type            TEXT NOT NULL DEFAULT 'STCG'
                         CHECK (tax_type IN ('STCG', 'LTCG')),
 
     -- Corporate action tracking
