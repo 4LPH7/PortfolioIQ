@@ -93,9 +93,27 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Wait for PostgreSQL connection
+        run: |
+          python -c "
+          import time, psycopg2
+          dsn = 'postgresql://portfolioiq_user:portfolioiq_pass_change_me@127.0.0.1:5432/portfolioiq'
+          for i in range(30):
+              try:
+                  conn = psycopg2.connect(dsn, connect_timeout=2)
+                  conn.close()
+                  print('PostgreSQL is ready and accepting connections!')
+                  break
+              except Exception as e:
+                  print(f'Waiting for PostgreSQL ({i+1}/30): {e}')
+                  time.sleep(1)
+          else:
+              raise SystemExit('PostgreSQL connection timed out after 30 seconds')
+          "
+
       - name: Apply PostgreSQL migrations
         env:
-          DATABASE_URL: postgresql://portfolioiq_user:portfolioiq_pass_change_me@localhost:5432/portfolioiq
+          DATABASE_URL: postgresql://portfolioiq_user:portfolioiq_pass_change_me@127.0.0.1:5432/portfolioiq
           KITE_API_KEY: test_key
           KITE_API_SECRET: test_secret
           DRY_RUN_MODE: "true"
@@ -104,7 +122,7 @@ jobs:
 
       - name: Run test suite with coverage
         env:
-          DATABASE_URL: postgresql://portfolioiq_user:portfolioiq_pass_change_me@localhost:5432/portfolioiq
+          DATABASE_URL: postgresql://portfolioiq_user:portfolioiq_pass_change_me@127.0.0.1:5432/portfolioiq
           KITE_API_KEY: test_key
           KITE_API_SECRET: test_secret
           DRY_RUN_MODE: "true"

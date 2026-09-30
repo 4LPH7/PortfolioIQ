@@ -33,13 +33,33 @@ class MigrationTamperedError(Exception):
     pass
 
 
-def get_connection():
-    """Create a raw psycopg2 connection."""
+def get_connection(max_retries: int = 5, retry_interval: float = 2.0):
+    """Create a raw psycopg2 connection with retry backoff."""
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
-        print("ERROR: DATABASE_URL not set in environment or .env")
+        print("ERROR: DATABASE_URL not set in environment or .env", file=sys.stderr)
         sys.exit(1)
-    return psycopg2.connect(dsn)
+
+    import time
+
+    last_exc = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            return psycopg2.connect(dsn, connect_timeout=5)
+        except psycopg2.OperationalError as exc:
+            last_exc = exc
+            if attempt < max_retries:
+                print(
+                    f"Waiting for PostgreSQL to accept connections (attempt {attempt}/{max_retries})...",
+                    file=sys.stderr,
+                )
+                time.sleep(retry_interval)
+            else:
+                print(
+                    f"ERROR: Could not connect to PostgreSQL after {max_retries} attempts: {exc}",
+                    file=sys.stderr,
+                )
+                raise last_exc from exc
 
 
 def get_migration_files() -> list[Path]:
@@ -215,7 +235,11 @@ def main():
     else:
         try:
             run_migrations(dry_run=args.dry_run, baseline=args.baseline)
-        except Exception:
+        except Exception as exc:
+            print(f"\nCRITICAL: Migration run failed: {exc}", file=sys.stderr)
+            import traceback
+
+            traceback.print_exc()
             sys.exit(1)
 
 
