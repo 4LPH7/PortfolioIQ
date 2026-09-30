@@ -27,7 +27,13 @@
 </nav>
 <div class="topbar">
   <div class="topbar-breadcrumb"><span>PortfolioIQ</span><span class="sep">/</span><span class="crumb-current">Rebalance Engine</span></div>
-  <div class="topbar-right"><div class="topbar-time" id="clock">—</div></div>
+  <div class="topbar-right">
+    <button type="button" class="topbar-bell-btn" id="notification-bell-btn" onclick="PortfolioIQAlerts.toggleDrawer()" title="View Notifications" aria-label="View notifications">
+      <span class="bell-icon">🔔</span>
+      <span class="bell-badge" id="bell-badge" style="display:none;">0</span>
+    </button>
+    <div class="topbar-time" id="clock">—</div>
+  </div>
 </div>
 <main class="main fade-in">
   <div class="page-header">
@@ -66,6 +72,7 @@
 <div class="dry-run-notice"><div class="dry-run-dot"></div>DRY RUN — No real orders</div>
 <script src="js/session.js"></script>
 <script src="js/export.js"></script>
+<script src="js/alerts.js"></script>
 <script src="js/api.js"></script>
 <script>
 setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " IST"; }, 1000);

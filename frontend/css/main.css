@@ -1490,6 +1490,257 @@ code {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   NOTIFICATION CENTER & DRAWER (#notification-drawer)
+   ═══════════════════════════════════════════════════════════════ */
+.topbar-bell-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 0.4rem 0.65rem;
+  font-size: 1.1rem;
+  position: relative;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--t-fast);
+  color: var(--text);
+}
+
+.topbar-bell-btn:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.25);
+  background: rgba(0, 212, 255, 0.05);
+}
+
+.bell-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--red);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  border-radius: 10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 8px rgba(255, 51, 102, 0.7);
+  animation: badgePulse 2s infinite ease-in-out;
+}
+
+@keyframes badgePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 7, 15, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 99997;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s var(--ease);
+}
+
+.drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.notification-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 420px;
+  max-width: 90vw;
+  background: rgba(13, 18, 32, 0.98);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-left: 1px solid var(--border-h);
+  z-index: 99998;
+  box-shadow: -8px 0 36px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s var(--ease);
+}
+
+.notification-drawer.open {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.drawer-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+  border-radius: 4px;
+  transition: color var(--t-fast);
+}
+
+.drawer-close-btn:hover {
+  color: var(--text);
+}
+
+.drawer-tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border-s);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.drawer-tab-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  white-space: nowrap;
+}
+
+.drawer-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.drawer-tab-btn.active {
+  background: rgba(0, 212, 255, 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+}
+
+.drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.alert-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius-xs);
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: all var(--t-fast);
+}
+
+.alert-card-critical {
+  border-left-color: var(--red);
+  background: rgba(255, 51, 102, 0.05);
+}
+
+.alert-card-warning {
+  border-left-color: var(--yellow);
+  background: rgba(255, 214, 0, 0.04);
+}
+
+.alert-card-info {
+  border-left-color: var(--accent);
+  background: rgba(0, 212, 255, 0.04);
+}
+
+.alert-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.alert-card-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.alert-card-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.alert-card-msg {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.alert-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.alert-card-time {
+  color: var(--text-dim);
+}
+
+.alert-action-btn {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-decoration: none;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(0, 212, 255, 0.08);
+  transition: all var(--t-fast);
+}
+
+.alert-action-btn:hover {
+  background: rgba(0, 212, 255, 0.18);
+  color: #5ce0ff;
+}
+
+.alert-dismiss-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 4px;
+  border-radius: 4px;
+  transition: color var(--t-fast);
+}
+
+.alert-dismiss-btn:hover {
+  color: var(--text);
+}
+
+/* ═══════════════════════════════════════════════════════════════
    PRINT STYLES (@media print)
    ═══════════════════════════════════════════════════════════════ */
 @media print {
@@ -1506,6 +1757,9 @@ code {
   .dry-run-notice,
   #toast-container,
   .session-dialog,
+  #notification-drawer,
+  .drawer-backdrop,
+  .topbar-bell-btn,
   .btn,
   .btn-action,
   .export-btn,
