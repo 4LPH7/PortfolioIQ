@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="description" content="PortfolioIQ — Real-time system health, telemetry, broker session, and scheduler diagnostics."/>
+  <title>PortfolioIQ — System Status</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">📈</div>
+      <div>
+        <div class="sidebar-logo-text">PortfolioIQ</div>
+        <div class="sidebar-badge">v3.0 LIVE</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-label">Main</div>
+  <a class="nav-item" href="index.html"><span class="nav-icon">🏠</span> Dashboard</a>
+  <a class="nav-item" href="analyzer.html"><span class="nav-icon">🔬</span> Stock Analyzer</a>
+  <a class="nav-item" href="rebalance.html"><span class="nav-icon">⚖️</span> Rebalance</a>
+  <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
+  <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
+  <a class="nav-item" href="timeline.html"><span class="nav-icon">📅</span> Portfolio Timeline</a>
+  <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
+
+  <hr class="sidebar-divider"/>
+  <div class="nav-label">Engine Status</div>
+  <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status">
+    <div class="status-dot"></div><span>Loading…</span>
+  </a>
+  <a href="status.html" id="db-status" class="status-pill status-warn" title="View Database Status">
+    <div class="status-dot"></div><span>Checking…</span>
+  </a>
+  <hr class="sidebar-divider"/>
+  <div class="dry-run-notice" style="position:static;margin:0.5rem 0;font-size:0.65rem;border-radius:8px;padding:0.4rem 0.7rem">
+    <div class="dry-run-dot"></div> DRY RUN ACTIVE
+  </div>
+</nav>
+
+<!-- ── Top Bar ─────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-breadcrumb">
+    <span>PortfolioIQ</span>
+    <span class="sep">/</span>
+    <span class="crumb-current">System Status</span>
+  </div>
+  <div id="ticker-area" class="ticker-strip" style="flex:1;margin:0 1.5rem"></div>
+  <div class="topbar-right">
+    <button type="button" class="topbar-bell-btn" id="notification-bell-btn" onclick="PortfolioIQAlerts.toggleDrawer()" title="View Notifications" aria-label="View notifications">
+      <span class="bell-icon">🔔</span>
+      <span class="bell-badge" id="bell-badge" style="display:none;">0</span>
+    </button>
+    <div class="topbar-time" id="clock">—</div>
+    <div class="topbar-refresh" onclick="fetchStatusTelemetry()">
+      <span class="spin-icon">↻</span> Ping Now
+    </div>
+  </div>
+</div>
+
+<!-- ── Main Content ────────────────────────────────────────── -->
+<main class="main fade-in">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">System <span>Telemetry</span></h1>
+      <p class="page-subtitle" id="status-subtitle">Live health status, broker connection, and background job telemetry.</p>
+    </div>
+    <div class="page-actions flex items-center gap-sm">
+      <label class="flex items-center gap-xs text-xs text-muted cursor-pointer" style="user-select:none;">
+        <input type="checkbox" id="auto-refresh-toggle" checked style="accent-color:var(--accent);"/>
+        <span>Auto-refresh (10s)</span>
+      </label>
+      <button type="button" class="btn btn-sm btn-primary" id="btn-ping" onclick="fetchStatusTelemetry()">
+        ⚡ Probe Latency
+      </button>
+    </div>
+  </div>
+
+  <!-- Overall Status Banner -->
+  <div class="card" id="system-banner" style="margin-bottom: 1.5rem; border-left: 4px solid var(--green);">
+    <div class="flex items-center justify-between flex-wrap gap-md">
+      <div class="flex items-center gap-md">
+        <div id="system-status-icon" style="font-size: 2rem;">🟢</div>
+        <div>
+          <div class="flex items-center gap-sm">
+            <h2 class="text-lg font-bold" id="system-status-title">All Systems Operational</h2>
+            <span class="badge badge-strong-buy" id="system-badge">HEALTHY</span>
+          </div>
+          <p class="text-xs text-muted" id="system-status-desc">
+            All services, database pools, and scheduled jobs are performing within target specifications.
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-sm text-xs">
+        <div class="kpi-card" style="padding: 0.5rem 0.8rem; margin: 0; min-width: 110px;">
+          <div class="text-muted" style="font-size:0.65rem;">ENVIRONMENT</div>
+          <div class="font-bold text-accent" id="env-badge">development</div>
+        </div>
+        <div class="kpi-card" style="padding: 0.5rem 0.8rem; margin: 0; min-width: 110px;">
+          <div class="text-muted" style="font-size:0.65rem;">DRY RUN MODE</div>
+          <div class="font-bold text-yellow" id="dry-run-state">ACTIVE</div>
+        </div>
+        <div class="kpi-card" style="padding: 0.5rem 0.8rem; margin: 0; min-width: 110px;">
+          <div class="text-muted" style="font-size:0.65rem;">API VERSION</div>
+          <div class="font-bold text-cyan" id="api-version">v1 (REST)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Telemetry KPI Cards -->
+  <div class="kpi-grid stagger" id="telemetry-kpis">
+    <!-- API Latency -->
+    <div class="kpi-card">
+      <span class="kpi-icon">⚡</span>
+      <div class="kpi-label" data-tip="Active round-trip HTTP ping to Flask backend">API Ping Latency</div>
+      <div class="kpi-value" id="kpi-latency">— ms</div>
+      <div class="kpi-delta" id="kpi-latency-sub" style="color:var(--text-dim);font-size:0.72rem;margin-top:0.3rem">Probing endpoint…</div>
+    </div>
+
+    <!-- PostgreSQL Connection Pool -->
+    <div class="kpi-card">
+      <span class="kpi-icon">🗄️</span>
+      <div class="kpi-label" data-tip="PostgreSQL session connectivity and migrations status">Database Health</div>
+      <div class="kpi-value" id="kpi-db-state">Checking…</div>
+      <div class="kpi-delta" id="kpi-db-sub" style="color:var(--text-dim);font-size:0.72rem;margin-top:0.3rem">PostgreSQL Core Pool</div>
+    </div>
+
+    <!-- Zerodha Kite Session -->
+    <div class="kpi-card">
+      <span class="kpi-icon">🪁</span>
+      <div class="kpi-label" data-tip="Zerodha Kite Connect session and access token validity">Broker Session</div>
+      <div class="kpi-value" id="kpi-broker-state">—</div>
+      <div class="kpi-delta" id="kpi-broker-sub" style="color:var(--text-dim);font-size:0.72rem;margin-top:0.3rem">Kite Connect REST API</div>
+    </div>
+
+    <!-- NSE Market Session -->
+    <div class="kpi-card">
+      <span class="kpi-icon">🕒</span>
+      <div class="kpi-label" data-tip="NSE trading session state and market calendar">Market Session</div>
+      <div class="kpi-value" id="kpi-market-state">—</div>
+      <div class="kpi-delta" id="kpi-market-sub" style="color:var(--text-dim);font-size:0.72rem;margin-top:0.3rem">NSE Equity Segment</div>
+    </div>
+  </div>
+
+  <!-- Background Scheduler Tasks -->
+  <div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-header flex items-center justify-between" style="margin-bottom: 0.75rem;">
+      <div class="card-title flex items-center gap-xs">
+        <span>⏱️ APScheduler Background Tasks &amp; Pipelines</span>
+        <span class="badge badge-buy" id="scheduler-active-badge">ACTIVE</span>
+      </div>
+      <span class="text-xs text-muted" id="scheduler-jobs-count">4 jobs registered</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="scheduler-jobs-table">
+        <thead>
+          <tr>
+            <th>Job Identifier</th>
+            <th>Task Description</th>
+            <th>Schedule / Frequency</th>
+            <th>Next Run Target</th>
+            <th class="text-right">Execution Status</th>
+          </tr>
+        </thead>
+        <tbody id="scheduler-tbody">
+          <tr><td colspan="5" class="text-center text-muted py-lg">Loading scheduled tasks…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detailed Diagnostics Panel -->
+  <div class="card">
+    <div class="card-header flex items-center justify-between" style="margin-bottom: 0.75rem;">
+      <div class="card-title flex items-center gap-xs">
+        <span>🔍 Detailed Telemetry Payload</span>
+      </div>
+      <span class="text-xs text-muted" id="last-ping-time">Last updated: Just now</span>
+    </div>
+    <div style="background:rgba(0,0,0,0.25); border:1px solid var(--border); border-radius:var(--radius-sm); padding:1rem; font-family:'JetBrains Mono', monospace; font-size:0.75rem; color:#8892b0; max-height:260px; overflow-y:auto;" id="raw-telemetry-dump">
+      { "status": "initializing" }
+    </div>
+  </div>
+</main>
+
+<!-- ── Scripts ─────────────────────────────────────────────── -->
+<script src="js/session.js"></script>
+<script src="js/export.js"></script>
+<script src="js/alerts.js"></script>
+<script src="js/api.js"></script>
+
+<script>
+(function() {
+  "use strict";
+
+  let refreshTimer = null;
+
+  async function fetchStatusTelemetry() {
+    const t0 = performance.now();
+    const btnPing = document.getElementById("btn-ping");
+    if (btnPing) {
+      btnPing.disabled = true;
+      btnPing.textContent = "⚡ Probing…";
+    }
+
+    try {
+      const [statusRes, healthRes] = await Promise.all([
+        apiGet("/system/status"),
+        apiGet("/health"),
+      ]);
+
+      const t1 = performance.now();
+      const latencyMs = Math.round(t1 - t0);
+
+      updateLatency(latencyMs);
+
+      if (statusRes && statusRes.ok && statusRes.data) {
+        renderTelemetry(statusRes.data, healthRes);
+      } else {
+        renderFallback(healthRes, latencyMs);
+      }
+    } catch (err) {
+      console.error("Telemetry probe failed:", err);
+      renderError(err);
+    } finally {
+      if (btnPing) {
+        btnPing.disabled = false;
+        btnPing.textContent = "⚡ Probe Latency";
+      }
+      const lastPingEl = document.getElementById("last-ping-time");
+      if (lastPingEl) {
+        lastPingEl.textContent = `Last probed: ${new Date().toLocaleTimeString("en-IN")}`;
+      }
+    }
+  }
+
+  function updateLatency(ms) {
+    const el = document.getElementById("kpi-latency");
+    const sub = document.getElementById("kpi-latency-sub");
+    if (el) {
+      el.textContent = `${ms} ms`;
+      el.className = `kpi-value ${ms < 150 ? "td-pos" : ms < 400 ? "text-yellow" : "td-neg"}`;
+    }
+    if (sub) {
+      sub.textContent = ms < 150 ? "⚡ Excellent (HTTP 200)" : ms < 400 ? "Acceptable response" : "High latency detected";
+    }
+  }
+
+  function renderTelemetry(data, health) {
+    // 1. Overall Banner
+    const isOk = data.status === "OK";
+    const isDegraded = data.status === "DEGRADED";
+
+    const banner = document.getElementById("system-banner");
+    const icon = document.getElementById("system-status-icon");
+    const title = document.getElementById("system-status-title");
+    const badge = document.getElementById("system-badge");
+    const desc = document.getElementById("system-status-desc");
+
+    if (banner) {
+      banner.style.borderLeftColor = isOk ? "var(--green)" : isDegraded ? "var(--yellow)" : "var(--red)";
+    }
+    if (icon) {
+      icon.textContent = isOk ? "🟢" : isDegraded ? "🟡" : "🔴";
+    }
+    if (title) {
+      title.textContent = isOk ? "All Systems Operational" : isDegraded ? "System Degraded" : "System Outage Detected";
+    }
+    if (badge) {
+      badge.textContent = data.status;
+      badge.className = `badge ${isOk ? "badge-strong-buy" : isDegraded ? "badge-sell" : "badge-strong-sell"}`;
+    }
+    if (desc) {
+      desc.textContent = isOk
+        ? "All services, database connection pools, and scheduled jobs are operational."
+        : isDegraded
+        ? "Some non-critical subsystems (e.g. broker token or scheduler) need attention."
+        : "Critical services offline. Check backend logs and database connection.";
+    }
+
+    // 2. Meta Badges
+    const envBadge = document.getElementById("env-badge");
+    if (envBadge) envBadge.textContent = data.environment || "development";
+
+    const dryRunState = document.getElementById("dry-run-state");
+    if (dryRunState) {
+      dryRunState.textContent = data.dry_run_mode ? "ACTIVE" : "LIVE ORDERS";
+      dryRunState.className = `font-bold ${data.dry_run_mode ? "text-yellow" : "text-green"}`;
+    }
+
+    const apiVer = document.getElementById("api-version");
+    if (apiVer) apiVer.textContent = `${data.api_version?.toUpperCase() || "V1"} (REST)`;
+
+    // 3. Database KPI
+    const db = data.database || {};
+    const kpiDb = document.getElementById("kpi-db-state");
+    const kpiDbSub = document.getElementById("kpi-db-sub");
+    if (kpiDb) {
+      kpiDb.textContent = db.connected ? "Connected" : "Disconnected";
+      kpiDb.className = `kpi-value ${db.connected ? "td-pos" : "td-neg"}`;
+    }
+    if (kpiDbSub) {
+      kpiDbSub.textContent = `Engine: ${db.engine || "postgresql"}`;
+    }
+
+    // 4. Broker KPI
+    const broker = data.broker || {};
+    const kpiBroker = document.getElementById("kpi-broker-state");
+    const kpiBrokerSub = document.getElementById("kpi-broker-sub");
+    if (kpiBroker) {
+      kpiBroker.textContent = broker.token_active ? "Token Active" : "Token Inactive";
+      kpiBroker.className = `kpi-value ${broker.token_active ? "td-pos" : "text-yellow"}`;
+    }
+    if (kpiBrokerSub) {
+      kpiBrokerSub.textContent = broker.authenticated ? "Authenticated session" : "Requires daily Kite login";
+    }
+
+    // 5. Market KPI
+    const market = data.market || {};
+    const kpiMarket = document.getElementById("kpi-market-state");
+    const kpiMarketSub = document.getElementById("kpi-market-sub");
+    if (kpiMarket) {
+      kpiMarket.textContent = market.is_open ? "Market Open" : "Market Closed";
+      kpiMarket.className = `kpi-value ${market.is_open ? "td-pos" : "text-yellow"}`;
+    }
+    if (kpiMarketSub) {
+      kpiMarketSub.textContent = market.status_text || "NSE Trading Hours: 09:15 – 15:30 IST";
+    }
+
+    // 6. Scheduler Table
+    const scheduler = data.scheduler || {};
+    const schedulerBadge = document.getElementById("scheduler-active-badge");
+    if (schedulerBadge) {
+      schedulerBadge.textContent = scheduler.active ? "ACTIVE" : "STOPPED";
+      schedulerBadge.className = `badge ${scheduler.active ? "badge-buy" : "badge-sell"}`;
+    }
+
+    const jobsCount = document.getElementById("scheduler-jobs-count");
+    if (jobsCount) {
+      jobsCount.textContent = `${scheduler.jobs_count || (scheduler.jobs || []).length} jobs registered`;
+    }
+
+    const tbody = document.getElementById("scheduler-tbody");
+    if (tbody && Array.isArray(scheduler.jobs)) {
+      tbody.innerHTML = scheduler.jobs.map(j => `
+        <tr>
+          <td><span class="font-mono text-xs text-accent">${j.id}</span></td>
+          <td><span class="text-sm font-medium">${j.name}</span></td>
+          <td><span class="font-mono text-xs">${j.schedule}</span></td>
+          <td><span class="text-xs text-muted">Next EOD Window</span></td>
+          <td class="text-right">
+            <span class="badge badge-strong-buy">SCHEDULED</span>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    // 7. Raw JSON Dump
+    const dump = document.getElementById("raw-telemetry-dump");
+    if (dump) {
+      dump.textContent = JSON.stringify({ system_status: data, health_probe: health }, null, 2);
+    }
+  }
+
+  function renderFallback(health, latencyMs) {
+    const isDb = health && health.db;
+    const kpiDb = document.getElementById("kpi-db-state");
+    if (kpiDb) {
+      kpiDb.textContent = isDb ? "Connected" : "Degraded";
+      kpiDb.className = `kpi-value ${isDb ? "td-pos" : "text-yellow"}`;
+    }
+  }
+
+  function renderError(err) {
+    const banner = document.getElementById("system-banner");
+    const icon = document.getElementById("system-status-icon");
+    const title = document.getElementById("system-status-title");
+    const badge = document.getElementById("system-badge");
+    const desc = document.getElementById("system-status-desc");
+
+    if (banner) banner.style.borderLeftColor = "var(--red)";
+    if (icon) icon.textContent = "🔴";
+    if (title) title.textContent = "Backend Connection Failure";
+    if (badge) {
+      badge.textContent = "OFFLINE";
+      badge.className = "badge badge-strong-sell";
+    }
+    if (desc) desc.textContent = `Could not reach backend API at ${API_BASE}. Ensure Flask server is running. (${err.message})`;
+  }
+
+  // Setup auto-refresh
+  const toggle = document.getElementById("auto-refresh-toggle");
+  function setupAutoRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    if (toggle && toggle.checked) {
+      refreshTimer = setInterval(fetchStatusTelemetry, 10000);
+    }
+  }
+
+  if (toggle) {
+    toggle.addEventListener("change", setupAutoRefresh);
+  }
+
+  // Expose global for manual refresh buttons
+  window.fetchStatusTelemetry = fetchStatusTelemetry;
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      fetchStatusTelemetry();
+      setupAutoRefresh();
+    });
+  } else {
+    fetchStatusTelemetry();
+    setupAutoRefresh();
+  }
+})();
+</script>
+</body>
+</html>

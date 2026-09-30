@@ -106,7 +106,7 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 - [x] **Plan 06-03 (Wave 2):** 3-Step Guided Onboarding Wizard & CSV Portfolio Holdings Importer (`frontend/onboarding.html`, `POST /api/v1/holdings/import-csv`).
 - [x] **Plan 06-04 (Wave 2):** In-App Notification Bell Drawer & Real-Time Alert Poller (`frontend/js/alerts.js`, `frontend/css/main.css`).
 - [x] **Plan 06-05 (Wave 3):** Dedicated Portfolio Timeline Page & Interactive Equity Curve with Event Pins (`frontend/timeline.html`).
-- [ ] **Plan 06-06 (Wave 3):** User-Facing Live System Status Dashboard (`frontend/status.html`).
+- [x] **Plan 06-06 (Wave 3):** User-Facing Live System Status Dashboard (`frontend/status.html`).
 - [ ] **Plan 06-07 (Wave 4):** Printable Monthly Performance & Tax Statement Report & CSV Export Buttons (`frontend/report.html`, `frontend/css/main.css`).
 - [ ] **Plan 06-08 (Wave 4):** Responsive Mobile Navigation & WCAG 2.1 AA Accessibility Pass (`frontend/css/main.css`, `tests/test_a11y_and_structure.py`).
 
