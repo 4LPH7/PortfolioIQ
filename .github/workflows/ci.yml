@@ -130,10 +130,17 @@ jobs:
           python-version: '3.12'
 
       - name: Check deployment secrets
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_APP_URL: ${{ secrets.RAILWAY_APP_URL }}
         run: |
-          if [ -z "${{ secrets.RAILWAY_TOKEN }}" ]; then
+          if [ -z "$RAILWAY_TOKEN" ]; then
             echo "::warning::RAILWAY_TOKEN not configured — skipping Railway deployment"
             echo "SKIP_DEPLOY=true" >> $GITHUB_ENV
+          fi
+          if [ -z "$RAILWAY_APP_URL" ]; then
+            echo "::warning::RAILWAY_APP_URL not configured — skipping smoke test"
+            echo "SKIP_SMOKE_TEST=true" >> $GITHUB_ENV
           fi
 
       - name: Deploy to Railway
@@ -145,7 +152,7 @@ jobs:
           railway up --detach
 
       - name: Run post-deployment smoke test
-        if: env.SKIP_DEPLOY != 'true' && secrets.RAILWAY_APP_URL != ''
+        if: env.SKIP_DEPLOY != 'true' && env.SKIP_SMOKE_TEST != 'true'
         id: smoke-test
         run: |
           python scripts/smoke_test.py --base-url "${{ secrets.RAILWAY_APP_URL }}" --timeout 60
@@ -170,8 +177,11 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Check Netlify secrets
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         run: |
-          if [ -z "${{ secrets.NETLIFY_AUTH_TOKEN }}" ] || [ -z "${{ secrets.NETLIFY_SITE_ID }}" ]; then
+          if [ -z "$NETLIFY_AUTH_TOKEN" ] || [ -z "$NETLIFY_SITE_ID" ]; then
             echo "::warning::Netlify secrets not configured — skipping frontend deployment"
             echo "SKIP_NETLIFY=true" >> $GITHUB_ENV
           fi
