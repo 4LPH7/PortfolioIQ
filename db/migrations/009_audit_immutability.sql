@@ -57,5 +57,5 @@ BEGIN
 EXCEPTION WHEN undefined_object THEN
     RAISE WARNING 'app_role does not exist. Skipping GRANT statements. '
                   'Run db/temp_create_role.sql as postgres superuser first.';
-END;
+END
 $$;
