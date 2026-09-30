@@ -6,7 +6,7 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn flask_app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info
-    healthCheckPath: /api/health
+    healthCheckPath: /api/v1/health
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
@@ -46,3 +46,5 @@ services:
         value: "15.0"
       - key: DUPLICATE_WINDOW_SEC
         value: "300"
+      - key: PORTFOLIOIQ_API_KEY
+        sync: false          # Set manually in Render dashboard; keep secret

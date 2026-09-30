@@ -132,9 +132,9 @@ jobs:
       - name: Verify safety-critical test coverage
         run: python scripts/check_critical_coverage.py
 
-  deploy-railway:
+  deploy-backend:
     runs-on: ubuntu-latest
-    name: Deploy API to Railway
+    name: Deploy Backend API (Render / Railway)
     needs: [test, docker-build]
     if: github.ref == 'refs/heads/main'
     steps:
@@ -147,36 +147,66 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Check deployment secrets
+      - name: Determine deployment target
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_APP_URL: ${{ secrets.RAILWAY_APP_URL }}
+          RENDER_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_URL: ${{ secrets.RENDER_APP_URL }}
+          RAILWAY_TOK: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_URL: ${{ secrets.RAILWAY_APP_URL }}
+          GENERIC_URL: ${{ secrets.API_URL }}
         run: |
-          if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "::warning::RAILWAY_TOKEN not configured — skipping Railway deployment"
-            echo "SKIP_DEPLOY=true" >> $GITHUB_ENV
-          fi
-          if [ -z "$RAILWAY_APP_URL" ]; then
-            echo "::warning::RAILWAY_APP_URL not configured — skipping smoke test"
-            echo "SKIP_SMOKE_TEST=true" >> $GITHUB_ENV
+          if [ -n "$RENDER_HOOK" ]; then
+            echo "DEPLOY_TARGET=render" >> $GITHUB_ENV
+            echo "Deployment target: Render (Deploy Hook)"
+          elif [ -n "$RAILWAY_TOK" ]; then
+            echo "DEPLOY_TARGET=railway" >> $GITHUB_ENV
+            echo "Deployment target: Railway (CLI)"
+          else
+            echo "DEPLOY_TARGET=none" >> $GITHUB_ENV
+            echo "::warning::Neither RENDER_DEPLOY_HOOK_URL nor RAILWAY_TOKEN configured — skipping backend deployment"
           fi
 
-      - name: Deploy to Railway
-        if: env.SKIP_DEPLOY != 'true'
+          TARGET_URL="${RENDER_URL:-${RAILWAY_URL:-$GENERIC_URL}}"
+          if [ -n "$TARGET_URL" ]; then
+            echo "SMOKE_TEST_URL=$TARGET_URL" >> $GITHUB_ENV
+            echo "Smoke test target: $TARGET_URL"
+          else
+            echo "::warning::No API URL configured for smoke test (RENDER_APP_URL, RAILWAY_APP_URL, or API_URL)"
+          fi
+
+      - name: Deploy to Render via Deploy Hook
+        if: env.DEPLOY_TARGET == 'render'
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          echo "Triggering Render deployment via deploy hook..."
+          HTTP_STATUS=$(curl -s -o render_response.txt -w "%{http_code}" -X POST "$RENDER_DEPLOY_HOOK_URL")
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Render deployment triggered successfully! (HTTP $HTTP_STATUS)"
+            cat render_response.txt
+          else
+            echo "Render deploy hook returned unexpected status: HTTP $HTTP_STATUS"
+            cat render_response.txt || true
+            exit 1
+          fi
+
+      - name: Deploy to Railway via CLI
+        if: env.DEPLOY_TARGET == 'railway'
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
+          echo "Deploying to Railway..."
           npm install -g @railway/cli
           railway up --detach
 
       - name: Run post-deployment smoke test
-        if: env.SKIP_DEPLOY != 'true' && env.SKIP_SMOKE_TEST != 'true'
+        if: env.DEPLOY_TARGET != 'none' && env.SMOKE_TEST_URL != ''
         id: smoke-test
         run: |
-          python scripts/smoke_test.py --base-url "${{ secrets.RAILWAY_APP_URL }}" --timeout 60
+          python scripts/smoke_test.py --base-url "$SMOKE_TEST_URL" --timeout 120
 
       - name: Rollback Railway deployment on smoke test failure
-        if: failure() && steps.smoke-test.outcome == 'failure' && env.SKIP_DEPLOY != 'true'
+        if: failure() && steps.smoke-test.outcome == 'failure' && env.DEPLOY_TARGET == 'railway'
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
