@@ -25,6 +25,7 @@ from src.api.middleware import (
     setup_correlation_id,
 )
 from src.api.v1.blueprint import api_v1_bp
+from src.execution.safety_certification import verify_startup_safety
 
 
 def _allowed_cors_origins() -> list[str]:
@@ -60,6 +61,18 @@ app.after_request(attach_correlation_id_header)
 # Dual-mount API Blueprints: /api/v1 (primary) and /api (legacy alias)
 app.register_blueprint(api_v1_bp, url_prefix="/api/v1")
 app.register_blueprint(api_v1_bp, url_prefix="/api", name="api_legacy")
+
+# Startup Safety Gate Verification (Phase 8)
+try:
+    _safety_report = verify_startup_safety()
+    logger.info(
+        "Trading safety gate verified: dry_run={} all_passed={}",
+        _safety_report["is_dry_run"],
+        _safety_report["all_passed"],
+    )
+except Exception as _safety_exc:
+    logger.critical("Startup safety gate failed: {}", _safety_exc)
+    raise
 
 
 # Global Error Handlers — enforce uniform error envelope

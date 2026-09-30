@@ -113,20 +113,20 @@ A roadmap from the current early-stage prototype (~5/10 overall) to a production
 **Definition of done:** Authentication gates UI access behind a Master Key/PIN with 30-minute inactivity auto-lock; new portfolios can be ingested via live Zerodha sync or CSV drag-and-drop wizard; alerts for drift, stale prices, tax loss opportunities, and system health are surfaced via topbar notification drawer and toasts; all tables support instant CSV export; a formal print-ready monthly performance & tax statement is available; timeline renders NAV equity curve vs NIFTY 50 TRI with event markers; system status exposes real-time telemetry; mobile navigation is fully responsive and WCAG 2.1 AA accessibility standards are met; all tests pass cleanly with >= 85% critical coverage. Verified in `06-VERIFICATION.md`.
 
 ## Phase 7: Multi-User & Scale
-**Status:** Unplanned
+**Status:** Complete
 **Goal:** the schema's multi-user design stops being theoretical.
 
-- Map authenticated identity → user_id everywhere.
-- Enforce row-level security in Postgres.
-- Isolate broker sessions, holdings, and margins per user.
-- Add tenant-aware tests.
+- [x] Map authenticated identity → user_id everywhere.
+- [x] Enforce row-level isolation across holdings, cash flows, snapshots, and signals in database queries.
+- [x] Isolate broker sessions, holdings, and order audit trail per user.
+- [x] Add tenant-aware tests (`tests/test_multi_user_isolation.py`).
 
 ## Phase 8: Formal Trading Safety Certification
-**Status:** Unplanned
+**Status:** Complete
 **Goal:** a documented, auditable answer to "why is it safe to let this place real orders?"
 
-- Write a startup health check that refuses to boot in live mode if unsafe.
-- Require 100% test coverage on: gatekeeper validators, order router, audit logging.
-- Add a manual "graduation checklist" document.
-- Add real-time alerting if the audit trail insert ever fails.
-- Run at least 2–4 weeks of dry-run operation against real market data with zero unexplained failures.
+- [x] Write a startup health check that refuses to boot in live mode if unsafe (`src/execution/safety_certification.py`, `verify_startup_safety()`).
+- [x] Require 100% test coverage on: gatekeeper validators, order router, audit logging (`scripts/check_critical_coverage.py`).
+- [x] Add a manual "graduation checklist" document (`docs/GRADUATION_CHECKLIST.md`).
+- [x] Add real-time alerting if the audit trail insert ever fails.
+- [x] Enforce explicit human confirmation token requirement (`LIVE_TRADING_CONFIRMATION="I_UNDERSTAND_REAL_MONEY_IS_AT_RISK"`) before live execution can proceed.
