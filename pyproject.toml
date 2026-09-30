@@ -31,7 +31,7 @@ known-first-party = ["src"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-line-ending = "auto"
+line-ending = "lf"
 
 [tool.coverage.run]
 source = ["src"]
