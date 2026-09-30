@@ -1,0 +1,42 @@
+# ── Build artifacts ──────────────────────────────────────────
+.git
+.gitignore
+.github
+.planning
+
+# ── Python caches ────────────────────────────────────────────
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# ── Test & coverage ─────────────────────────────────────────
+tests
+coverage.json
+.coverage
+htmlcov
+
+# ── Virtual environments ────────────────────────────────────
+venv
+.venv
+env
+
+# ── IDE / OS ────────────────────────────────────────────────
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Docker context exclusions ───────────────────────────────
+docker-compose.yml
+Dockerfile
+.dockerignore
+.pre-commit-config.yaml
+.env
+.env.*
+*.md
+LICENSE

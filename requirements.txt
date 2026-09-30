@@ -17,7 +17,7 @@ psycopg2-binary==2.9.10
 # ── Configuration ────────────────────────────────────────────
 pydantic==2.10.3
 pydantic-settings==2.7.0
-python-dotenv==1.0.1
+python-dotenv>=1.2.2
 
 # ── Web API ─────────────────────────────────────────────────
 flask==3.1.3
@@ -31,17 +31,17 @@ apscheduler==3.11.0
 pytz==2024.2
 
 # ── HTTP & Retry ─────────────────────────────────────────────
-requests==2.32.3
+requests>=2.33.0
 tenacity==9.0.0
 
 # ── Utilities ────────────────────────────────────────────────
 loguru==0.7.3
 rich==13.9.4
-click==8.1.8
+click>=8.3.3
 python-dateutil==2.9.0
 
 # ── Testing ──────────────────────────────────────────────────
-pytest==8.3.4
+pytest>=9.0.3
 pytest-mock==3.14.0
 freezegun==1.5.1
 pytest-cov>=6.0.0

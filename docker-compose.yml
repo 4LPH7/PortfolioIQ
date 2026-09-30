@@ -17,7 +17,6 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./db/migrations:/docker-entrypoint-initdb.d:ro  # Auto-runs migrations on first start
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U portfolioiq_user -d portfolioiq"]
       interval: 10s

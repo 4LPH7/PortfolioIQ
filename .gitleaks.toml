@@ -1,0 +1,29 @@
+# PortfolioIQ — Gitleaks Configuration
+# Suppress false positives on test/dev credentials and dummy secrets.
+# These are NOT real secrets — they are test placeholders committed intentionally.
+
+title = "PortfolioIQ gitleaks config"
+
+[allowlist]
+  description = "Known test and development dummy credentials"
+
+  # Ignore test credential patterns (not real secrets)
+  regexTarget = "match"
+  regexes = [
+    '''portfolioiq_pass_change_me''',
+    '''pgadmin_change_me''',
+    '''dev-secret-key''',
+    '''test_api_key''',
+    '''test_api_secret''',
+    '''test_key''',
+    '''test_secret''',
+    '''TEST123''',
+    '''WJU490''',
+  ]
+
+  paths = [
+    '''tests/.*''',
+    '''\.planning/.*''',
+    '''\.github/workflows/ci\.yml''',
+    '''docker-compose\.yml''',
+  ]
