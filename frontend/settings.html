@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
-<nav class="sidebar">
+<nav class="sidebar" id="main-sidebar" aria-label="Main Navigation">
   <div class="sidebar-header">
     <div class="sidebar-logo">
       <div class="sidebar-logo-icon">📈</div>
@@ -27,7 +27,10 @@
   <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status"><div class="status-dot"></div><span>Loading…</span></a>
   <a href="status.html" id="db-status" class="status-pill status-warn" title="View Database Status"><div class="status-dot"></div><span>Checking…</span></a>
 </nav>
-<div class="topbar">
+<header class="topbar" role="banner">
+  <button type="button" class="sidebar-toggle-btn" id="sidebar-toggle-btn" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="main-sidebar">
+    <span aria-hidden="true">☰</span>
+  </button>
   <div class="topbar-breadcrumb"><span>PortfolioIQ</span><span class="sep">/</span><span class="crumb-current">Settings</span></div>
   <div class="topbar-right">
     <button type="button" class="topbar-bell-btn" id="notification-bell-btn" onclick="PortfolioIQAlerts.toggleDrawer()" title="View Notifications" aria-label="View notifications">
@@ -36,8 +39,8 @@
     </button>
     <div class="topbar-time" id="clock">—</div>
   </div>
-</div>
-<main class="main fade-in">
+</header>
+<main class="main fade-in" role="main">
   <div class="page-header">
     <div>
       <h1 class="page-title">System <span>Settings</span></h1>
@@ -147,6 +150,30 @@
   </div>
 </main>
 <div class="dry-run-notice"><div class="dry-run-dot"></div>DRY RUN — No real orders</div>
+<!-- ── Bottom Mobile Navigation ───────────────────────────── -->
+<nav class="bottom-nav" aria-label="Mobile Navigation">
+  <a class="bottom-nav-item" href="index.html">
+    <span class="bottom-nav-icon">🏠</span>
+    <span>Dashboard</span>
+  </a>
+  <a class="bottom-nav-item" href="analyzer.html">
+    <span class="bottom-nav-icon">🔬</span>
+    <span>Analyzer</span>
+  </a>
+  <a class="bottom-nav-item" href="rebalance.html">
+    <span class="bottom-nav-icon">⚖️</span>
+    <span>Rebalance</span>
+  </a>
+  <a class="bottom-nav-item" href="timeline.html">
+    <span class="bottom-nav-icon">📅</span>
+    <span>Timeline</span>
+  </a>
+  <a class="bottom-nav-item active" href="settings.html">
+    <span class="bottom-nav-icon">⚙️</span>
+    <span>Settings</span>
+  </a>
+</nav>
+
 <script src="js/session.js"></script>
 <script src="js/export.js"></script>
 <script src="js/alerts.js"></script>

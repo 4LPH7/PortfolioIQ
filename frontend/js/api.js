@@ -284,9 +284,64 @@ const PLOTLY_LAYOUT = {
 
 const PLOTLY_CONFIG = { responsive: true, displayModeBar: false };
 
+// ── Mobile Navigation & A11y ───────────────────────────────────
+
+function initMobileNavigation() {
+  const toggleBtn = document.getElementById("sidebar-toggle-btn");
+  const sidebar = document.querySelector(".sidebar");
+  let backdrop = document.getElementById("sidebar-backdrop");
+
+  if (!backdrop) {
+    backdrop = document.createElement("div");
+    backdrop.id = "sidebar-backdrop";
+    backdrop.className = "sidebar-backdrop";
+    document.body.appendChild(backdrop);
+  }
+
+  function openSidebar() {
+    if (sidebar) sidebar.classList.add("open");
+    if (backdrop) backdrop.classList.add("open");
+    if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "true");
+  }
+
+  function closeSidebar() {
+    if (sidebar) sidebar.classList.remove("open");
+    if (backdrop) backdrop.classList.remove("open");
+    if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
+  }
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      if (sidebar && sidebar.classList.contains("open")) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    });
+  }
+
+  if (backdrop) {
+    backdrop.addEventListener("click", closeSidebar);
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && sidebar && sidebar.classList.contains("open")) {
+      closeSidebar();
+    }
+  });
+
+  // Highlight active bottom-nav item
+  const path = window.location.pathname.split("/").pop() || "index.html";
+  document.querySelectorAll(".bottom-nav-item").forEach(el => {
+    if (el.getAttribute("href") === path) el.classList.add("active");
+  });
+}
+
 // ── Run on DOM ready ───────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   loadSidebarStatus();
+  initMobileNavigation();
+
   // Highlight active nav item
   const path = window.location.pathname.split("/").pop() || "index.html";
   document.querySelectorAll(".nav-item").forEach(el => {
