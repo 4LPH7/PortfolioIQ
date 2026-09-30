@@ -10,7 +10,7 @@ from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class BaseDTO(BaseModel):
@@ -477,3 +477,20 @@ class SystemStatusDTO(BaseDTO):
     broker: dict[str, Any]
     market: dict[str, Any]
     scheduler: dict[str, Any]
+
+
+class CSVImportHoldingDTO(BaseDTO):
+    tradingsymbol: str
+    quantity: int
+    average_price: Decimal
+    exchange: str = "NSE"
+    instrument_token: int | None = None
+    invested_value: Decimal | None = None
+
+
+class CSVImportResultDTO(BaseDTO):
+    imported_count: int
+    skipped_count: int
+    holdings: list[CSVImportHoldingDTO]
+    errors: list[str] = Field(default_factory=list)
+    message: str

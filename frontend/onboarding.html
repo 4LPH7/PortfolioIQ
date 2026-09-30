@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="PortfolioIQ Onboarding — Set up your broker, import your portfolio holdings, and configure target allocations."/>
+  <title>PortfolioIQ — Welcome &amp; Onboarding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/main.css"/>
+  <style>
+    .onboarding-wrap {
+      max-width: 760px;
+      margin: 2.5rem auto;
+      padding: 0 1.25rem 4rem;
+      width: 100%;
+    }
+    .wizard-steps {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2.5rem;
+      position: relative;
+    }
+    .wizard-steps::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 40px;
+      right: 40px;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
+    }
+    .step-item {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+    .step-circle {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--bg3);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      transition: all var(--t-fast);
+    }
+    .step-item.active .step-circle {
+      border-color: var(--accent);
+      background: rgba(0, 212, 255, 0.15);
+      color: var(--accent);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+    }
+    .step-item.completed .step-circle {
+      border-color: var(--green);
+      background: rgba(0, 255, 136, 0.15);
+      color: var(--green);
+    }
+    .step-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .step-item.active .step-label {
+      color: var(--text);
+    }
+    .step-item.completed .step-label {
+      color: var(--green);
+    }
+    .wizard-panel {
+      display: none;
+      animation: panelFade 0.3s var(--ease);
+    }
+    .wizard-panel.active {
+      display: block;
+    }
+    @keyframes panelFade {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .mode-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1.25rem;
+      background: var(--surface2);
+      cursor: pointer;
+      transition: all var(--t-fast);
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+    .mode-card:hover {
+      border-color: var(--border-h);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .mode-card.selected {
+      border-color: var(--accent);
+      background: rgba(0, 212, 255, 0.08);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
+    }
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      background: rgba(0, 212, 255, 0.02);
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(0, 212, 255, 0.06);
+    }
+    .drop-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="onboarding-wrap">
+  <!-- Header -->
+  <div class="text-center mb-lg">
+    <div style="font-size: 2.8rem; margin-bottom: 0.5rem;">📈</div>
+    <h1 style="font-size: 2rem; font-weight: 800; letter-spacing: -0.02em;">Welcome to PortfolioIQ</h1>
+    <p class="text-muted text-sm mt-sm">Algorithmic portfolio management and trading safety for Indian equities.</p>
+  </div>
+
+  <!-- Wizard Step Indicators -->
+  <div class="wizard-steps" role="navigation" aria-label="Onboarding Progress">
+    <div class="step-item active" data-step="1" id="step-btn-1">
+      <div class="step-circle">1</div>
+      <div class="step-label">Environment</div>
+    </div>
+    <div class="step-item" data-step="2" id="step-btn-2">
+      <div class="step-circle">2</div>
+      <div class="step-label">Holdings</div>
+    </div>
+    <div class="step-item" data-step="3" id="step-btn-3">
+      <div class="step-circle">3</div>
+      <div class="step-label">Targets</div>
+    </div>
+  </div>
+
+  <!-- STEP 1: Broker & Execution Mode -->
+  <div class="wizard-panel active card" id="panel-1">
+    <h2 class="section-header mt-0">Step 1: Choose Execution Environment</h2>
+    <p class="text-muted text-sm mb-md">
+      PortfolioIQ supports strict simulation and live broker execution via Zerodha Kite Connect.
+    </p>
+
+    <div class="mode-card selected" id="card-paper" onclick="selectMode(true)">
+      <div style="font-size: 1.8rem;">🛡️</div>
+      <div class="flex-1">
+        <div class="font-bold flex items-center gap-sm">
+          <span>Paper Trading / Simulation Mode</span>
+          <span class="badge badge-buy">Recommended</span>
+        </div>
+        <p class="text-muted text-sm mt-sm">
+          Calculates rebalance orders, signals, and tax harvesting without placing real orders on the exchange. Zero financial risk.
+        </p>
+      </div>
+      <input type="radio" name="execution_mode" value="paper" checked style="accent-color: var(--accent);"/>
+    </div>
+
+    <div class="mode-card" id="card-live" onclick="selectMode(false)">
+      <div style="font-size: 1.8rem;">⚡</div>
+      <div class="flex-1">
+        <div class="font-bold flex items-center gap-sm">
+          <span>Live Broker Execution (Zerodha Kite)</span>
+          <span class="badge badge-strong-sell">Live Orders</span>
+        </div>
+        <p class="text-muted text-sm mt-sm">
+          Connects directly to your Zerodha account. Places authenticated CNC orders through gatekeeper validation checks.
+        </p>
+      </div>
+      <input type="radio" name="execution_mode" value="live" style="accent-color: var(--accent);"/>
+    </div>
+
+    <!-- Live Broker Status Check Area (hidden by default) -->
+    <div id="broker-status-box" style="display: none; margin-top: 1rem;" class="card bg-surface2">
+      <div class="flex justify-between items-center">
+        <div>
+          <div class="font-bold text-sm">Zerodha API Connection</div>
+          <div class="text-xs text-muted" id="broker-ping-desc">Testing session validity…</div>
+        </div>
+        <button type="button" class="btn btn-sm btn-ghost" onclick="testBrokerConnection()">Test Ping</button>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-center mt-lg">
+      <div></div>
+      <button type="button" class="btn btn-primary" onclick="goToStep(2)">
+        Continue to Holdings ➔
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Ingest Holdings -->
+  <div class="wizard-panel card" id="panel-2">
+    <h2 class="section-header mt-0">Step 2: Ingest Your Equity Holdings</h2>
+    <p class="text-muted text-sm mb-md">
+      Import your existing portfolio from Zerodha Kite Connect live sync or drag-and-drop a CSV export.
+    </p>
+
+    <!-- Ingestion Options -->
+    <div class="grid-2 mb-md">
+      <button type="button" class="btn btn-ghost" id="tab-btn-sync" onclick="toggleIngestTab('sync')">
+        🔄 Live Broker Sync
+      </button>
+      <button type="button" class="btn btn-primary" id="tab-btn-csv" onclick="toggleIngestTab('csv')">
+        📁 Upload CSV Export
+      </button>
+    </div>
+
+    <!-- Tab A: Live Sync -->
+    <div id="ingest-sync-area" style="display: none;" class="card text-center py-lg">
+      <div style="font-size: 2.2rem; margin-bottom: 0.75rem;">🔄</div>
+      <div class="font-bold text-md mb-sm">Sync Directly from Zerodha Kite</div>
+      <p class="text-muted text-sm mb-md" style="max-width: 480px; margin: 0 auto 1.5rem;">
+        Fetches your holdings, T1 quantities, and purchase prices straight from your active Zerodha session.
+      </p>
+      <button type="button" class="btn btn-primary btn-lg" id="sync-holdings-btn" onclick="runLiveKiteSync()">
+        Sync Holdings Now
+      </button>
+      <div id="sync-result-msg" class="text-sm mt-md"></div>
+    </div>
+
+    <!-- Tab B: CSV Drag & Drop -->
+    <div id="ingest-csv-area">
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-file-input').click()">
+        <div class="drop-icon">📂</div>
+        <div class="font-bold text-md">Click or drag &amp; drop your Zerodha CSV file here</div>
+        <p class="text-muted text-xs mt-sm">Supports Zerodha Holdings CSV and Tradebook CSV formats</p>
+        <input type="file" id="csv-file-input" accept=".csv" style="display: none;" onchange="handleFileSelected(event)"/>
+      </div>
+
+      <!-- Preview Box -->
+      <div id="csv-preview-wrap" style="display: none; margin-top: 1.5rem;">
+        <div class="flex justify-between items-center mb-sm">
+          <div class="font-bold text-sm" id="csv-filename-label">Preview</div>
+          <button type="button" class="btn btn-sm btn-primary" id="csv-upload-btn" onclick="uploadSelectedCSV()">
+            Ingest Portfolio
+          </button>
+        </div>
+        <div class="table-wrap" style="max-height: 220px; overflow-y: auto;">
+          <table id="csv-preview-table">
+            <thead id="csv-preview-thead"></thead>
+            <tbody id="csv-preview-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-center mt-lg">
+      <button type="button" class="btn btn-ghost" onclick="goToStep(1)">
+        ⬅ Back
+      </button>
+      <button type="button" class="btn btn-primary" onclick="goToStep(3)">
+        Continue to Targets ➔
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Target Allocations -->
+  <div class="wizard-panel card" id="panel-3">
+    <h2 class="section-header mt-0">Step 3: Asset Allocation Targets &amp; Risk Guard</h2>
+    <p class="text-muted text-sm mb-md">
+      Configure your target equity exposure, minimum cash buffer, and portfolio drift sensitivity.
+    </p>
+
+    <div class="form-group mb-md">
+      <div class="flex justify-between items-center mb-sm">
+        <label for="slider-target-equity" class="form-label" style="margin: 0;">Target Equity Weight</label>
+        <span class="font-bold text-accent" id="equity-val">80%</span>
+      </div>
+      <input
+        type="range"
+        id="slider-target-equity"
+        min="20"
+        max="100"
+        value="80"
+        step="5"
+        class="form-control"
+        style="padding: 0; cursor: pointer;"
+        oninput="document.getElementById('equity-val').textContent = this.value + '%'"
+      />
+      <div class="text-xs text-muted mt-sm">Total equity allocation target vs cash reserve.</div>
+    </div>
+
+    <div class="form-group mb-md">
+      <label for="input-cash-buffer" class="form-label">Minimum Cash Buffer (₹)</label>
+      <input
+        type="number"
+        id="input-cash-buffer"
+        class="form-control"
+        value="25000"
+        min="5000"
+        step="5000"
+      />
+      <div class="text-xs text-muted mt-sm">Emergency liquidity reserve preserved before calculating rebalance buys.</div>
+    </div>
+
+    <div class="form-group mb-md">
+      <div class="flex justify-between items-center mb-sm">
+        <label for="slider-drift-threshold" class="form-label" style="margin: 0;">Max Allocation Drift Threshold</label>
+        <span class="font-bold text-yellow" id="drift-val">5.0%</span>
+      </div>
+      <input
+        type="range"
+        id="slider-drift-threshold"
+        min="1.0"
+        max="15.0"
+        value="5.0"
+        step="0.5"
+        class="form-control"
+        style="padding: 0; cursor: pointer;"
+        oninput="document.getElementById('drift-val').textContent = parseFloat(this.value).toFixed(1) + '%'"
+      />
+      <div class="text-xs text-muted mt-sm">Rebalance trigger activates when any holding drifts beyond this percentage.</div>
+    </div>
+
+    <div class="alert alert-info mt-md">
+      <span class="alert-icon">💡</span>
+      <div class="alert-body">
+        <div class="alert-title">SEBI Algorithmic Safety Notice</div>
+        <div class="alert-text">All parameters can be modified at any time in ⚙️ Settings. Inactivity lock and gatekeeper order constraints remain active by default.</div>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-center mt-lg">
+      <button type="button" class="btn btn-ghost" onclick="goToStep(2)">
+        ⬅ Back
+      </button>
+      <button type="button" class="btn btn-primary btn-lg" onclick="finishOnboarding()">
+        🎉 Save &amp; Finish Setup
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="js/session.js"></script>
+<script src="js/export.js"></script>
+<script src="js/api.js"></script>
+<script>
+let currentStep = 1;
+let selectedFile = null;
+
+function goToStep(step) {
+  if (step < 1 || step > 3) return;
+  currentStep = step;
+
+  // Update panels
+  document.querySelectorAll(".wizard-panel").forEach((p, idx) => {
+    p.classList.toggle("active", idx + 1 === step);
+  });
+
+  // Update steps
+  document.querySelectorAll(".step-item").forEach((s, idx) => {
+    const sNum = idx + 1;
+    s.classList.toggle("active", sNum === step);
+    s.classList.toggle("completed", sNum < step);
+  });
+}
+
+function selectMode(isPaper) {
+  const cardPaper = document.getElementById("card-paper");
+  const cardLive = document.getElementById("card-live");
+  const radioPaper = cardPaper.querySelector("input");
+  const radioLive = cardLive.querySelector("input");
+  const brokerBox = document.getElementById("broker-status-box");
+
+  if (isPaper) {
+    cardPaper.classList.add("selected");
+    cardLive.classList.remove("selected");
+    radioPaper.checked = true;
+    radioLive.checked = false;
+    brokerBox.style.display = "none";
+    apiPatch("/config/dry_run_mode", { value: "true" });
+  } else {
+    cardLive.classList.add("selected");
+    cardPaper.classList.remove("selected");
+    radioLive.checked = true;
+    radioPaper.checked = false;
+    brokerBox.style.display = "block";
+    testBrokerConnection();
+  }
+}
+
+async function testBrokerConnection() {
+  const desc = document.getElementById("broker-ping-desc");
+  desc.textContent = "Checking Zerodha token validity…";
+  try {
+    const res = await apiGet("/system/status");
+    if (res.ok && res.data.broker?.authenticated) {
+      desc.textContent = "✅ Active Zerodha Kite session connected.";
+      desc.style.color = "var(--green)";
+    } else {
+      desc.textContent = "⚠️ Zerodha token inactive or missing. Visit Settings to authenticate.";
+      desc.style.color = "var(--yellow)";
+    }
+  } catch (err) {
+    desc.textContent = "🔴 Connection error: " + err.message;
+    desc.style.color = "var(--red)";
+  }
+}
+
+function toggleIngestTab(tab) {
+  const syncBtn = document.getElementById("tab-btn-sync");
+  const csvBtn = document.getElementById("tab-btn-csv");
+  const syncArea = document.getElementById("ingest-sync-area");
+  const csvArea = document.getElementById("ingest-csv-area");
+
+  if (tab === "sync") {
+    syncBtn.className = "btn btn-primary";
+    csvBtn.className = "btn btn-ghost";
+    syncArea.style.display = "block";
+    csvArea.style.display = "none";
+  } else {
+    csvBtn.className = "btn btn-primary";
+    syncBtn.className = "btn btn-ghost";
+    csvArea.style.display = "block";
+    syncArea.style.display = "none";
+  }
+}
+
+async function runLiveKiteSync() {
+  const btn = document.getElementById("sync-holdings-btn");
+  const msg = document.getElementById("sync-result-msg");
+  btn.disabled = true;
+  btn.textContent = "Syncing from Zerodha…";
+  msg.textContent = "";
+
+  try {
+    const res = await apiPost("/holdings/sync", {});
+    if (res.ok) {
+      msg.textContent = "✅ Successfully synced holdings from Zerodha Kite.";
+      msg.style.color = "var(--green)";
+      showToast("Holdings synced successfully!", "success");
+    } else {
+      msg.textContent = "⚠️ Sync failed: " + (res.error || "Token expired or missing.");
+      msg.style.color = "var(--red)";
+      showToast("Sync failed. Check broker credentials.", "error");
+    }
+  } catch (err) {
+    msg.textContent = "🔴 Error: " + err.message;
+    msg.style.color = "var(--red)";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Sync Holdings Now";
+  }
+}
+
+// Drag & Drop and File Selection
+const dropZone = document.getElementById("drop-zone");
+if (dropZone) {
+  dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.classList.add("dragover");
+  });
+  dropZone.addEventListener("dragleave", () => {
+    dropZone.classList.remove("dragover");
+  });
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("dragover");
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  });
+}
+
+function handleFileSelected(e) {
+  if (e.target.files && e.target.files.length > 0) {
+    handleFile(e.target.files[0]);
+  }
+}
+
+function handleFile(file) {
+  if (!file.name.endsWith(".csv")) {
+    showToast("Please upload a .csv file.", "warn");
+    return;
+  }
+  selectedFile = file;
+  document.getElementById("csv-filename-label").textContent = `Selected: ${file.name}`;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    renderCSVPreview(text);
+  };
+  reader.readAsText(file);
+}
+
+function renderCSVPreview(csvText) {
+  const lines = csvText.trim().split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length === 0) return;
+
+  const headerRow = lines[0].split(",").map(c => c.replace(/^"|"$/g, "").trim());
+  const thead = document.getElementById("csv-preview-thead");
+  thead.innerHTML = `<tr>${headerRow.map(h => `<th>${h}</th>`).join("")}</tr>`;
+
+  const tbody = document.getElementById("csv-preview-tbody");
+  const previewRows = lines.slice(1, 6);
+  tbody.innerHTML = previewRows.map(row => {
+    const cells = row.split(",").map(c => c.replace(/^"|"$/g, "").trim());
+    return `<tr>${cells.map(c => `<td class="td-mono">${c}</td>`).join("")}</tr>`;
+  }).join("");
+
+  document.getElementById("csv-preview-wrap").style.display = "block";
+}
+
+async function uploadSelectedCSV() {
+  if (!selectedFile) {
+    showToast("No CSV file selected.", "warn");
+    return;
+  }
+
+  const btn = document.getElementById("csv-upload-btn");
+  btn.disabled = true;
+  btn.textContent = "Ingesting…";
+
+  const formData = new FormData();
+  formData.append("file", selectedFile);
+
+  try {
+    const base = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+      ? "http://localhost:5000/api/v1"
+      : "https://portfolioiq-z4r6.onrender.com/api/v1";
+
+    const res = await fetch(`${base}/holdings/import-csv`, {
+      method: "POST",
+      headers: {
+        "X-API-Key": getApiKey(),
+      },
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok && data.ok) {
+      showToast(`Imported ${data.data.imported_count} holdings successfully!`, "success");
+      btn.textContent = `✓ Ingested (${data.data.imported_count})`;
+      btn.classList.remove("btn-primary");
+      btn.classList.add("btn-ghost");
+    } else {
+      const errMsg = data.error?.message || "Failed to parse CSV file.";
+      showToast(errMsg, "error");
+      btn.disabled = false;
+      btn.textContent = "Ingest Portfolio";
+    }
+  } catch (err) {
+    showToast("Error uploading file: " + err.message, "error");
+    btn.disabled = false;
+    btn.textContent = "Ingest Portfolio";
+  }
+}
+
+async function finishOnboarding() {
+  const equityPct = document.getElementById("slider-target-equity").value;
+  const cashBuffer = document.getElementById("input-cash-buffer").value;
+  const driftPct = document.getElementById("slider-drift-threshold").value;
+
+  try {
+    await Promise.all([
+      apiPatch("/config/concentration_limit_pct", { value: String(equityPct) }).catch(() => {}),
+      apiPatch("/config/cash_reserve_min", { value: String(cashBuffer) }).catch(() => {}),
+      apiPatch("/config/rebalance_threshold_pct", { value: String(driftPct) }).catch(() => {}),
+      apiPatch("/config/onboarding_completed", { value: "true" }).catch(() => {}),
+    ]);
+  } catch {}
+
+  localStorage.setItem("portfolioiq_onboarded", "true");
+  showToast("Setup completed! Redirecting to Dashboard…", "success");
+  setTimeout(() => {
+    window.location.href = "index.html";
+  }, 1200);
+}
+</script>
+</body>
+</html>

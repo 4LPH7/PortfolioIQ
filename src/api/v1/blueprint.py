@@ -14,7 +14,7 @@ from flask import Blueprint, jsonify, request
 from src.api.limiter import limiter
 from src.api.middleware import format_error_response, require_api_key, validate_json
 from src.config.settings import get_settings
-from src.db.connection import check_connection, execute_sql
+from src.db.connection import check_connection, execute_sql, get_db_session
 from src.db.repository import (
     get_audit_orders,
     get_audit_validations,
@@ -22,7 +22,13 @@ from src.db.repository import (
     list_app_configs,
     update_app_config,
 )
-from src.models.dtos import CreateCashFlowDTO, CreateMarketCalendarDTO, UpdateConfigDTO
+from src.models.dtos import (
+    CreateCashFlowDTO,
+    CreateMarketCalendarDTO,
+    CSVImportHoldingDTO,
+    CSVImportResultDTO,
+    UpdateConfigDTO,
+)
 
 api_v1_bp = Blueprint("api_v1", __name__)
 
@@ -807,3 +813,253 @@ def get_system_status():
         ),
         200,
     )
+
+
+@api_v1_bp.route("/holdings/import-csv", methods=["POST"])
+@require_api_key
+def import_holdings_csv():
+    """
+    Parses and ingests portfolio holdings or tradebook CSV exports from Zerodha / generic brokers.
+    Validates required columns, converts datatypes, resolves instrument tokens, and upserts holdings.
+    """
+    import csv
+    import decimal
+    import io
+    import re
+    import zlib
+    from decimal import Decimal
+
+    from sqlalchemy import text
+
+    user_id = request.args.get("user_id", "default")
+
+    # 1. Retrieve raw CSV content
+    content = ""
+    if "file" in request.files:
+        uploaded_file = request.files["file"]
+        if uploaded_file.filename == "":
+            return format_error_response(
+                "MISSING_FILE", "Uploaded file has no filename", status_code=400
+            )
+        content = uploaded_file.read().decode("utf-8-sig", errors="replace")
+    elif request.is_json and request.json and "csv_text" in request.json:
+        content = request.json["csv_text"]
+    elif request.content_type and "text/csv" in request.content_type:
+        content = request.get_data(as_text=True)
+
+    if not content or not content.strip():
+        return format_error_response(
+            "EMPTY_FILE", "CSV content is empty or not provided", status_code=400
+        )
+
+    # 2. Parse lines with csv.reader
+    reader = csv.reader(io.StringIO(content.strip()))
+    header_row = None
+    data_rows = []
+
+    for row in reader:
+        if not row or not any(cell.strip() for cell in row):
+            continue
+        cleaned_cells = [cell.strip().lower() for cell in row]
+        # Detect header row: look for presence of symbol/instrument indicator
+        if header_row is None:
+            norm_cells = [re.sub(r"[^a-z0-9]", "", c) for c in cleaned_cells]
+            if any(
+                s in norm_cells for s in ["instrument", "symbol", "tradingsymbol", "stock", "scrip"]
+            ):
+                header_row = row
+                continue
+        else:
+            data_rows.append(row)
+
+    if not header_row:
+        return format_error_response(
+            "INVALID_CSV",
+            "Could not identify a valid header row containing 'Instrument' or 'Symbol'",
+            status_code=400,
+        )
+
+    # 3. Identify column indices
+    col_map: dict[str, int] = {}
+    for idx, col_name in enumerate(header_row):
+        norm = re.sub(r"[^a-z0-9]", "", col_name.strip().lower())
+        if (
+            norm in ["instrument", "symbol", "tradingsymbol", "stock", "scrip"]
+            and "symbol" not in col_map
+        ):
+            col_map["symbol"] = idx
+        elif norm in ["qty", "quantity", "shares", "holdingqty"] and "quantity" not in col_map:
+            col_map["quantity"] = idx
+        elif (
+            norm in ["avgcost", "avgprice", "averageprice", "buyprice", "price", "costprice", "avg"]
+            and "price" not in col_map
+        ):
+            col_map["price"] = idx
+        elif norm in ["exchange", "exch", "segment"] and "exchange" not in col_map:
+            col_map["exchange"] = idx
+        elif norm in ["tradetype", "type", "transactiontype"] and "trade_type" not in col_map:
+            col_map["trade_type"] = idx
+
+    for req in ["symbol", "quantity", "price"]:
+        if req not in col_map:
+            return format_error_response(
+                "INVALID_CSV",
+                f"Required column '{req}' not found in CSV. Headers: {header_row}",
+                status_code=400,
+            )
+
+    sym_idx = col_map["symbol"]
+    qty_idx = col_map["quantity"]
+    price_idx = col_map["price"]
+    exch_idx = col_map.get("exchange")
+    trade_type_idx = col_map.get("trade_type")
+
+    # 4. Parse rows into holdings
+    parsed_holdings: dict[str, dict[str, Any]] = {}
+    errors: list[str] = []
+    skipped_count = 0
+
+    for line_num, r in enumerate(data_rows, start=2):
+        if len(r) <= max(sym_idx, qty_idx, price_idx):
+            skipped_count += 1
+            errors.append(f"Row {line_num}: Insufficient columns")
+            continue
+
+        raw_sym = r[sym_idx].strip().upper()
+        # Clean symbol suffixes e.g. INFY-EQ -> INFY, NSE:TCS -> TCS
+        raw_sym = re.sub(r"^(NSE|BSE):", "", raw_sym)
+        raw_sym = re.sub(r"-(EQ|BE|SM|ST)$", "", raw_sym).strip()
+        if not raw_sym:
+            skipped_count += 1
+            continue
+
+        raw_qty = r[qty_idx].strip().replace(",", "")
+        raw_price = r[price_idx].strip().replace(",", "").replace("₹", "").replace("$", "")
+        exchange = (
+            r[exch_idx].strip().upper() if exch_idx is not None and len(r) > exch_idx else "NSE"
+        ) or "NSE"
+
+        try:
+            qty = int(float(raw_qty))
+            price = Decimal(str(float(raw_price)))
+        except (ValueError, decimal.InvalidOperation) as exc:
+            skipped_count += 1
+            errors.append(f"Row {line_num} ({raw_sym}): Invalid number format ({exc})")
+            continue
+
+        # If tradebook, aggregate buys and sells
+        if trade_type_idx is not None and len(r) > trade_type_idx:
+            trade_type = r[trade_type_idx].strip().upper()
+            if raw_sym not in parsed_holdings:
+                parsed_holdings[raw_sym] = {
+                    "symbol": raw_sym,
+                    "quantity": 0,
+                    "total_cost": Decimal("0"),
+                    "exchange": exchange,
+                }
+            if "BUY" in trade_type:
+                parsed_holdings[raw_sym]["quantity"] += qty
+                parsed_holdings[raw_sym]["total_cost"] += Decimal(qty) * price
+            elif "SELL" in trade_type:
+                parsed_holdings[raw_sym]["quantity"] -= qty
+        else:
+            if qty <= 0 or price <= 0:
+                skipped_count += 1
+                errors.append(f"Row {line_num} ({raw_sym}): Quantity and price must be > 0")
+                continue
+            parsed_holdings[raw_sym] = {
+                "symbol": raw_sym,
+                "quantity": qty,
+                "total_cost": Decimal(qty) * price,
+                "exchange": exchange,
+            }
+
+    # 5. Filter valid holdings & Upsert into Database
+    final_holdings: list[CSVImportHoldingDTO] = []
+    with get_db_session() as session:
+        for sym, h in parsed_holdings.items():
+            qty = h["quantity"]
+            if qty <= 0:
+                continue
+            avg_price = (h["total_cost"] / Decimal(qty)).quantize(Decimal("0.01"))
+            exchange = h["exchange"]
+
+            # Token resolution: check instrument_master first, else generate deterministic pseudo-token
+            row = session.execute(
+                text(
+                    "SELECT instrument_token FROM instrument_master WHERE tradingsymbol = :sym AND exchange = :exch LIMIT 1"
+                ),
+                {"sym": sym, "exch": exchange},
+            ).fetchone()
+            if row:
+                token = row[0]
+            else:
+                token = (zlib.crc32(f"{exchange}:{sym}".encode()) & 0x7FFFFFFF) or 100001
+                session.execute(
+                    text("""
+                        INSERT INTO instrument_master (
+                            instrument_token, exchange_token, tradingsymbol,
+                            name, isin, exchange, instrument_type, is_active
+                        )
+                        VALUES (
+                            :token, :token, :sym,
+                            :sym, NULL, :exchange, 'EQ', TRUE
+                        )
+                        ON CONFLICT (instrument_token) DO NOTHING
+                    """),
+                    {"token": token, "sym": sym, "exchange": exchange},
+                )
+
+            # Upsert into user_holdings
+            session.execute(
+                text("""
+                    INSERT INTO user_holdings (
+                        user_id, instrument_token, tradingsymbol, exchange, isin,
+                        quantity, t1_quantity, opening_quantity, used_quantity,
+                        authorised_quantity, collateral_quantity, average_price,
+                        last_price, close_price, pnl, day_change, day_change_pct,
+                        product, has_discrepancy, last_synced_at
+                    )
+                    VALUES (
+                        :user_id, :token, :sym, :exchange, NULL,
+                        :qty, 0, :qty, 0,
+                        :qty, 0, :avg_price,
+                        :avg_price, :avg_price, 0, 0, 0,
+                        'CNC', FALSE, NOW()
+                    )
+                    ON CONFLICT (user_id, instrument_token, product) DO UPDATE SET
+                        quantity = EXCLUDED.quantity,
+                        average_price = EXCLUDED.average_price,
+                        opening_quantity = EXCLUDED.opening_quantity,
+                        last_synced_at = NOW(),
+                        updated_at = NOW()
+                """),
+                {
+                    "user_id": user_id,
+                    "token": token,
+                    "sym": sym,
+                    "exchange": exchange,
+                    "qty": qty,
+                    "avg_price": avg_price,
+                },
+            )
+
+            final_holdings.append(
+                CSVImportHoldingDTO(
+                    tradingsymbol=sym,
+                    quantity=qty,
+                    average_price=avg_price,
+                    exchange=exchange,
+                    instrument_token=token,
+                    invested_value=(Decimal(qty) * avg_price).quantize(Decimal("0.01")),
+                )
+            )
+
+    result_dto = CSVImportResultDTO(
+        imported_count=len(final_holdings),
+        skipped_count=skipped_count,
+        holdings=final_holdings,
+        errors=errors[:10],
+        message=f"Successfully imported {len(final_holdings)} holdings from CSV.",
+    )
+    return jsonify({"ok": True, "data": result_dto.model_dump()}), 200
