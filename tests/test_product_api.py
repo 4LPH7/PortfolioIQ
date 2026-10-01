@@ -300,7 +300,9 @@ class TestSystemStatus:
         mock_conn,
         client: FlaskClient,
         api_key: str,
+        monkeypatch: pytest.MonkeyPatch,
     ):
+        monkeypatch.setenv("RUN_INLINE_SCHEDULER", "true")
         res = client.get("/api/v1/system/status", headers={"X-API-Key": api_key})
         assert res.status_code == 200
         data = res.get_json()["data"]

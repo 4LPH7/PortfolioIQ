@@ -88,7 +88,8 @@ class TestApiClientUpdates:
     def test_api_session_key_priority(self):
         content = (JS_DIR / "api.js").read_text(encoding="utf-8")
         assert 'sessionStorage.getItem("portfolioiq_session_key")' in content
-        assert 'localStorage.getItem("portfolioiq_api_key")' in content
+        assert 'localStorage.getItem("portfolioiq_api_key")' not in content
+        assert '|| "dev-secret-key"' not in content
 
     def test_api_401_interception(self):
         content = (JS_DIR / "api.js").read_text(encoding="utf-8")

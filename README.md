@@ -99,53 +99,47 @@ All trade recommendations and rebalancing proposals calculate complete statutory
 
 ## 🚢 Deployment Guide
 
-PortfolioIQ is architected for zero-cost, high-reliability deployment using **Render** (free web service for backend API) and **Netlify** (free global edge for frontend).
+The app has a static **Netlify frontend** and a Python **Railway API**. Netlify serves the interface and proxies `/api/*` requests to Railway. The quote scheduler runs inside the single API process, so you do not need to create a separate worker service. This architecture is compatible with Netlify; Railway is a separate backend host and is not guaranteed to stay free or awake continuously. Check current [Railway plan limits](https://docs.railway.com/pricing/plans) before relying on always-on live quotes.
 
-### Option A: Render Backend (Recommended 100% Free Tier)
+### 1. Deploy the API to Railway
 
-Render provides a permanent free web service tier (750 free instance hours/month) with zero credit card requirement:
+1. Push this repository to GitHub, create a Railway project, and deploy the repository as one service. Railway reads [`railway.json`](railway.json); generate a public HTTPS domain in the service settings.
+2. Set the service variables in Railway:
+   - `DATABASE_URL`: Supabase PostgreSQL connection string (server-side only)
+   - `KITE_API_KEY` and `KITE_API_SECRET`: Kite Connect app credentials
+   - `PORTFOLIOIQ_API_KEY`: generate a long random API key
+   - `ALLOWED_ORIGINS`: your exact Netlify site origin, such as `https://your-site.netlify.app`
+   - `FRONTEND_ORIGIN`: that same exact Netlify site origin; Kite returns here after sign-in
+   - `APP_ENV=production`
+   - `DRY_RUN_MODE=true`
+   - `RUN_INLINE_SCHEDULER=true`
+   - `POLLING_INTERVAL_SEC=15`
+3. In your Kite Connect app, set the redirect URL to `https://<your-railway-domain>/api/v1/broker/callback`. For local Docker use, set `KITE_REDIRECT_URL` in `.env` and the Kite app to `http://127.0.0.1:5000/api/v1/broker/callback`; set `FRONTEND_ORIGIN=http://localhost:8080`.
+4. Check the API is healthy at `https://<your-railway-domain>/api/v1/health`.
 
-1. **Fork or Push** this repository to your GitHub account.
-2. Log in to [Render.com](https://render.com) and click **New +** → **Blueprint**.
-3. Select your `PortfolioIQ` repository. Render will automatically detect [`render.yaml`](render.yaml) and configure the web service.
-4. Fill in your environment variables in the Render dashboard:
-   - `DATABASE_URL`: Your Supabase or PostgreSQL connection string
-   - `KITE_API_KEY` & `KITE_API_SECRET`: Zerodha Kite Connect credentials
-   - `PORTFOLIOIQ_API_KEY`: Secure API key for frontend authentication
-   - `ALLOWED_ORIGINS`: Your Netlify frontend domain (e.g. `https://your-site.netlify.app`)
-5. **Enable Automated CI/CD Deployments:**
-   - In Render, navigate to your web service → **Settings** → **Deploy Hook**.
-   - Copy the Deploy Hook URL (`https://api.render.com/deploy/srv-xxxx?key=yyyy`).
-   - In GitHub, go to **Settings** → **Secrets and variables** → **Actions**.
-   - Add secret: `RENDER_DEPLOY_HOOK_URL` = `<your-render-deploy-hook-url>`
-   - Add secret: `RENDER_APP_URL` = `https://<your-service>.onrender.com`
-   - Every push to `main` will now automatically test, lint, and deploy your API!
+### 2. Deploy the frontend to Netlify
 
----
+1. In [Netlify](https://app.netlify.com), import the same GitHub repository.
+2. Set **Base directory** to the repository root, **Build command** to `bash scripts/netlify-build.sh`, and **Publish directory** to `frontend`.
+3. Set the Netlify environment variable `RAILWAY_API_ORIGIN` to the Railway public HTTPS origin only, for example `https://your-service.up.railway.app` (no `/api` suffix).
+4. Deploy or trigger a fresh deploy. The build creates a same-origin `/api/*` proxy, which avoids putting the API key or database credentials in browser code.
+5. Open the Netlify URL and verify the status page reports the API as healthy.
 
-### Option B: Railway Backend (Project Token Setup)
+### 3. First use and daily sign-in
 
-If deploying to Railway:
+Open **Settings → Broker connection** and connect Kite. Kite requires a person to approve a login each trading day; unattended token renewal is not supported. Once signed in, holdings and prices can sync while the API is running. Keep `DRY_RUN_MODE=true`: order placement remains simulated until a separate safety review.
 
-> ⚠️ **Important Note on Railway Token Types:**  
-> Railway requires a **Project Token**, not an Account Token, for automated CLI deployments.  
-> 1. In Railway, open your project → click the **Settings** tab.  
-> 2. Select **Tokens** from the sidebar → click **New Token** (Environment: `production`).  
-> 3. Copy the token and save it in GitHub Secrets as `RAILWAY_TOKEN`.  
-> 4. Save your Railway app URL in GitHub Secrets as `RAILWAY_APP_URL`.  
-> *(Note: If your 30-day Railway trial has reached "0 days left", Railway will pause deployments until a billing method or plan is activated).*
+### Free-tier behavior
 
----
+There is no separate paid worker in this setup, but a continuously running API still consumes Railway service usage. Railway's included credit/limits can change and may not cover an always-on service. If the service sleeps or exhausts its free usage, scheduled quotes pause until it wakes or usage is available again. A free sleeping host therefore cannot promise uninterrupted real-time prices. Netlify hosts the static frontend; it does not run the Python API or scheduler.
 
-### Frontend Deployment (Netlify)
+### Supabase database safety
 
-The `frontend/` directory is 100% static HTML5/CSS/JavaScript requiring zero build step:
+Keep `DATABASE_URL` in Railway only; never add it or a Supabase service-role key to Netlify or frontend files. Before storing real user data, verify that `anon` and `authenticated` have no unintended access to application tables and that row-level security policies match the app's authorization model. The API is designed to access PostgreSQL server-side. Apply schema updates with the repository migrations and verify their recorded versions before using the database.
 
-1. In [Netlify](https://app.netlify.com), click **Add new site** → **Import an existing project**.
-2. Select your GitHub repository.
-3. Set **Publish directory** to: `frontend` (leave Build command blank).
-4. Deploy site!
-5. In GitHub Secrets, configure `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` to enable automated frontend deployments via GitHub Actions.
+### Optional automated deploys
+
+GitHub Actions deployment is optional. Configure the relevant repository secrets only if you enable the deployment workflows: `RAILWAY_TOKEN` and `RAILWAY_APP_URL` for Railway, or `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`, and `RAILWAY_API_ORIGIN` for Netlify. The latter must be the Railway public HTTPS origin with no `/api` suffix; the workflow uses it to generate the same-origin API proxy before publishing.
 
 ---
 
@@ -174,6 +168,9 @@ pip install -r requirements.txt
 ```
 
 ### 3. Database & Migrations
+
+The local Docker Compose database is published on `127.0.0.1:5433` so it can run beside a local PostgreSQL server on the default port. The example `.env` uses the matching Docker database name, user, password, and port.
+
 ```bash
 # Start local PostgreSQL container
 docker-compose up -d postgres
@@ -233,9 +230,10 @@ pip-audit -r requirements.txt --ignore-vuln PYSEC-2020-25 --ignore-vuln CVE-2026
 | `DATABASE_URL` | String | *Required* | PostgreSQL connection string (`postgresql://user:pass@host:5432/db`) |
 | `KITE_API_KEY` | String | *Required* | Zerodha Kite Connect developer API key |
 | `KITE_API_SECRET` | String | *Required* | Zerodha Kite Connect developer API secret |
-| `PORTFOLIOIQ_API_KEY` | String | `dev-secret-key` | Authentication key passed in `X-API-Key` HTTP header |
+| `PORTFOLIOIQ_API_KEY` | String | *Required* | Private authentication key passed in `X-API-Key` HTTP header |
 | `DRY_RUN_MODE` | Boolean | `true` | **Safety Core**: When `true`, all orders are simulated. Must remain `true` until certified. |
 | `ALLOWED_ORIGINS` | String | `*` | Comma-separated list of allowed CORS origins (e.g. Netlify URL) |
+| `FRONTEND_ORIGIN` | URL | `http://localhost:8080` | Frontend origin used after successful broker sign-in |
 | `APP_ENV` | String | `development` | Environment mode (`development` or `production`) |
 | `LOG_LEVEL` | String | `INFO` | Loguru logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `POLLING_INTERVAL_SEC` | Integer | `60` | Background market quote polling interval in seconds |

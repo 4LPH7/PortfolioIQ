@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     kite_api_secret: str = Field(..., description="Kite Connect API secret")
     kite_client_id: str = Field("WJU490", description="Zerodha client ID")
     kite_redirect_url: str = Field(
-        "http://127.0.0.1:5000/callback",
+        "http://127.0.0.1:5000/api/v1/broker/callback",
         description="OAuth redirect URL (must match Kite app settings)",
     )
 
@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     # Application
     # ------------------------------------------------------------------ #
     app_env: Literal["development", "production"] = Field("development")
+    frontend_origin: str = Field(
+        "http://localhost:8080",
+        description="Public origin of the frontend used after broker sign-in",
+    )
     dry_run_mode: bool = Field(
         True,
         description=(
@@ -67,8 +71,7 @@ class Settings(BaseSettings):
     # API Security & Rate Limiting
     # ------------------------------------------------------------------ #
     portfolioiq_api_key: str = Field(
-        "dev-secret-key",
-        description="Static API key required in X-API-Key header",
+        ..., description="Private API key required in X-API-Key header"
     )
     rate_limit_mutations: str = Field(
         "10 per minute",

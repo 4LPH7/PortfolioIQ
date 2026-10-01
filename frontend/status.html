@@ -161,7 +161,7 @@
     <div class="card-header flex items-center justify-between" style="margin-bottom: 0.75rem;">
       <div class="card-title flex items-center gap-xs">
         <span>⏱️ APScheduler Background Tasks &amp; Pipelines</span>
-        <span class="badge badge-buy" id="scheduler-active-badge">ACTIVE</span>
+        <span class="badge badge-warn" id="scheduler-active-badge">API PROCESS</span>
       </div>
       <span class="text-xs text-muted" id="scheduler-jobs-count">4 jobs registered</span>
     </div>
@@ -172,7 +172,7 @@
             <th>Job Identifier</th>
             <th>Task Description</th>
             <th>Schedule / Frequency</th>
-            <th>Next Run Target</th>
+            <th>Availability</th>
             <th class="text-right">Execution Status</th>
           </tr>
         </thead>
@@ -369,13 +369,13 @@
     const scheduler = data.scheduler || {};
     const schedulerBadge = document.getElementById("scheduler-active-badge");
     if (schedulerBadge) {
-      schedulerBadge.textContent = scheduler.active ? "ACTIVE" : "STOPPED";
-      schedulerBadge.className = `badge ${scheduler.active ? "badge-buy" : "badge-sell"}`;
+      schedulerBadge.textContent = scheduler.active === true ? "ACTIVE WHILE API RUNS" : "NOT ENABLED";
+      schedulerBadge.className = `badge ${scheduler.active === true ? "badge-buy" : "badge-warn"}`;
     }
 
     const jobsCount = document.getElementById("scheduler-jobs-count");
     if (jobsCount) {
-      jobsCount.textContent = `${scheduler.jobs_count || (scheduler.jobs || []).length} jobs registered`;
+      jobsCount.textContent = `${scheduler.jobs_count || (scheduler.jobs || []).length} configured jobs`;
     }
 
     const tbody = document.getElementById("scheduler-tbody");
@@ -385,9 +385,9 @@
           <td><span class="font-mono text-xs text-accent">${j.id}</span></td>
           <td><span class="text-sm font-medium">${j.name}</span></td>
           <td><span class="font-mono text-xs">${j.schedule}</span></td>
-          <td><span class="text-xs text-muted">Next EOD Window</span></td>
+          <td><span class="text-xs text-muted">${scheduler.active === true ? "Runs with API" : "Scheduler disabled"}</span></td>
           <td class="text-right">
-            <span class="badge badge-strong-buy">SCHEDULED</span>
+            <span class="badge ${scheduler.active === true ? "badge-buy" : "badge-warn"}">${scheduler.active === true ? "SCHEDULED" : "DISABLED"}</span>
           </td>
         </tr>
       `).join("");

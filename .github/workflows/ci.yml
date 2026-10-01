@@ -236,6 +236,12 @@ jobs:
 
       - name: Deploy to Netlify
         if: env.SKIP_NETLIFY != 'true'
+        run: bash scripts/netlify-build.sh
+        env:
+          RAILWAY_API_ORIGIN: ${{ secrets.RAILWAY_API_ORIGIN }}
+
+      - name: Publish frontend to Netlify
+        if: env.SKIP_NETLIFY != 'true'
         uses: nwtgck/actions-netlify@v3
         with:
           publish-dir: './frontend'

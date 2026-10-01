@@ -1,20 +1,20 @@
 /**
  * PortfolioIQ — API Client
  * Thin wrapper around fetch() that talks to the Flask backend.
- * API_BASE auto-detects localhost vs deployed backend.
+ * Netlify proxies /api to the Railway API. Local development connects directly.
  */
 
-const API_BASE =
-  localStorage.getItem("portfolioiq_api_base") ||
-  (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+function getApiBase() {
+  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
     ? "http://localhost:5000/api/v1"
-    : "https://portfolioiq-z4r6.onrender.com/api/v1");
+    : `${window.location.origin}/api/v1`;
+}
+
+const API_BASE = getApiBase();
 
 function getApiKey() {
   return (
-    sessionStorage.getItem("portfolioiq_session_key") ||
-    localStorage.getItem("portfolioiq_api_key") ||
-    "dev-secret-key"
+    sessionStorage.getItem("portfolioiq_session_key") || ""
   );
 }
 

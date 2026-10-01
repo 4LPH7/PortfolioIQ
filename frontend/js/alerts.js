@@ -136,13 +136,11 @@
 
   async function fetchAlerts() {
     try {
-      const base = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-        ? "http://localhost:5000/api/v1"
-        : "https://portfolioiq-z4r6.onrender.com/api/v1";
+      const base = window.getApiBase();
 
       const apiKey = typeof window.getApiKey === "function"
         ? window.getApiKey()
-        : (sessionStorage.getItem("portfolioiq_session_key") || localStorage.getItem("portfolioiq_api_key") || "dev-secret-key");
+        : (sessionStorage.getItem("portfolioiq_session_key") || "");
 
       const res = await fetch(`${base}/alerts`, {
         headers: {

@@ -23,11 +23,12 @@ if str(PROJECT_ROOT) not in sys.path:
 # 2. Test Environment Defaults
 TEST_DB_URL = os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql://portfolioiq_user:portfolioiq_pass_change_me@127.0.0.1:5432/portfolioiq",
+    "postgresql://portfolioiq_user:portfolioiq_pass_change_me@127.0.0.1:5433/portfolioiq",
 )
 os.environ.setdefault("KITE_API_KEY", "test_api_key")
 os.environ.setdefault("KITE_API_SECRET", "test_api_secret")
 os.environ.setdefault("KITE_CLIENT_ID", "TEST123")
+os.environ.setdefault("PORTFOLIOIQ_API_KEY", "test_portfolioiq_api_key")
 os.environ.setdefault("DRY_RUN_MODE", "true")
 os.environ.setdefault("APP_ENV", "development")
 os.environ.setdefault("TESTING", "true")
