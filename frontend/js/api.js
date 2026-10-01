@@ -4,9 +4,11 @@
  * API_BASE auto-detects localhost vs deployed backend.
  */
 
-const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-  ? "http://localhost:5000/api/v1"
-  : "https://portfolioiq-z4r6.onrender.com/api/v1";
+const API_BASE =
+  localStorage.getItem("portfolioiq_api_base") ||
+  (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://localhost:5000/api/v1"
+    : "https://portfolioiq-z4r6.onrender.com/api/v1");
 
 function getApiKey() {
   return (

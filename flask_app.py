@@ -27,14 +27,22 @@ from src.api.middleware import (
 from src.api.v1.blueprint import api_v1_bp
 from src.execution.safety_certification import verify_startup_safety
 
+DEFAULT_ALLOWED_ORIGINS = [
+    "https://portfolioiq-4lph7.netlify.app",
+    "http://localhost:8080",
+    "http://localhost:3000",
+    "http://127.0.0.1:5000",
+]
+
 
 def _allowed_cors_origins() -> list[str]:
-    """Return the configured cross-origin allowlist; empty means deny all."""
-    return [
-        origin.strip()
-        for origin in os.environ.get("ALLOWED_ORIGINS", "").split(",")
-        if origin.strip()
-    ]
+    """Return the configured cross-origin allowlist; defaults to Netlify and localhost."""
+    raw = os.environ.get("ALLOWED_ORIGINS")
+    if raw is None or not raw.strip():
+        return list(DEFAULT_ALLOWED_ORIGINS)
+    if raw.strip() == "*":
+        return ["*"]
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
 app = Flask(__name__)
@@ -57,6 +65,19 @@ def handle_options_preflight():
 
 
 app.after_request(attach_correlation_id_header)
+
+
+@app.route("/")
+def index():
+    """Root welcome endpoint providing API service info and health link."""
+    return {
+        "ok": True,
+        "service": "PortfolioIQ REST API",
+        "version": "v1.0",
+        "health": "/api/v1/health",
+        "status": "online",
+    }
+
 
 # Dual-mount API Blueprints: /api/v1 (primary) and /api (legacy alias)
 app.register_blueprint(api_v1_bp, url_prefix="/api/v1")
