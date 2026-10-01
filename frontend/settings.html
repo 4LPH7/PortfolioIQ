@@ -45,37 +45,12 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">System <span>Settings</span></h1>
-      <p class="page-subtitle">Engine configuration · Manual sync · Database health · Deployment status</p>
+      <p class="page-subtitle">Connect your broker, sync your holdings, and manage your portfolio.</p>
     </div>
   </div>
 
   <div id="settings-tabs">
-    <div class="tabs">
-      <button class="tab-btn" data-tab="config">🔧 Configuration</button>
-      <button class="tab-btn" data-tab="sync">🔄 Manual Operations</button>
-      <button class="tab-btn" data-tab="stats">📊 Database Stats</button>
-      <button class="tab-btn" data-tab="deploy">🚀 Deployment</button>
-    </div>
-
-    <!-- ── Config Tab ── -->
-    <div class="tab-panel" data-tab="config">
-      <div class="card">
-        <div class="section-header mt-0">System Configuration</div>
-        <p class="text-sm text-muted mb-md">Edit values inline and press <code>Enter</code> or click Save to apply immediately.</p>
-        <div id="config-area"><div class="loading-wrap"><div class="spinner"></div></div></div>
-        <div class="alert alert-err mt-md">
-          <span class="alert-icon">💀</span>
-          <div class="alert-body">
-            <div class="alert-title">Live Trading Warning</div>
-            <div class="alert-text">Setting <code>dry_run_mode = false</code> enables <strong>real Zerodha CNC order placement</strong>. Do this ONLY after validating the system over ≥5 market sessions. Every trade will use your real money and cannot be reversed instantly.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Sync Tab ── -->
-    <div class="tab-panel" data-tab="sync">
-      <div class="grid-3" style="gap:1.1rem">
+      <div class="grid-2" style="gap:1.1rem">
         <div class="card" style="text-align:center">
           <div style="font-size:3rem;margin-bottom:1rem">🔄</div>
           <div class="font-heavy" style="font-size:1.05rem;margin-bottom:0.4rem">Sync Holdings</div>
@@ -85,69 +60,13 @@
         </div>
         <div class="card" style="text-align:center">
           <div style="font-size:3rem;margin-bottom:1rem">🔑</div>
-          <div class="font-heavy" style="font-size:1.05rem;margin-bottom:0.4rem">Kite Re-auth</div>
-          <div class="text-sm text-muted mb-md">Access token expires daily at ~6 AM IST. Run auth module to renew.</div>
-          <div class="alert alert-info" style="text-align:left;margin-bottom:0">
-            <div class="alert-body"><div class="alert-text">Run in terminal:<br><code>python -m src.ingestion.kite_auth</code></div></div>
-          </div>
-        </div>
-        <div class="card" style="text-align:center">
-          <div style="font-size:3rem;margin-bottom:1rem">🐍</div>
-          <div class="font-heavy" style="font-size:1.05rem;margin-bottom:0.4rem">Start API Server</div>
-          <div class="text-sm text-muted mb-md">Flask backend must be running for the dashboard to serve live data.</div>
-          <div class="alert alert-info" style="text-align:left;margin-bottom:0">
-            <div class="alert-body"><div class="alert-text">Run in terminal:<br><code>python flask_app.py</code><br><span class="text-dim" style="font-size:0.75rem">Runs on http://localhost:5000</span></div></div>
-          </div>
+          <div class="font-heavy" style="font-size:1.05rem;margin-bottom:0.4rem">Daily Zerodha sign-in</div>
+          <div class="text-sm text-muted mb-md">Kite requires you to approve a new session each day. Connect once each morning to refresh holdings and live prices.</div>
+          <button class="btn btn-primary" style="width:100%" id="broker-login-btn" onclick="connectBroker()">Connect Zerodha</button>
+          <div id="broker-login-status" class="text-sm mt-sm" role="status"></div>
         </div>
       </div>
-    </div>
-
-    <!-- ── Stats Tab ── -->
-    <div class="tab-panel" data-tab="stats">
-      <div class="section-header mt-0">Live Database Statistics</div>
-      <div class="kpi-grid stagger" id="db-stats-grid" style="grid-template-columns:repeat(4,1fr)">
-        <div class="loading-wrap" style="grid-column:1/-1"><div class="spinner"></div></div>
-      </div>
-    </div>
-
-    <!-- ── Deployment Tab ── -->
-    <div class="tab-panel" data-tab="deploy">
-      <div class="grid-2">
-        <div class="card">
-          <div class="section-header mt-0">🌐 Netlify Frontend</div>
-          <div style="display:flex;flex-direction:column;gap:0.75rem">
-            <div class="metric-sm"><div class="metric-sm-label">Live URL</div><div style="margin-top:0.25rem"><a href="https://portfolioiq-4lph7.netlify.app" target="_blank" class="text-accent">portfolioiq-4lph7.netlify.app ↗</a></div></div>
-            <div class="metric-sm"><div class="metric-sm-label">Admin</div><div style="margin-top:0.25rem"><a href="https://app.netlify.com/projects/portfolioiq-4lph7" target="_blank" class="text-accent">app.netlify.com ↗</a></div></div>
-            <div class="metric-sm"><div class="metric-sm-label">Build</div><div class="metric-sm-val text-green mt-sm">✅ Static · No build step</div></div>
-            <div class="metric-sm"><div class="metric-sm-label">Pages Deployed</div><div class="metric-sm-val mt-sm">6 pages</div></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="section-header mt-0">📦 GitHub Repository</div>
-          <div style="display:flex;flex-direction:column;gap:0.75rem">
-            <div class="metric-sm"><div class="metric-sm-label">Repository</div><div style="margin-top:0.25rem"><a href="https://github.com/4LPH7/PortfolioIQ" target="_blank" class="text-accent">4LPH7/PortfolioIQ ↗</a></div></div>
-            <div class="metric-sm"><div class="metric-sm-label">Branch</div><div class="metric-sm-val mt-sm">main</div></div>
-            <div class="metric-sm"><div class="metric-sm-label">CI/CD</div><div class="metric-sm-val mt-sm text-green">✅ GitHub Actions</div></div>
-            <div class="metric-sm"><div class="metric-sm-label">Auto-deploy</div><div class="metric-sm-val mt-sm text-muted">Push to main → Netlify</div></div>
-          </div>
-        </div>
-      </div>
-      <div class="card mt-md">
-        <div class="section-header mt-0">🔑 Environment Variables Required</div>
-        <div class="table-wrap" style="margin-top:0">
-          <table><thead><tr><th>Variable</th><th>Value</th><th>Notes</th></tr></thead><tbody>
-            ${[
-              ["DATABASE_URL","postgresql://…","PostgreSQL connection string"],
-              ["KITE_API_KEY","","From Kite Connect app"],
-              ["KITE_API_SECRET","xceqrdfhv72o2t7…","From Kite Connect app"],
-              ["KITE_CLIENT_ID","WJU490","Your Zerodha client ID"],
-              ["FLASK_SECRET_KEY","random 32-char hex","Generate with secrets.token_hex(32)"],
-              ["DRY_RUN_MODE","true","Set false for LIVE trading"],
-            ].map(([k,v,n])=>`<tr><td><code>${k}</code></td><td class="td-dim td-mono">${v}</td><td class="td-dim text-sm">${n}</td></tr>`).join("")}
-          </tbody></table>
-        </div>
-      </div>
-    </div>
+      <p class="text-sm text-muted mt-md">Quote updates run while the API is available and your Kite session is active. Free host usage limits can pause the service and scheduled updates.</p>
   </div>
 </main>
 <div class="dry-run-notice"><div class="dry-run-dot"></div>DRY RUN — No real orders</div>
@@ -182,53 +101,40 @@
 <script>
 setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " IST"; }, 1000);
 
-initTabs("settings-tabs");
-
-const CONFIG_DESCS = {
-  concentration_limit_pct:       "Max % of AUM a single holding can occupy before rebalance triggers",
-  dry_run_mode:                  "⚠️ true = simulate only · false = LIVE orders on Zerodha",
-  duplicate_window_sec:          "Cooldown (seconds) before same order can repeat",
-  eod_export_time:               "Time to run end-of-day export (HH:MM IST)",
-  market_close_time:             "NSE close time (HH:MM IST)",
-  market_open_time:              "NSE open time (HH:MM IST)",
-  max_rebalance_orders:          "Maximum orders per single rebalance cycle",
-  polling_interval_sec:          "Yahoo Finance price polling interval in seconds",
-  price_staleness_threshold_sec: "Age (seconds) after which a cached price is considered stale",
-  slippage_bound_pct:            "Max allowed slippage % before rejecting an order",
-};
-
-// Load config
-(async () => {
-  const r = await apiGet("/api/settings/config").catch(()=>({ok:false,error:"API offline"}));
-  if (!r.ok) { document.getElementById("config-area").innerHTML = errBox(r.error); return; }
-  const items = r.data;
-  document.getElementById("config-area").innerHTML = `
-    <div style="display:grid;gap:0">
-      ${items.map(row => `
-      <div style="display:grid;grid-template-columns:220px 200px 1fr;gap:0.75rem;align-items:center;padding:0.75rem 0;border-bottom:1px solid rgba(255,255,255,0.03)">
-        <code style="font-size:0.8rem;color:var(--accent)">${row.key}</code>
-        <input type="text" id="cfg-${row.key}" value="${row.value||""}"
-          style="font-family:'JetBrains Mono',monospace;font-size:0.85rem"
-          onkeydown="if(event.key==='Enter') saveCfg('${row.key}')"/>
-        <span class="text-dim text-sm">${CONFIG_DESCS[row.key]||row.description||""}</span>
-      </div>`).join("")}
-    </div>
-    <div style="display:flex;align-items:center;gap:1rem;margin-top:1.25rem">
-      <button class="btn btn-primary" onclick="saveAllCfg(${JSON.stringify(items.map(r=>r.key))})">💾 Save All Changes</button>
-      <span id="cfg-save-msg" class="text-sm"></span>
-    </div>`;
-})();
-
-async function saveCfg(key) {
-  const val = document.getElementById(`cfg-${key}`)?.value;
-  const r = await apiPatch("/api/settings/config", { key, value:val });
-  const msg = document.getElementById("cfg-save-msg");
-  if (!msg) return;
-  msg.textContent = r.ok ? `✓ Saved ${key}` : `✗ ${r.error}`;
-  msg.style.color = r.ok ? "var(--green)" : "var(--red)";
-  setTimeout(() => { if(msg) msg.textContent=""; }, 3000);
+const brokerStatus = document.getElementById("broker-login-status");
+const brokerButton = document.getElementById("broker-login-btn");
+if (new URLSearchParams(location.search).get("broker") === "connected") {
+  brokerStatus.textContent = "Connected. Syncing your portfolio…";
+  doSync();
+  history.replaceState({}, "", location.pathname);
 }
-function saveAllCfg(keys) { keys.forEach(k => saveCfg(k)); }
+
+async function refreshBrokerStatus() {
+  const r = await apiGet("/api/system/status").catch(() => ({ok:false}));
+  if (!r.ok) {
+    brokerStatus.textContent = "Portfolio service is unavailable. Try again shortly.";
+    brokerStatus.style.color = "var(--red)";
+    return;
+  }
+  const connected = !!r.data?.broker?.authenticated;
+  brokerStatus.textContent = connected ? "Zerodha connected · daily session active" : "Daily sign-in required";
+  brokerStatus.style.color = connected ? "var(--green)" : "var(--text-muted)";
+  brokerButton.textContent = connected ? "Reconnect Zerodha" : "Connect Zerodha";
+}
+
+async function connectBroker() {
+  brokerButton.disabled = true;
+  brokerButton.textContent = "Opening secure sign-in…";
+  const r = await apiGet("/api/broker/login").catch(() => ({ok:false}));
+  if (r.ok && r.data?.url) {
+    location.assign(r.data.url);
+    return;
+  }
+  brokerStatus.textContent = r.error || "Could not start broker sign-in. Check connection settings.";
+  brokerStatus.style.color = "var(--red)";
+  brokerButton.disabled = false;
+  brokerButton.textContent = "Try again";
+}
 
 async function doSync() {
   const el = document.getElementById("sync-result");
@@ -242,28 +148,7 @@ async function doSync() {
   }
 }
 
-// DB Stats
-(async () => {
-  const r = await apiGet("/api/settings/db-stats").catch(()=>({ok:false}));
-  if (!r.ok) return;
-  const s = r.data;
-  const stats = [
-    ["🔧","Instruments (Active)", s.instruments],
-    ["💼","Holdings",             s.holdings],
-    ["📡","Live Prices Cached",   s.live_prices],
-    ["📈","Price History Rows",   s.price_history],
-    ["📋","Audit Trail Entries",  s.audit_entries],
-    ["✅","Validation Log",       s.validation_entries],
-    ["💰","Open Tax Lots",        s.tax_lots],
-    ["📅","NSE Holidays (2026)",  s.holidays],
-  ];
-  document.getElementById("db-stats-grid").innerHTML = stats.map(([icon,label,val])=>`
-    <div class="kpi-card">
-      <span class="kpi-icon">${icon}</span>
-      <div class="kpi-label">${label}</div>
-      <div class="kpi-value">${Number(val||0).toLocaleString("en-IN")}</div>
-    </div>`).join("");
-})();
+refreshBrokerStatus();
 </script>
 </body>
 </html>

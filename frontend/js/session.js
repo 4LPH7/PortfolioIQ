@@ -29,8 +29,6 @@
   function setStoredSessionKey(key) {
     if (key) {
       sessionStorage.setItem(SESSION_KEY_NAME, key);
-      // Also update localStorage for persistent dev convenience if user opted in
-      localStorage.setItem("portfolioiq_api_key", key);
     } else {
       sessionStorage.removeItem(SESSION_KEY_NAME);
     }
@@ -77,7 +75,7 @@
                 id="session-key-input"
                 name="session_key"
                 class="form-control"
-                placeholder="e.g. dev-secret-key"
+                placeholder="Your PortfolioIQ access key"
                 autocomplete="current-password"
                 required
               />
@@ -159,10 +157,7 @@
     if (input) input.disabled = true;
 
     try {
-      // Determine API URL (support dev and deployed base)
-      const base = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-        ? "http://localhost:5000/api/v1"
-        : "https://portfolioiq-z4r6.onrender.com/api/v1";
+      const base = window.getApiBase();
 
       const res = await fetch(`${base}/auth/verify`, {
         method: "POST",
@@ -287,20 +282,7 @@
     // Check if we have an active session key in sessionStorage
     const existingSession = getStoredSessionKey();
     if (!existingSession) {
-      // Check if localStorage has a saved key from previous configuration
-      const fallbackKey = localStorage.getItem("portfolioiq_api_key");
-      if (fallbackKey && fallbackKey !== "dev-secret-key") {
-        // Attempt quick verification in background
-        verifyAndUnlock(fallbackKey).catch(() => {
-          showLockModal();
-        });
-      } else if (fallbackKey === "dev-secret-key") {
-        // In local development, seed session key automatically if present
-        setStoredSessionKey(fallbackKey);
-      } else {
-        // Force unlock modal on initial load if no credentials exist
-        showLockModal("Welcome to PortfolioIQ. Please enter your Master API Key to continue.");
-      }
+      showLockModal("Welcome to PortfolioIQ. Enter your access key to continue.");
     }
   }
 

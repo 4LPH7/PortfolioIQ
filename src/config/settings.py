@@ -67,8 +67,7 @@ class Settings(BaseSettings):
     # API Security & Rate Limiting
     # ------------------------------------------------------------------ #
     portfolioiq_api_key: str = Field(
-        "dev-secret-key",
-        description="Static API key required in X-API-Key header",
+        ..., description="Private API key required in X-API-Key header"
     )
     rate_limit_mutations: str = Field(
         "10 per minute",

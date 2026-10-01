@@ -73,7 +73,9 @@ def exchange_token(request_token: str) -> str:
 
     # Calculate expiry: Kite tokens expire around 6 AM IST next day
     now_ist = datetime.now(tz=IST)
-    tomorrow_6am = (now_ist + timedelta(days=1)).replace(hour=6, minute=0, second=0, microsecond=0)
+    expires_at = now_ist.replace(hour=6, minute=0, second=0, microsecond=0)
+    if now_ist >= expires_at:
+        expires_at += timedelta(days=1)
 
     # Store in DB (upsert — one row per user)
     with get_db_session() as session:
@@ -94,12 +96,12 @@ def exchange_token(request_token: str) -> str:
                 "user_id": "default",
                 "api_key": settings.kite_api_key,
                 "token": access_token,
-                "expires_at": tomorrow_6am,
+                "expires_at": expires_at,
             },
         )
 
     logger.success(
-        "Access token stored. Valid until ~{}", tomorrow_6am.strftime("%Y-%m-%d 06:00 IST")
+        "Access token stored. Valid until ~{}", expires_at.strftime("%Y-%m-%d 06:00 IST")
     )
     return access_token
 

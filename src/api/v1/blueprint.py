@@ -7,6 +7,7 @@ rebalancing, tax summaries, audit trails, and system settings.
 from __future__ import annotations
 
 import hmac
+import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -509,11 +510,7 @@ def post_auth_verify():
         payload = request.get_json(silent=True) or {}
         provided_key = payload.get("api_key")
 
-    valid_keys = {
-        k.strip()
-        for k in [expected_key, "dev-secret-key", "PortfolioIQ2026Pass"]
-        if k and k.strip()
-    }
+    valid_keys = {expected_key.strip()} if expected_key and expected_key.strip() else set()
     if not provided_key or not any(
         hmac.compare_digest(provided_key.strip(), k) for k in valid_keys
     ):
@@ -531,6 +528,40 @@ def post_auth_verify():
         ),
         200,
     )
+
+
+@api_v1_bp.route("/broker/login", methods=["GET"])
+@require_api_key
+def broker_login():
+    """Return the broker's interactive daily sign-in URL."""
+    from src.ingestion.kite_auth import get_login_url
+
+    return jsonify({"ok": True, "data": {"url": get_login_url()}})
+
+
+@api_v1_bp.route("/broker/callback", methods=["GET"])
+def broker_callback():
+    """Exchange Kite's one-time request token and finish daily sign-in."""
+    from flask import redirect
+
+    from src.ingestion.kite_auth import exchange_token
+
+    if request.args.get("error") or not request.args.get("request_token"):
+        return (
+            "<main><h1>Sign-in was not completed</h1><p>Return to PortfolioIQ and try again.</p></main>",
+            400,
+        )
+    try:
+        exchange_token(request.args["request_token"])
+    except Exception:
+        from loguru import logger
+
+        logger.exception("Kite callback token exchange failed")
+        return (
+            "<main><h1>Sign-in failed</h1><p>Return to PortfolioIQ and try again.</p></main>",
+            500,
+        )
+    return redirect("https://portfolioiq-4lph7.netlify.app/settings.html?broker=connected")
 
 
 @api_v1_bp.route("/alerts", methods=["GET"])
@@ -760,6 +791,7 @@ def get_system_status():
         "broker_name": "Zerodha Kite Connect",
         "authenticated": bool(tok),
         "token_active": bool(tok),
+        "daily_login_required": not bool(tok),
     }
 
     # 3. Market
@@ -768,7 +800,22 @@ def get_system_status():
     # 4. Scheduler
     jobs = [
         {
-            "id": "daily_eod_snapshot",
+            "id": "instrument_refresh",
+            "name": "Instrument Master Refresh",
+            "schedule": "08:30 IST Mon-Fri",
+        },
+        {
+            "id": "sod_sync",
+            "name": "Start of Day Kite Sync",
+            "schedule": "09:15 IST Mon-Fri",
+        },
+        {
+            "id": "eod_export",
+            "name": "End of Day Export",
+            "schedule": "15:45 IST Mon-Fri",
+        },
+        {
+            "id": "eod_snapshot",
             "name": "Daily EOD Portfolio Snapshot",
             "schedule": "16:00 IST Mon-Fri",
         },
@@ -785,11 +832,22 @@ def get_system_status():
         {
             "id": "partition_maintenance",
             "name": "Partition Maintenance",
-            "schedule": "00:00 IST Daily",
+            "schedule": "00:05 IST Daily",
+        },
+        {
+            "id": "token_expiry_check",
+            "name": "Kite Token Expiry Check",
+            "schedule": "05:30 IST Daily",
+        },
+        {
+            "id": "live_quote_polling",
+            "name": "Live Quote Refresh",
+            "schedule": f"Every {settings.polling_interval_sec}s during market hours",
         },
     ]
     scheduler_info = {
-        "active": True,
+        "active": os.environ.get("RUN_INLINE_SCHEDULER", "").lower() == "true",
+        "managed_by": "Single API process",
         "jobs_count": len(jobs),
         "jobs": jobs,
     }

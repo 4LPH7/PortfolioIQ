@@ -82,11 +82,7 @@ def require_api_key(f: Callable[..., Any]) -> Callable[..., Any]:
         settings = get_settings()
         expected_key = settings.portfolioiq_api_key
 
-        valid_keys = {
-            k.strip()
-            for k in [expected_key, "dev-secret-key", "PortfolioIQ2026Pass"]
-            if k and k.strip()
-        }
+        valid_keys = {expected_key.strip()} if expected_key and expected_key.strip() else set()
 
         if not api_key or not any(hmac.compare_digest(api_key.strip(), k) for k in valid_keys):
             logger.warning(

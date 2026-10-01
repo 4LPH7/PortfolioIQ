@@ -6,8 +6,10 @@ rate limiting, and uniform error envelopes.
 
 from __future__ import annotations
 
+import atexit
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 # Add project root to sys.path
@@ -94,6 +96,44 @@ try:
 except Exception as _safety_exc:
     logger.critical("Startup safety gate failed: {}", _safety_exc)
     raise
+
+
+# Keep scheduled jobs in the API process for deployments without a separate
+# worker. Configure one Gunicorn worker; host sleep or usage limits pause jobs
+# whenever the API process is stopped.
+_inline_scheduler = None
+if os.environ.get("RUN_INLINE_SCHEDULER", "").lower() == "true":
+    import pytz
+
+    from src.config.settings import get_settings
+    from src.scheduler.jobs import create_scheduler
+
+    _IST = pytz.timezone("Asia/Kolkata")
+    _inline_scheduler = create_scheduler()
+
+    def _poll_live_quotes() -> None:
+        from src.ingestion.kite_auth import get_stored_token
+        from src.ingestion.market_hours import is_market_open
+
+        if not is_market_open() or not get_stored_token():
+            return
+        from src.ingestion.kite_quote_poller import poll_kite_quotes
+
+        poll_kite_quotes()
+
+    _inline_scheduler.add_job(
+        _poll_live_quotes,
+        "interval",
+        seconds=get_settings().polling_interval_sec,
+        id="live_quote_polling",
+        name="Live Kite quote refresh",
+        max_instances=1,
+        coalesce=True,
+        replace_existing=True,
+        next_run_time=datetime.now(_IST),
+    )
+    _inline_scheduler.start()
+    atexit.register(lambda: _inline_scheduler.shutdown(wait=False))
 
 
 # Global Error Handlers — enforce uniform error envelope

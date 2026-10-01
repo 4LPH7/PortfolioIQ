@@ -5,7 +5,7 @@ services:
     region: singapore
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn flask_app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info
+    startCommand: gunicorn flask_app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info
     healthCheckPath: /api/v1/health
     envVars:
       - key: PYTHON_VERSION
@@ -23,17 +23,21 @@ services:
       - key: KITE_CLIENT_ID
         value: WJU490
       - key: KITE_REDIRECT_URL
-        value: http://127.0.0.1:5000/callback
+        value: https://portfolioiq-z4r6.onrender.com/api/v1/broker/callback
       - key: FLASK_SECRET_KEY
         generateValue: true  # Render auto-generates a secure random value
       - key: DRY_RUN_MODE
         value: "true"
+      - key: APP_ENV
+        value: production
       - key: ALLOWED_ORIGINS
         value: https://portfolioiq-4lph7.netlify.app
       - key: LOG_LEVEL
         value: INFO
       - key: POLLING_INTERVAL_SEC
-        value: "60"
+        value: "15"
+      - key: RUN_INLINE_SCHEDULER
+        value: "true"
       - key: MARKET_OPEN_TIME
         value: "09:15"
       - key: MARKET_CLOSE_TIME

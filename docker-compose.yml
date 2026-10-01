@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # ============================================================
   # PostgreSQL Database
@@ -14,7 +12,7 @@ services:
       POSTGRES_PASSWORD: portfolioiq_pass_change_me
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
