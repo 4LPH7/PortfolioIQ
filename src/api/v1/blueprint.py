@@ -561,7 +561,8 @@ def broker_callback():
             "<main><h1>Sign-in failed</h1><p>Return to PortfolioIQ and try again.</p></main>",
             500,
         )
-    return redirect("https://portfolioiq-4lph7.netlify.app/settings.html?broker=connected")
+    frontend_origin = get_settings().frontend_origin.rstrip("/")
+    return redirect(f"{frontend_origin}/settings.html?broker=connected")
 
 
 @api_v1_bp.route("/alerts", methods=["GET"])

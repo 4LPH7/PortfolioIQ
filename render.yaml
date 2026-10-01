@@ -24,6 +24,8 @@ services:
         value: WJU490
       - key: KITE_REDIRECT_URL
         value: https://portfolioiq-z4r6.onrender.com/api/v1/broker/callback
+      - key: FRONTEND_ORIGIN
+        value: https://portfolioiq-4lph7.netlify.app
       - key: FLASK_SECRET_KEY
         generateValue: true  # Render auto-generates a secure random value
       - key: DRY_RUN_MODE

@@ -60,6 +60,33 @@ def test_market_status_accessible_without_auth(client: FlaskClient) -> None:
         assert res_legacy.json == {"ok": True, "data": mock_status}
 
 
+def test_broker_callback_returns_to_configured_frontend(client: FlaskClient) -> None:
+    """A successful Kite login returns to this deployment's configured UI."""
+    from types import SimpleNamespace
+
+    with (
+        patch("src.ingestion.kite_auth.exchange_token"),
+        patch(
+            "src.api.v1.blueprint.get_settings",
+            return_value=SimpleNamespace(frontend_origin="https://custom-site.netlify.app/"),
+        ),
+    ):
+        response = client.get(
+            "/api/v1/broker/callback?request_token=one-time-token",
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == (
+        "https://custom-site.netlify.app/settings.html?broker=connected"
+    )
+
+
+def test_broker_callback_missing_token_has_actionable_response(client: FlaskClient) -> None:
+    response = client.get("/api/v1/broker/callback")
+    assert response.status_code == 400
+
+
 # ─────────────────────────────────────────────────────────────
 # Authentication & Security
 # ─────────────────────────────────────────────────────────────

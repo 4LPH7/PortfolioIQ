@@ -109,11 +109,12 @@ The app has a static **Netlify frontend** and a Python **Railway API**. Netlify 
    - `KITE_API_KEY` and `KITE_API_SECRET`: Kite Connect app credentials
    - `PORTFOLIOIQ_API_KEY`: generate a long random API key
    - `ALLOWED_ORIGINS`: your exact Netlify site origin, such as `https://your-site.netlify.app`
+   - `FRONTEND_ORIGIN`: that same exact Netlify site origin; Kite returns here after sign-in
    - `APP_ENV=production`
    - `DRY_RUN_MODE=true`
    - `RUN_INLINE_SCHEDULER=true`
    - `POLLING_INTERVAL_SEC=15`
-3. In your Kite Connect app, set the redirect URL to `https://<your-railway-domain>/api/v1/broker/callback`.
+3. In your Kite Connect app, set the redirect URL to `https://<your-railway-domain>/api/v1/broker/callback`. For local Docker use, set `KITE_REDIRECT_URL` in `.env` and the Kite app to `http://127.0.0.1:5000/api/v1/broker/callback`; set `FRONTEND_ORIGIN=http://localhost:8080`.
 4. Check the API is healthy at `https://<your-railway-domain>/api/v1/health`.
 
 ### 2. Deploy the frontend to Netlify
@@ -232,6 +233,7 @@ pip-audit -r requirements.txt --ignore-vuln PYSEC-2020-25 --ignore-vuln CVE-2026
 | `PORTFOLIOIQ_API_KEY` | String | *Required* | Private authentication key passed in `X-API-Key` HTTP header |
 | `DRY_RUN_MODE` | Boolean | `true` | **Safety Core**: When `true`, all orders are simulated. Must remain `true` until certified. |
 | `ALLOWED_ORIGINS` | String | `*` | Comma-separated list of allowed CORS origins (e.g. Netlify URL) |
+| `FRONTEND_ORIGIN` | URL | `http://localhost:8080` | Frontend origin used after successful broker sign-in |
 | `APP_ENV` | String | `development` | Environment mode (`development` or `production`) |
 | `LOG_LEVEL` | String | `INFO` | Loguru logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `POLLING_INTERVAL_SEC` | Integer | `60` | Background market quote polling interval in seconds |
