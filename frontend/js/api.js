@@ -493,8 +493,138 @@ function initSpotlightController() {
   }, { passive: true });
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initSpotlightController);
-} else {
-  initSpotlightController();
+// ── Global Liquid Glass Floating Tooltip Controller ───────────
+function initGlobalTooltipController() {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+
+  let tooltipEl = document.getElementById("app-floating-tooltip");
+  if (!tooltipEl) {
+    tooltipEl = document.createElement("div");
+    tooltipEl.id = "app-floating-tooltip";
+    tooltipEl.className = "app-floating-tooltip";
+    tooltipEl.setAttribute("role", "tooltip");
+    tooltipEl.setAttribute("aria-hidden", "true");
+    document.body.appendChild(tooltipEl);
+  }
+
+  let currentTarget = null;
+  let showTimeout = null;
+
+  function hideTooltip() {
+    clearTimeout(showTimeout);
+    currentTarget = null;
+    tooltipEl.classList.remove("visible");
+  }
+
+  function getTooltipText(target) {
+    if (!target) return "";
+    const isSidebarRetracted = document.body.classList.contains("sidebar-retracted");
+    const isNavItem = target.closest(".nav-item");
+
+    // Only show sidebar nav tooltips if sidebar is retracted or explicitly requested
+    if (isNavItem && !isSidebarRetracted && !target.hasAttribute("data-tip")) {
+      return "";
+    }
+
+    const tip = target.getAttribute("data-tip") ||
+                target.getAttribute("data-tooltip") ||
+                target.getAttribute("data-title") ||
+                (target.hasAttribute("title") ? target.getAttribute("title") : "");
+
+    if (tip && target.hasAttribute("title")) {
+      target.setAttribute("data-orig-title", target.getAttribute("title"));
+      target.removeAttribute("title");
+    }
+
+    return tip ? tip.trim() : "";
+  }
+
+  function positionTooltip(target, text) {
+    tooltipEl.textContent = text;
+    tooltipEl.className = "app-floating-tooltip";
+
+    const rect = target.getBoundingClientRect();
+    const isSidebar = !!target.closest(".sidebar");
+
+    // Temporarily position off-screen to measure true layout dimensions
+    tooltipEl.style.left = "-9999px";
+    tooltipEl.style.top = "-9999px";
+    tooltipEl.style.visibility = "hidden";
+    tooltipEl.classList.add("visible");
+    const tipWidth = tooltipEl.offsetWidth;
+    const tipHeight = tooltipEl.offsetHeight;
+    tooltipEl.style.visibility = "";
+
+    if (isSidebar) {
+      // Place to the right of the sidebar item
+      tooltipEl.classList.add("side", "placement-right", "visible");
+      let left = rect.right + 12;
+      let top = rect.top + (rect.height / 2) - (tipHeight / 2);
+      top = Math.max(8, Math.min(top, window.innerHeight - tipHeight - 8));
+      tooltipEl.style.left = `${Math.round(left)}px`;
+      tooltipEl.style.top = `${Math.round(top)}px`;
+      tooltipEl.style.setProperty("--arrow-offset", `${Math.round(rect.top + (rect.height / 2) - top)}px`);
+    } else {
+      // Place above target, flip to bottom if off-screen top
+      let top = rect.top - tipHeight - 10;
+      let placement = "placement-top";
+      if (top < 10) {
+        top = rect.bottom + 10;
+        placement = "placement-bottom";
+      }
+
+      const idealCenter = rect.left + (rect.width / 2);
+      let left = idealCenter - (tipWidth / 2);
+      left = Math.max(10, Math.min(left, window.innerWidth - tipWidth - 10));
+
+      tooltipEl.classList.add(placement, "visible");
+      tooltipEl.style.left = `${Math.round(left)}px`;
+      tooltipEl.style.top = `${Math.round(top)}px`;
+
+      const arrowOffset = Math.max(12, Math.min(idealCenter - left, tipWidth - 12));
+      tooltipEl.style.setProperty("--arrow-offset", `${Math.round(arrowOffset)}px`);
+    }
+  }
+
+  document.addEventListener("pointerover", (e) => {
+    const target = e.target.closest("[data-tip], [data-tooltip], [title], [data-title], .sidebar .nav-item");
+    if (!target) return;
+    const text = getTooltipText(target);
+    if (!text) return;
+
+    if (currentTarget === target) return;
+    currentTarget = target;
+
+    const delay = tooltipEl.classList.contains("visible") ? 20 : 70;
+    clearTimeout(showTimeout);
+    showTimeout = setTimeout(() => {
+      if (currentTarget === target) {
+        positionTooltip(target, text);
+      }
+    }, delay);
+  }, { passive: true });
+
+  document.addEventListener("pointerout", (e) => {
+    if (!currentTarget) return;
+    if (e.relatedTarget && currentTarget.contains(e.relatedTarget)) return;
+    hideTooltip();
+  }, { passive: true });
+
+  window.addEventListener("scroll", hideTooltip, { passive: true });
+  window.addEventListener("resize", hideTooltip, { passive: true });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideTooltip();
+  });
 }
+
+function initEffectsAndTooltips() {
+  initSpotlightController();
+  initGlobalTooltipController();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initEffectsAndTooltips);
+} else {
+  initEffectsAndTooltips();
+}
+
