@@ -5,9 +5,10 @@
  */
 
 function getApiBase() {
-  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-    ? "http://localhost:5000/api/v1"
-    : `${window.location.origin}/api/v1`;
+  if (window.location.protocol === "file:") {
+    return "http://localhost:5000/api/v1";
+  }
+  return `${window.location.origin}/api/v1`;
 }
 
 const API_BASE = getApiBase();

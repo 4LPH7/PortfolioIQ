@@ -32,8 +32,8 @@ def _classify_quantity_discrepancy(
                                 ELSE 0 END) as net_fills
                 FROM order_audit_trail
                 WHERE instrument_token = :token
-                  AND status IN ('COMPLETED', 'FILLED')
-                  AND executed_at > :last_sync
+                  AND broker_status = 'COMPLETE'
+                  AND (executed_at > :last_sync OR (executed_at IS NULL AND created_at > :last_sync))
             """),
             {"token": token, "last_sync": last_synced_at},
         ).fetchone()
@@ -99,15 +99,97 @@ def _record_reconciliation_log(
     )
 
 
+def _ensure_instrument_exists(session, holding: dict) -> None:
+    """
+    Insert or update instrument_master record for the holding/position.
+    Maps yf_ticker via tradingsymbol_to_yf_ticker so live quotes and analytics work immediately.
+    """
+    token = holding.get("instrument_token")
+    if not token:
+        return
+    tradingsymbol = holding.get("tradingsymbol", "")
+    exchange = holding.get("exchange", "NSE")
+    isin = holding.get("isin")
+    name = holding.get("name") or holding.get("company_name") or tradingsymbol
+
+    from src.ingestion.instrument_mapper import tradingsymbol_to_yf_ticker
+    yf_ticker = tradingsymbol_to_yf_ticker(tradingsymbol, exchange)
+
+    # Check if (exchange, tradingsymbol) exists with different token
+    existing_sym = session.execute(
+        text("SELECT instrument_token FROM instrument_master WHERE exchange = :exchange AND tradingsymbol = :symbol"),
+        {"exchange": exchange, "symbol": tradingsymbol},
+    ).fetchone()
+
+    if existing_sym and existing_sym.instrument_token != token:
+        try:
+            session.execute(
+                text("""
+                    UPDATE instrument_master
+                    SET instrument_token = :token,
+                        exchange_token = :token,
+                        name = COALESCE(name, :name),
+                        isin = COALESCE(:isin, isin),
+                        yf_ticker = COALESCE(yf_ticker, :yf_ticker),
+                        is_active = TRUE,
+                        last_synced_at = NOW()
+                    WHERE exchange = :exchange AND tradingsymbol = :symbol
+                """),
+                {
+                    "token": token,
+                    "name": name,
+                    "isin": isin,
+                    "yf_ticker": yf_ticker,
+                    "exchange": exchange,
+                    "symbol": tradingsymbol,
+                },
+            )
+            return
+        except Exception:
+            logger.warning(
+                f"Could not update instrument_token for {exchange}:{tradingsymbol}; keeping existing"
+            )
+
+    session.execute(
+        text("""
+            INSERT INTO instrument_master (
+                instrument_token, exchange_token, tradingsymbol,
+                name, isin, yf_ticker, exchange, instrument_type, is_active, last_synced_at
+            )
+            VALUES (
+                :token, :token, :symbol,
+                :name, :isin, :yf_ticker, :exchange, 'EQ', TRUE, NOW()
+            )
+            ON CONFLICT (instrument_token) DO UPDATE SET
+                tradingsymbol = EXCLUDED.tradingsymbol,
+                exchange = EXCLUDED.exchange,
+                isin = COALESCE(EXCLUDED.isin, instrument_master.isin),
+                name = COALESCE(instrument_master.name, EXCLUDED.name),
+                yf_ticker = COALESCE(instrument_master.yf_ticker, EXCLUDED.yf_ticker),
+                is_active = TRUE,
+                last_synced_at = NOW()
+        """),
+        {
+            "token": token,
+            "symbol": tradingsymbol,
+            "name": name,
+            "isin": isin,
+            "yf_ticker": yf_ticker,
+            "exchange": exchange,
+        },
+    )
+
+
 def sync_holdings(user_id: str = "default") -> int:
     """
     Pull holdings from Kite API and upsert into user_holdings table.
-    Performs reconciliation against local holdings.
+    Performs reconciliation against local holdings. Preserves imported
+    (CSV/manual) data safely and reconciles matching securities seamlessly.
 
     Returns:
         Number of holdings upserted.
     """
-    logger.info("Starting Kite holdings sync...")
+    logger.info("Starting Kite holdings sync for user='{}'...", user_id)
     kite = get_authenticated_kite()
 
     try:
@@ -125,16 +207,20 @@ def sync_holdings(user_id: str = "default") -> int:
         local_rows = session.execute(
             text("""
                 SELECT instrument_token, tradingsymbol, quantity, t1_quantity, average_price, last_synced_at,
-                       COALESCE(data_source, 'KITE') AS data_source
+                       COALESCE(data_source, 'KITE') AS data_source, id, exchange, isin
                 FROM user_holdings
                 WHERE user_id = :user_id
             """),
             {"user_id": user_id},
         ).fetchall()
 
-        local_holdings = {
+        local_holdings_by_token = {
             r.instrument_token: {
+                "id": r.id,
+                "instrument_token": r.instrument_token,
                 "tradingsymbol": r.tradingsymbol,
+                "exchange": r.exchange,
+                "isin": r.isin,
                 "quantity": r.quantity,
                 "t1_quantity": r.t1_quantity,
                 "average_price": float(r.average_price),
@@ -142,6 +228,16 @@ def sync_holdings(user_id: str = "default") -> int:
                 "data_source": getattr(r, "data_source", "KITE") or "KITE",
             }
             for r in local_rows
+        }
+
+        local_holdings_by_symbol = {
+            r.tradingsymbol.upper(): local_holdings_by_token[r.instrument_token]
+            for r in local_rows
+        }
+        local_holdings_by_isin = {
+            r.isin: local_holdings_by_token[r.instrument_token]
+            for r in local_rows
+            if r.isin
         }
 
         processed_tokens = set()
@@ -154,13 +250,44 @@ def sync_holdings(user_id: str = "default") -> int:
 
             processed_tokens.add(instrument_token)
 
+            # Ensure instrument exists in master FIRST before foreign key checks
+            _ensure_instrument_exists(session, h)
+
             new_qty = h.get("quantity", 0)
             new_t1 = h.get("t1_quantity", 0)
             new_total = new_qty + new_t1
             new_avg_price = float(h.get("average_price", 0))
             tradingsymbol = h.get("tradingsymbol", "")
+            isin = h.get("isin")
 
-            if instrument_token not in local_holdings:
+            # Match local holding: token match, or isin match, or symbol match
+            local_h = (
+                local_holdings_by_token.get(instrument_token)
+                or (local_holdings_by_isin.get(isin) if isin else None)
+                or local_holdings_by_symbol.get(tradingsymbol.upper())
+            )
+
+            # If local holding matched on symbol/isin with a different token (e.g. from CSV_IMPORT)
+            if local_h and local_h["instrument_token"] != instrument_token:
+                old_token = local_h["instrument_token"]
+                old_source = local_h.get("data_source", "KITE")
+                if old_source in ("CSV_IMPORT", "MANUAL", "legacy"):
+                    logger.info(
+                        "Reconciling imported holding {} (token {}) with live Kite token {}",
+                        tradingsymbol,
+                        old_token,
+                        instrument_token,
+                    )
+                    session.execute(
+                        text("""
+                            DELETE FROM user_holdings
+                            WHERE user_id = :user_id AND instrument_token = :old_token AND id = :old_id
+                        """),
+                        {"user_id": user_id, "old_token": old_token, "old_id": local_h["id"]},
+                    )
+                    processed_tokens.add(old_token)
+
+            if not local_h:
                 _record_reconciliation_log(
                     session,
                     user_id,
@@ -174,7 +301,6 @@ def sync_holdings(user_id: str = "default") -> int:
                     "INITIAL_SYNC",
                 )
             else:
-                local_h = local_holdings[instrument_token]
                 old_qty = local_h["quantity"]
                 old_t1 = local_h["t1_quantity"]
                 old_total = old_qty + old_t1
@@ -222,9 +348,6 @@ def sync_holdings(user_id: str = "default") -> int:
                         reason,
                     )
 
-            # Ensure instrument exists in master (upsert minimal record)
-            _ensure_instrument_exists(session, h)
-
             # Upsert the holding
             session.execute(
                 text("""
@@ -249,7 +372,8 @@ def sync_holdings(user_id: str = "default") -> int:
                         product,
                         has_discrepancy,
                         data_source,
-                        last_synced_at
+                        last_synced_at,
+                        updated_at
                     )
                     VALUES (
                         :user_id,
@@ -272,6 +396,7 @@ def sync_holdings(user_id: str = "default") -> int:
                         :product,
                         :has_discrepancy,
                         'KITE',
+                        NOW(),
                         NOW()
                     )
                     ON CONFLICT (user_id, instrument_token, product) DO UPDATE SET
@@ -316,10 +441,44 @@ def sync_holdings(user_id: str = "default") -> int:
             )
             upserted += 1
 
+            # Update live_prices with the fresh price from Kite holdings sync
+            last_price = float(h.get("last_price", 0))
+            close_price = float(h.get("close_price", 0))
+            day_change = float(h.get("day_change", 0))
+            day_change_pct = float(h.get("day_change_percentage", 0))
+            if last_price > 0:
+                session.execute(
+                    text("""
+                        INSERT INTO live_prices (
+                            instrument_token, last_price, close_price,
+                            change_absolute, change_percent, source, is_stale, last_updated
+                        )
+                        VALUES (
+                            :token, :ltp, :close,
+                            :chg, :chg_pct, 'kite', FALSE, NOW()
+                        )
+                        ON CONFLICT (instrument_token) DO UPDATE SET
+                            last_price = EXCLUDED.last_price,
+                            close_price = EXCLUDED.close_price,
+                            change_absolute = EXCLUDED.change_absolute,
+                            change_percent = EXCLUDED.change_percent,
+                            source = 'kite',
+                            is_stale = FALSE,
+                            last_updated = NOW()
+                    """),
+                    {
+                        "token": instrument_token,
+                        "ltp": last_price,
+                        "close": close_price,
+                        "chg": day_change,
+                        "chg_pct": day_change_pct,
+                    },
+                )
+
         # Check for missing holdings: reconcile KITE-sourced holdings that were liquidated
         # (never wipe user CSV or manual imports)
-        for token, local_h in local_holdings.items():
-            if local_h.get("data_source") in ("CSV_IMPORT", "MANUAL"):
+        for token, local_h in local_holdings_by_token.items():
+            if local_h.get("data_source") in ("CSV_IMPORT", "MANUAL", "legacy"):
                 continue
             if token not in processed_tokens:
                 old_total = local_h["quantity"] + local_h["t1_quantity"]
@@ -350,10 +509,10 @@ def sync_holdings(user_id: str = "default") -> int:
                     # Zero out missing holding
                     session.execute(
                         text("""
-                                UPDATE user_holdings
-                                SET quantity = 0, t1_quantity = 0, updated_at = NOW(), last_synced_at = NOW()
-                                WHERE user_id = :user_id AND instrument_token = :token
-                            """),
+                            UPDATE user_holdings
+                            SET quantity = 0, t1_quantity = 0, updated_at = NOW(), last_synced_at = NOW()
+                            WHERE user_id = :user_id AND instrument_token = :token
+                        """),
                         {"user_id": user_id, "token": token},
                     )
 
@@ -361,14 +520,14 @@ def sync_holdings(user_id: str = "default") -> int:
     return upserted
 
 
-def sync_margins() -> dict[str, Any]:
+def sync_margins(user_id: str = "default") -> dict[str, Any]:
     """
     Pull equity margins from Kite API and upsert into user_margins table.
 
     Returns:
         Dictionary with equity margin data.
     """
-    logger.info("Starting Kite margins sync...")
+    logger.info("Starting Kite margins sync for user='{}'...", user_id)
     kite = get_authenticated_kite()
 
     try:
@@ -445,7 +604,7 @@ def sync_margins() -> dict[str, Any]:
                     synced_at            = NOW()
             """),
             {
-                "user_id": "default",
+                "user_id": user_id,
                 "available_cash": float(available.get("cash", 0)),
                 "available_collateral": float(available.get("collateral", 0)),
                 "opening_balance": float(available.get("opening_balance", 0)),
@@ -468,48 +627,23 @@ def sync_margins() -> dict[str, Any]:
     available_cash = available.get("cash", 0)
     net = equity.get("net", 0)
     logger.success(
-        "Margins sync complete. Available cash: ₹{:,.2f} | Net: ₹{:,.2f}", available_cash, net
+        "Margins sync complete for user '{}'. Available cash: ₹{:,.2f} | Net: ₹{:,.2f}",
+        user_id,
+        available_cash,
+        net,
     )
     return equity
-
-
-def _ensure_instrument_exists(session, holding: dict) -> None:
-    """
-    Insert a minimal instrument_master record if one doesn't exist.
-    The instrument_mapper will fill in yf_ticker and sector later.
-    """
-    session.execute(
-        text("""
-            INSERT INTO instrument_master (
-                instrument_token, exchange_token, tradingsymbol,
-                name, isin, exchange, instrument_type, is_active
-            )
-            VALUES (
-                :token, :exchange_token, :tradingsymbol,
-                :name, :isin, :exchange, 'EQ', TRUE
-            )
-            ON CONFLICT (instrument_token) DO NOTHING
-        """),
-        {
-            "token": holding.get("instrument_token"),
-            "exchange_token": holding.get("instrument_token"),  # fallback
-            "tradingsymbol": holding.get("tradingsymbol", ""),
-            "name": holding.get("tradingsymbol", ""),  # will be enriched later
-            "isin": holding.get("isin"),
-            "exchange": holding.get("exchange", "NSE"),
-        },
-    )
 
 
 def sync_positions(user_id: str = "default") -> int:
     """
     Pull open positions from Kite API (net positions, both carry-forward and intraday)
-    and upsert into user_positions table (created in migration 022).
+    and upsert into user_positions table. Preserves CSV/manual position imports safely.
 
     Returns:
         Number of position rows upserted.
     """
-    logger.info("Starting Kite positions sync...")
+    logger.info("Starting Kite positions sync for user='{}'...", user_id)
     kite = get_authenticated_kite()
 
     try:
@@ -518,13 +652,10 @@ def sync_positions(user_id: str = "default") -> int:
         logger.error("Failed to fetch positions from Kite: {}", exc)
         raise
 
-    # Kite returns {"net": [...], "day": [...]} — we care about net (carry-forward view)
     net_positions: list[dict] = raw.get("net", [])
-    if not net_positions:
-        logger.warning("Kite returned 0 net positions.")
-        return 0
-
     upserted = 0
+    processed_tokens = set()
+
     with get_db_session() as session:
         for p in net_positions:
             instrument_token = p.get("instrument_token")
@@ -532,6 +663,7 @@ def sync_positions(user_id: str = "default") -> int:
                 logger.warning("Skipping position with no instrument_token: {}", p)
                 continue
 
+            processed_tokens.add(instrument_token)
             tradingsymbol = p.get("tradingsymbol", "")
             exchange = p.get("exchange", "NSE")
             product = p.get("product", "CNC")
@@ -545,7 +677,7 @@ def sync_positions(user_id: str = "default") -> int:
             day_change = float(p.get("day_change", 0))
             day_change_pct = float(p.get("day_change_percentage", 0))
 
-            # Ensure instrument exists in master
+            # Ensure instrument exists in master FIRST
             _ensure_instrument_exists(
                 session,
                 {
@@ -577,6 +709,7 @@ def sync_positions(user_id: str = "default") -> int:
                         pnl              = EXCLUDED.pnl,
                         day_change       = EXCLUDED.day_change,
                         day_change_pct   = EXCLUDED.day_change_pct,
+                        data_source      = 'KITE',
                         last_synced_at   = NOW(),
                         updated_at       = NOW()
                 """),
@@ -596,14 +729,69 @@ def sync_positions(user_id: str = "default") -> int:
             )
             upserted += 1
 
+            if last_price > 0:
+                session.execute(
+                    text("""
+                        INSERT INTO live_prices (
+                            instrument_token, last_price, close_price,
+                            change_absolute, change_percent, source, is_stale, last_updated
+                        )
+                        VALUES (
+                            :token, :ltp, :close,
+                            :chg, :chg_pct, 'kite', FALSE, NOW()
+                        )
+                        ON CONFLICT (instrument_token) DO UPDATE SET
+                            last_price = EXCLUDED.last_price,
+                            close_price = EXCLUDED.close_price,
+                            change_absolute = EXCLUDED.change_absolute,
+                            change_percent = EXCLUDED.change_percent,
+                            source = 'kite',
+                            is_stale = FALSE,
+                            last_updated = NOW()
+                    """),
+                    {
+                        "token": instrument_token,
+                        "ltp": last_price,
+                        "close": float(p.get("close_price", last_price)),
+                        "chg": day_change,
+                        "chg_pct": day_change_pct,
+                    },
+                )
+
+        # Zero out any KITE-sourced positions in DB that are no longer reported open by Kite
+        # (Never touch CSV_IMPORT positions)
+        if processed_tokens:
+            session.execute(
+                text("""
+                    UPDATE user_positions
+                    SET quantity = 0, pnl = 0, updated_at = NOW(), last_synced_at = NOW()
+                    WHERE user_id = :user_id
+                      AND data_source = 'KITE'
+                      AND quantity <> 0
+                      AND instrument_token NOT IN :tokens
+                """),
+                {"user_id": user_id, "tokens": tuple(processed_tokens)},
+            )
+        else:
+            session.execute(
+                text("""
+                    UPDATE user_positions
+                    SET quantity = 0, pnl = 0, updated_at = NOW(), last_synced_at = NOW()
+                    WHERE user_id = :user_id
+                      AND data_source = 'KITE'
+                      AND quantity <> 0
+                """),
+                {"user_id": user_id},
+            )
+
     logger.success("Positions sync complete. {} positions upserted.", upserted)
     return upserted
 
 
-def run_start_of_day_sync() -> dict[str, Any]:
+def run_start_of_day_sync(user_id: str = "default") -> dict[str, Any]:
     """
     Full start-of-day sync: holdings + positions + margins.
-    Called by APScheduler at 09:15 AM IST on market days.
+    Called manually or by APScheduler at 09:15 AM IST on market days.
 
     Returns:
         Summary dict with sync results.
@@ -612,21 +800,22 @@ def run_start_of_day_sync() -> dict[str, Any]:
     logger.info("START OF DAY SYNC — {}", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     logger.info("=" * 50)
 
-    results = {}
+    results: dict[str, Any] = {"ok": True}
     try:
-        results["holdings_upserted"] = sync_holdings()
+        results["holdings_upserted"] = sync_holdings(user_id=user_id)
     except Exception as exc:
         logger.error("Holdings sync failed: {}", exc)
         results["holdings_error"] = str(exc)
+        results["ok"] = False
 
     try:
-        results["positions_upserted"] = sync_positions()
+        results["positions_upserted"] = sync_positions(user_id=user_id)
     except Exception as exc:
         logger.error("Positions sync failed: {}", exc)
         results["positions_error"] = str(exc)
 
     try:
-        margins = sync_margins()
+        margins = sync_margins(user_id=user_id)
         results["available_cash"] = margins.get("available", {}).get("cash", 0)
         results["net_margin"] = margins.get("net", 0)
     except Exception as exc:

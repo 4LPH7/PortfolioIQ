@@ -15,7 +15,7 @@ from pathlib import Path
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from flask import Flask, Response, request
+from flask import Flask, Response, request, send_from_directory
 from flask_cors import CORS
 from loguru import logger
 from werkzeug.exceptions import HTTPException
@@ -69,9 +69,18 @@ def handle_options_preflight():
 app.after_request(attach_correlation_id_header)
 
 
+FRONTEND_DIR = Path(__file__).parent / "frontend"
+
+
 @app.route("/")
 def index():
-    """Root welcome endpoint providing API service info and health link."""
+    """Serve dashboard UI for browser requests, or service metadata for JSON API clients."""
+    accept = request.headers.get("Accept", "")
+    if "text/html" in accept and "application/json" not in accept:
+        index_file = FRONTEND_DIR / "index.html"
+        if index_file.exists():
+            return send_from_directory(FRONTEND_DIR, "index.html")
+
     return {
         "ok": True,
         "service": "PortfolioIQ REST API",
@@ -79,6 +88,22 @@ def index():
         "health": "/api/v1/health",
         "status": "online",
     }
+
+
+@app.route("/<path:filename>")
+def serve_frontend_static(filename: str):
+    """Serve frontend HTML pages, stylesheets, scripts, and static assets."""
+    if filename.startswith("api/") or filename == "api" or filename.startswith("callback"):
+        return format_error_response("NOT_FOUND", "Endpoint not found", status_code=404)
+
+    target = FRONTEND_DIR / filename
+    if target.is_file():
+        return send_from_directory(FRONTEND_DIR, filename)
+
+    if (FRONTEND_DIR / f"{filename}.html").is_file():
+        return send_from_directory(FRONTEND_DIR, f"{filename}.html")
+
+    return format_error_response("NOT_FOUND", f"Resource '{filename}' not found", status_code=404)
 
 
 # Dual-mount API Blueprints: /api/v1 (primary) and /api (legacy alias)
@@ -142,7 +167,14 @@ if os.environ.get("RUN_INLINE_SCHEDULER", "").lower() == "true":
         next_run_time=datetime.now(_IST),
     )
     _inline_scheduler.start()
-    atexit.register(lambda: _inline_scheduler.shutdown(wait=False))
+    def _safe_shutdown():
+        if _inline_scheduler and getattr(_inline_scheduler, "running", False):
+            try:
+                _inline_scheduler.shutdown(wait=False)
+            except Exception:
+                pass
+
+    atexit.register(_safe_shutdown)
 
 
 # Global Error Handlers — enforce uniform error envelope

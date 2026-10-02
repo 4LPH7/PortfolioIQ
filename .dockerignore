@@ -10,6 +10,8 @@ __pycache__
 *.pyo
 .pytest_cache
 .pytest-tmp
+logs
+*.log
 .ruff_cache
 .mypy_cache
 
