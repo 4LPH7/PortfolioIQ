@@ -142,7 +142,7 @@
         <span><span class="material-symbols-outlined" style="vertical-align:middle;margin-right:4px;">receipt_long</span> Portfolio Events &amp; Historical Milestones</span>
         <span class="badge badge-hold" id="event-count">0</span>
       </div>
-      <button type="button" class="btn btn-xs btn-ghost" data-export="timeline-events-table" title="Export CSV">
+      <button type="button" class="btn btn-xs btn-ghost" data-export-table="timeline-events-table" data-export="timeline-events-table" title="Export CSV">
         <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">download</span> Export CSV
       </button>
     </div>
@@ -204,6 +204,18 @@
   let allOrders = [];
   let currentRange = "1Y";
 
+  setInterval(() => {
+    const clockEl = document.getElementById("clock");
+    if (clockEl) {
+      clockEl.textContent = new Date().toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      }) + " IST";
+    }
+  }, 1000);
+
   window.setRange = function(range) {
     currentRange = range;
     document.querySelectorAll(".range-btn").forEach(btn => {
@@ -239,11 +251,6 @@
         allOrders = [];
       }
 
-      // If no snapshots exist in a fresh/demo environment, synthesize baseline from valuation
-      if (allSnapshots.length === 0) {
-        synthesizeDefaultSnapshots();
-      }
-
       renderViews();
     } catch (err) {
       console.error("Timeline load error:", err);
@@ -252,42 +259,6 @@
         chartEl.innerHTML = errBox("Failed to load timeline data: " + (err.message || err));
       }
     }
-  }
-
-  function synthesizeDefaultSnapshots() {
-    // Generate a reasonable 90-day base when no historical snapshots exist yet
-    const today = new Date();
-    const synth = [];
-    let pNav = 100.0;
-    let bNav = 100.0;
-
-    for (let i = 90; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      // Skip weekends
-      if (d.getDay() === 0 || d.getDay() === 6) continue;
-
-      const dateStr = d.toISOString().split("T")[0];
-      const pRet = (Math.sin(i * 0.1) * 0.4 + 0.08) / 100;
-      const bRet = (Math.cos(i * 0.12) * 0.35 + 0.05) / 100;
-      pNav = pNav * (1 + pRet);
-      bNav = bNav * (1 + bRet);
-
-      synth.push({
-        snapshot_date: dateStr,
-        user_id: "default",
-        unit_nav: pNav.toFixed(4),
-        total_nav: (pNav * 1000).toFixed(2),
-        total_equity_value: (pNav * 950).toFixed(2),
-        cash_balance: (pNav * 50).toFixed(2),
-        daily_return_pct: (pRet * 100).toFixed(2),
-        benchmark_name: "NIFTY 50 TRI",
-        benchmark_value: (24000 * (bNav / 100)).toFixed(2),
-        benchmark_daily_return_pct: (bRet * 100).toFixed(2),
-        net_external_flow: "0.00",
-      });
-    }
-    allSnapshots = synth;
   }
 
   function filterByRange(snapshots, range) {
@@ -307,26 +278,54 @@
     renderEvents(visibleSnaps);
 
     const subtitleEl = document.getElementById("timeline-subtitle");
-    if (subtitleEl && visibleSnaps.length > 0) {
-      const firstD = visibleSnaps[0].snapshot_date;
-      const lastD = visibleSnaps[visibleSnaps.length - 1].snapshot_date;
-      subtitleEl.textContent = `Displaying ${visibleSnaps.length} daily snapshots from ${firstD} to ${lastD}.`;
+    if (subtitleEl) {
+      if (visibleSnaps.length > 1) {
+        const firstD = visibleSnaps[0].snapshot_date;
+        const lastD = visibleSnaps[visibleSnaps.length - 1].snapshot_date;
+        subtitleEl.textContent = `Displaying ${visibleSnaps.length} daily snapshots from ${firstD} to ${lastD}.`;
+      } else if (visibleSnaps.length === 1) {
+        subtitleEl.textContent = `Displaying baseline snapshot recorded for ${visibleSnaps[0].snapshot_date}.`;
+      } else {
+        subtitleEl.textContent = "No historical snapshots recorded yet. Daily snapshots are logged at 16:00 IST.";
+      }
     }
   }
 
   function renderKPIs(snapshots) {
-    if (!snapshots || snapshots.length === 0) return;
+    const elUnitNav = document.getElementById("kpi-unit-nav");
+    const elTotalNavSub = document.getElementById("kpi-total-nav-sub");
+    const elTwr = document.getElementById("kpi-twr");
+    const elTwrSub = document.getElementById("kpi-twr-sub");
+    const elBench = document.getElementById("kpi-bench");
+    const elBenchName = document.getElementById("kpi-bench-name");
+    const elAlpha = document.getElementById("kpi-alpha");
+    const elAlphaSub = document.getElementById("kpi-alpha-sub");
+    const elDd = document.getElementById("kpi-drawdown");
+    const elDdSub = document.getElementById("kpi-drawdown-sub");
+
+    if (!snapshots || snapshots.length === 0) {
+      if (elUnitNav) elUnitNav.textContent = "—";
+      if (elTotalNavSub) elTotalNavSub.textContent = "No snapshot recorded";
+      if (elTwr) { elTwr.textContent = "—"; elTwr.className = "kpi-value"; }
+      if (elTwrSub) elTwrSub.textContent = `Window: ${currentRange}`;
+      if (elBench) { elBench.textContent = "—"; elBench.className = "kpi-value"; }
+      if (elAlpha) { elAlpha.textContent = "—"; elAlpha.className = "kpi-value"; }
+      if (elAlphaSub) elAlphaSub.textContent = "—";
+      if (elDd) { elDd.textContent = "—"; elDd.className = "kpi-value"; }
+      if (elDdSub) elDdSub.textContent = "—";
+      return;
+    }
 
     const first = snapshots[0];
     const last = snapshots[snapshots.length - 1];
 
     const firstNav = parseFloat(first.unit_nav) || 100.0;
     const lastNav = parseFloat(last.unit_nav) || 100.0;
-    const twr = ((lastNav / firstNav) - 1.0) * 100;
+    const twr = snapshots.length > 1 ? ((lastNav / firstNav) - 1.0) * 100 : 0.0;
 
     const firstBench = parseFloat(first.benchmark_value) || 1.0;
     const lastBench = parseFloat(last.benchmark_value) || 1.0;
-    const benchRet = ((lastBench / firstBench) - 1.0) * 100;
+    const benchRet = snapshots.length > 1 ? ((lastBench / firstBench) - 1.0) * 100 : 0.0;
 
     const alpha = twr - benchRet;
 
@@ -340,40 +339,36 @@
       if (dd > maxDd) maxDd = dd;
     });
 
-    const elUnitNav = document.getElementById("kpi-unit-nav");
-    const elTotalNavSub = document.getElementById("kpi-total-nav-sub");
     if (elUnitNav) elUnitNav.textContent = `₹${lastNav.toFixed(2)}`;
-    if (elTotalNavSub) elTotalNavSub.textContent = `Total NAV: ₹${parseFloat(last.total_nav || 0).toLocaleString("en-IN")}`;
+    if (elTotalNavSub) elTotalNavSub.textContent = `Total NAV: ₹${parseFloat(last.total_nav || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-    const elTwr = document.getElementById("kpi-twr");
-    const elTwrSub = document.getElementById("kpi-twr-sub");
     if (elTwr) {
       elTwr.textContent = fmtPct(twr);
       elTwr.className = `kpi-value ${colorClass(twr)}`;
     }
     if (elTwrSub) elTwrSub.textContent = `Window: ${currentRange}`;
 
-    const elBench = document.getElementById("kpi-bench");
     if (elBench) {
       elBench.textContent = fmtPct(benchRet);
       elBench.className = `kpi-value ${colorClass(benchRet)}`;
     }
+    if (elBenchName) elBenchName.textContent = last.benchmark_name || "NIFTY 50 TRI";
 
-    const elAlpha = document.getElementById("kpi-alpha");
-    const elAlphaSub = document.getElementById("kpi-alpha-sub");
     if (elAlpha) {
       elAlpha.textContent = fmtPct(alpha);
       elAlpha.className = `kpi-value ${colorClass(alpha)}`;
     }
-    if (elAlphaSub) elAlphaSub.textContent = alpha >= 0 ? "Outperforming benchmark" : "Underperforming benchmark";
+    if (elAlphaSub) {
+      elAlphaSub.textContent = snapshots.length > 1
+        ? (alpha >= 0 ? "Outperforming benchmark" : "Underperforming benchmark")
+        : "Day-1 baseline";
+    }
 
-    const elDd = document.getElementById("kpi-drawdown");
-    const elDdSub = document.getElementById("kpi-drawdown-sub");
     if (elDd) {
       elDd.textContent = `-${maxDd.toFixed(2)}%`;
-      elDd.className = "kpi-value td-neg";
+      elDd.className = maxDd > 0 ? "kpi-value td-neg" : "kpi-value";
     }
-    if (elDdSub) elDdSub.textContent = `Peak: ₹${peak.toFixed(2)}`;
+    if (elDdSub) elDdSub.textContent = peak > -Infinity ? `Peak: ₹${peak.toFixed(2)}` : "—";
   }
 
   function renderChart(snapshots) {
@@ -382,11 +377,18 @@
     if (!chartEl) return;
 
     if (!snapshots || snapshots.length === 0) {
-      chartEl.innerHTML = `<div class="empty-state py-lg"><div class="empty-title">No snapshot history found</div></div>`;
+      chartEl.innerHTML = `
+        <div class="empty-state py-lg">
+          <div class="empty-icon"><span class="material-symbols-outlined" style="font-size:48px;">timeline</span></div>
+          <div class="empty-title">No Historical Snapshots Recorded Yet</div>
+          <div class="empty-desc">End-of-day equity snapshots are captured automatically each trading day at 16:00 IST. Once the first snapshot is logged, your normalized equity curve and benchmark comparison will plot here.</div>
+        </div>
+      `;
+      if (badgeEl) badgeEl.textContent = "0 points";
       return;
     }
 
-    if (badgeEl) badgeEl.textContent = `${snapshots.length} points`;
+    if (badgeEl) badgeEl.textContent = `${snapshots.length} point${snapshots.length === 1 ? "" : "s"}`;
 
     const baseNav = parseFloat(snapshots[0].unit_nav) || 100.0;
     const baseBench = parseFloat(snapshots[0].benchmark_value) || 1.0;
@@ -395,26 +397,30 @@
     const navNorm = snapshots.map(s => ((parseFloat(s.unit_nav) / baseNav) * 100).toFixed(2));
     const benchNorm = snapshots.map(s => ((parseFloat(s.benchmark_value) / baseBench) * 100).toFixed(2));
 
+    const plotMode = dates.length === 1 ? "markers" : "lines";
+
     const traces = [
       {
         type: "scatter",
-        mode: "lines",
+        mode: plotMode,
         name: "Portfolio Unit NAV",
         x: dates,
         y: navNorm,
         line: { color: "#00ff88", width: 2.5 },
+        marker: { size: dates.length === 1 ? 10 : 4, color: "#00ff88" },
         fill: "tozeroy",
         fillcolor: "rgba(0,255,136,0.06)",
         hovertemplate: "<b>Portfolio NAV</b>: %{y:.2f} (Base 100)<br>Date: %{x}<extra></extra>",
       },
       {
         type: "scatter",
-        mode: "lines",
-        name: "NIFTY 50 TRI",
+        mode: plotMode,
+        name: snapshots[0].benchmark_name || "NIFTY 50 TRI",
         x: dates,
         y: benchNorm,
         line: { color: "#00d4ff", width: 1.8, dash: "dot" },
-        hovertemplate: "<b>NIFTY 50 TRI</b>: %{y:.2f} (Base 100)<br>Date: %{x}<extra></extra>",
+        marker: { size: dates.length === 1 ? 8 : 4, color: "#00d4ff" },
+        hovertemplate: "<b>Benchmark</b>: %{y:.2f} (Base 100)<br>Date: %{x}<extra></extra>",
       },
     ];
 
@@ -428,7 +434,6 @@
     const pinColors = [];
     const pinSymbols = [];
 
-    // Map dates to approximate normalized NAV for pin placement
     const dateToNav = new Map();
     dates.forEach((d, i) => dateToNav.set(d, parseFloat(navNorm[i])));
 
@@ -447,16 +452,19 @@
       }
     });
 
-    // 2. Executed Orders
+    // 2. Executed Orders & Dry Runs from order_audit_trail
     allOrders.forEach(o => {
-      const dt = o.attempted_at ? o.attempted_at.split("T")[0] : null;
-      if (dt && dt >= minDate && dt <= maxDate && (o.status === "EXECUTED" || o.status === "SUCCESS")) {
+      const rawDate = o.placed_at || o.attempted_at || o.created_at;
+      const dt = rawDate ? (typeof rawDate === "string" ? rawDate.split("T")[0].split(" ")[0] : null) : null;
+      const isExec = o.status === "COMPLETE" || o.status === "PLACED" || o.status === "DRY_RUN" || o.status === "EXECUTED" || o.status === "SUCCESS";
+      if (dt && isExec && dt >= minDate && dt <= maxDate) {
         const yVal = dateToNav.get(dt) || parseFloat(navNorm[navNorm.length - 1]);
         pinDates.push(dt);
         pinNavs.push(yVal);
         pinSymbols.push("diamond");
         pinColors.push("#ffd600");
-        pinTexts.push(`ORDER: ${o.order_side} ${o.quantity} ${o.tradingsymbol}`);
+        const side = o.transaction_type || o.order_side || "ORDER";
+        pinTexts.push(`${side} ${o.quantity} ${o.tradingsymbol} (${o.status})`);
       }
     });
 
@@ -525,17 +533,23 @@
 
     // 2. Process rebalance/audit orders
     allOrders.forEach(o => {
-      if (o.status === "EXECUTED" || o.status === "SUCCESS") {
-        const d = o.attempted_at ? o.attempted_at.split("T")[0] : "—";
-        const val = (parseFloat(o.quantity || 0) * parseFloat(o.executed_price || 0));
+      const isExec = o.status === "COMPLETE" || o.status === "PLACED" || o.status === "DRY_RUN" || o.status === "EXECUTED" || o.status === "SUCCESS";
+      if (isExec) {
+        const rawDate = o.placed_at || o.attempted_at || o.created_at;
+        const d = rawDate ? (typeof rawDate === "string" ? rawDate.split("T")[0].split(" ")[0] : "—") : "—";
+        const side = o.transaction_type || o.order_side || "ORDER";
+        const price = parseFloat(o.price || o.executed_price || 0);
+        const qty = parseFloat(o.quantity || 0);
+        const val = qty * price;
+        const isSell = side.toUpperCase() === "SELL";
         eventsList.push({
           date: d,
-          type: "REBALANCE",
+          type: o.is_dry_run || o.status === "DRY_RUN" ? "DRY_RUN" : "REBALANCE",
           category: "ORDER",
-          details: `${o.order_side} ${o.quantity} ${o.tradingsymbol} @ ₹${parseFloat(o.executed_price || 0).toFixed(2)}`,
+          details: `${side} ${qty} ${o.tradingsymbol}${price > 0 ? ` @ ₹${price.toFixed(2)}` : ""} · ${o.status}${o.reason ? ` (${o.reason})` : ""}`,
           amount: val,
           nav: "—",
-          isPositive: o.order_side === "SELL", // cash release
+          isPositive: isSell,
         });
       }
     });
@@ -561,7 +575,8 @@
       DIVIDEND: "badge-strong-buy",
       WITHDRAWAL: "badge-sell",
       CHARGE: "badge-strong-sell",
-      REBALANCE: "badge-hold",
+      REBALANCE: "badge-complete",
+      DRY_RUN: "badge-dry-run",
     };
 
     tbody.innerHTML = eventsList.slice(0, 50).map(e => {

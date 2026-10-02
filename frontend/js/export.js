@@ -149,18 +149,28 @@
    * Bind all elements matching [data-export-table] automatically.
    */
   function bindExportButtons() {
-    document.querySelectorAll("[data-export-table]").forEach((btn) => {
+    document.querySelectorAll("[data-export-table], [data-export]").forEach((btn) => {
       if (btn.dataset.exportBound) return;
       btn.dataset.exportBound = "true";
 
       btn.addEventListener("click", (e) => {
         e.preventDefault();
-        const targetId = btn.getAttribute("data-export-table");
+        const targetId = btn.getAttribute("data-export-table") || btn.getAttribute("data-export");
         const filename = btn.getAttribute("data-export-filename") || `${targetId}.csv`;
         exportTableToCSV(`#${targetId}`, filename);
       });
     });
   }
+
+  // Global delegation for dynamically injected tables & buttons
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-export-table], [data-export]");
+    if (!btn || btn.dataset.exportBound) return;
+    e.preventDefault();
+    const targetId = btn.getAttribute("data-export-table") || btn.getAttribute("data-export");
+    const filename = btn.getAttribute("data-export-filename") || `${targetId}.csv`;
+    exportTableToCSV(`#${targetId}`, filename);
+  });
 
   // Public Export API
   window.PortfolioIQExport = {

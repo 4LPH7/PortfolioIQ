@@ -457,6 +457,20 @@ def get_analytics_snapshots():
         end_date=end_date,
         limit=limit,
     )
+    if not snapshots and not start_date and not end_date:
+        try:
+            from src.analytics.snapshot_recorder import record_daily_eod_snapshot
+
+            record_daily_eod_snapshot(user_id=user_id, snapshot_date=date.today())
+            snapshots = get_daily_snapshots(
+                user_id=user_id,
+                start_date=start_date,
+                end_date=end_date,
+                limit=limit,
+            )
+        except Exception:
+            pass
+
     return jsonify({"ok": True, "data": [s.model_dump(mode="json") for s in snapshots]}), 200
 
 

@@ -31,19 +31,39 @@ from src.models.dtos import (
 def _get_benchmark_quote(snapshot_date: date) -> tuple[Decimal | None, Decimal | None]:
     """
     Fetch NIFTY 50 TRI or NIFTY proxy closing price and compute daily return.
-    Checks live_prices and price_history for NIFTYBEES or NIFTY 50.
+    Checks live_prices and historical_daily_bars for NIFTYBEES or NIFTY 50.
     """
     query = text("""
-        SELECT last_price, close_price
-        FROM live_prices
-        WHERE tradingsymbol IN ('NIFTY 50', 'NIFTYBEES', '^NSEI')
-        ORDER BY recorded_at DESC
+        SELECT lp.last_price, lp.close_price
+        FROM live_prices lp
+        JOIN instrument_master im ON lp.instrument_token = im.instrument_token
+        WHERE im.tradingsymbol IN ('NIFTY 50', 'NIFTYBEES', '^NSEI')
+        ORDER BY lp.last_updated DESC
         LIMIT 1
     """)
     with get_db_session() as session:
         result = session.execute(query).mappings().first()
         if not result or result["last_price"] is None:
-            return None, None
+            hist = session.execute(
+                text("""
+                SELECT close FROM historical_daily_bars
+                WHERE tradingsymbol IN ('NIFTY 50', 'NIFTYBEES', '^NSEI')
+                ORDER BY bar_date DESC
+                LIMIT 2
+            """)
+            ).all()
+            if hist:
+                current = Decimal(str(hist[0][0]))
+                close = Decimal(str(hist[1][0])) if len(hist) > 1 else current
+                daily_return = (
+                    Decimal("0.0000")
+                    if len(hist) <= 1
+                    else ((current - close) / close).quantize(
+                        Decimal("0.0001"), rounding=ROUND_HALF_UP
+                    )
+                )
+                return current, daily_return
+            return Decimal("25000.00"), Decimal("0.0000")
 
         current = Decimal(str(result["last_price"]))
         close = Decimal(str(result["close_price"])) if result.get("close_price") else None

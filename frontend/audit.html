@@ -54,16 +54,16 @@
   <div class="card" style="padding:1.1rem 1.4rem">
     <div style="display:flex;gap:0.85rem;flex-wrap:wrap;align-items:flex-end">
       <div class="form-group" style="min-width:130px">
-        <label class="form-label">Status</label>
-        <select id="f-status"><option>ALL</option><option>PLACED</option><option>COMPLETE</option><option>FAILED</option><option>DRY_RUN</option><option>CANCELLED</option></select>
+        <label class="form-label" for="f-status">Status</label>
+        <select id="f-status" onchange="loadAudit()"><option>ALL</option><option>PLACED</option><option>COMPLETE</option><option>FAILED</option><option>DRY_RUN</option><option>CANCELLED</option></select>
       </div>
       <div class="form-group" style="min-width:110px">
-        <label class="form-label">Side</label>
-        <select id="f-side"><option>ALL</option><option>BUY</option><option>SELL</option></select>
+        <label class="form-label" for="f-side">Side</label>
+        <select id="f-side" onchange="loadAudit()"><option>ALL</option><option>BUY</option><option>SELL</option></select>
       </div>
       <div class="form-group" style="min-width:100px">
-        <label class="form-label">Show</label>
-        <select id="f-limit"><option>25</option><option selected>50</option><option>100</option><option>200</option></select>
+        <label class="form-label" for="f-limit">Show</label>
+        <select id="f-limit" onchange="loadAudit()"><option>25</option><option selected>50</option><option>100</option><option>200</option></select>
       </div>
       <button class="btn btn-primary" onclick="loadAudit()"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">filter_alt</span> Filter</button>
     </div>
@@ -79,13 +79,13 @@
 
   <div class="flex justify-between items-center mb-sm">
     <div class="section-header" style="margin:0">Order History</div>
-    <button type="button" class="btn btn-xs btn-ghost" data-export="audit-orders-table" title="Export CSV"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">download</span> Export CSV</button>
+    <button type="button" class="btn btn-xs btn-ghost" data-export-table="audit-orders-table" data-export="audit-orders-table" title="Export CSV"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">download</span> Export CSV</button>
   </div>
   <div id="orders-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div></div></div></div>
 
   <div class="flex justify-between items-center mb-sm">
     <div class="section-header" style="margin:0">Validation Log</div>
-    <button type="button" class="btn btn-xs btn-ghost" data-export="audit-validations-table" title="Export CSV"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">download</span> Export CSV</button>
+    <button type="button" class="btn btn-xs btn-ghost" data-export-table="audit-validations-table" data-export="audit-validations-table" title="Export CSV"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">download</span> Export CSV</button>
   </div>
   <div id="val-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div></div></div></div>
 
@@ -129,7 +129,17 @@
 setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " IST"; }, 1000);
 
 const statusBadge = s => {
-  const map = { PLACED:"badge-placed", COMPLETE:"badge-complete", FAILED:"badge-failed", DRY_RUN:"badge-dry-run", CANCELLED:"badge-hold" };
+  const map = {
+    PLACED: "badge-placed",
+    COMPLETE: "badge-complete",
+    SUCCESS: "badge-complete",
+    EXECUTED: "badge-complete",
+    FAILED: "badge-failed",
+    DRY_RUN: "badge-dry-run",
+    CANCELLED: "badge-hold",
+    APPROVED: "badge-approved",
+    REJECTED: "badge-rejected"
+  };
   return `<span class="badge ${map[s]||"badge-hold"}">${s||"—"}</span>`;
 };
 
@@ -143,57 +153,74 @@ async function loadAudit() {
       apiGet("/api/audit/validations", { limit }),
     ]);
 
-    const orders = or.ok ? or.data : [];
-    document.getElementById("k-total").textContent    = orders.length;
-    document.getElementById("k-complete").textContent = orders.filter(o=>o.status==="COMPLETE").length;
-    document.getElementById("k-dry").textContent      = orders.filter(o=>o.is_dry_run).length;
-    document.getElementById("k-failed").textContent   = orders.filter(o=>o.status==="FAILED").length;
-
-    if (orders.length) {
-      const rows = orders.map(o => {
-        const sc = o.transaction_type === "SELL" ? "var(--red)" : "var(--green)";
-        const ts = (o.placed_at||"").replace("T"," ").substring(0,19);
-        return `<tr>
-          <td class="td-dim td-mono" style="font-size:0.7rem">#${o.id||"—"}</td>
-          <td class="td-main"><a class="td-link" href="analyzer.html?sym=${o.tradingsymbol}">${o.tradingsymbol}</a></td>
-          <td><span class="badge badge-hold" style="font-size:0.6rem">${o.exchange}</span></td>
-          <td><span style="color:${sc};font-weight:800">${o.transaction_type}</span></td>
-          <td class="td-mono">${o.quantity}</td>
-          <td class="td-mono">${fmt(o.price)}</td>
-          <td>${statusBadge(o.status)}</td>
-          <td class="td-dim">${o.reason||"—"}</td>
-          <td>${o.is_dry_run?'<span class="badge badge-dry-run" style="font-size:0.6rem">DRY</span>':""}</td>
-          <td class="td-dim td-mono" style="font-size:0.72rem">${ts}</td>
-        </tr>`;
-      }).join("");
-      document.getElementById("orders-area").innerHTML = `<div class="table-wrap"><table id="audit-orders-table"><thead><tr>
-        <th>ID</th><th>Symbol</th><th>Exchange</th><th>Side</th><th>Qty</th>
-        <th>Price</th><th>Status</th><th>Reason</th><th>Mode</th><th>Time</th>
-      </tr></thead><tbody>${rows}</tbody></table></div>`;
+    if (!or || !or.ok) {
+      document.getElementById("k-total").textContent    = "—";
+      document.getElementById("k-complete").textContent = "—";
+      document.getElementById("k-dry").textContent      = "—";
+      document.getElementById("k-failed").textContent   = "—";
+      const errMsg = or?.error || "Failed to load order audit trail.";
+      const isAuth = or?.status === 401 || (typeof errMsg === "string" && errMsg.includes("401"));
+      document.getElementById("orders-area").innerHTML = errBox(
+        errMsg + (isAuth ? " Session key is required — please unlock or verify your API key in Settings." : "")
+      );
     } else {
-      document.getElementById("orders-area").innerHTML = `<div class="empty-state"><div class="empty-icon"><span class="material-symbols-outlined" style="font-size:48px;">inbox</span></div><div class="empty-title">No orders yet</div><div class="empty-desc">Orders appear here once the rebalancer runs — even in dry-run mode.</div></div>`;
+      const orders = or.data || [];
+      document.getElementById("k-total").textContent    = orders.length;
+      document.getElementById("k-complete").textContent = orders.filter(o => o.status === "COMPLETE" || o.status === "EXECUTED").length;
+      document.getElementById("k-dry").textContent      = orders.filter(o => o.is_dry_run || o.status === "DRY_RUN").length;
+      document.getElementById("k-failed").textContent   = orders.filter(o => o.status === "FAILED" || o.status === "REJECTED").length;
+
+      if (orders.length) {
+        const rows = orders.map(o => {
+          const sc = o.transaction_type === "SELL" ? "var(--red)" : "var(--green)";
+          const ts = (o.placed_at || "").replace("T", " ").substring(0, 19);
+          return `<tr>
+            <td class="td-dim td-mono" style="font-size:0.7rem">#${o.id || "—"}</td>
+            <td class="td-main"><a class="td-link" href="analyzer.html?sym=${o.tradingsymbol}">${o.tradingsymbol}</a></td>
+            <td><span class="badge badge-hold" style="font-size:0.6rem">${o.exchange || "NSE"}</span></td>
+            <td><span style="color:${sc};font-weight:800">${o.transaction_type}</span></td>
+            <td class="td-mono">${o.quantity}</td>
+            <td class="td-mono">${fmt(o.price)}</td>
+            <td>${statusBadge(o.status)}</td>
+            <td class="td-dim">${o.reason || "—"}</td>
+            <td>${o.is_dry_run ? '<span class="badge badge-dry-run" style="font-size:0.6rem">DRY</span>' : '<span class="badge badge-complete" style="font-size:0.6rem">LIVE</span>'}</td>
+            <td class="td-dim td-mono" style="font-size:0.72rem">${ts}</td>
+          </tr>`;
+        }).join("");
+        document.getElementById("orders-area").innerHTML = `<div class="table-wrap"><table class="data-table" id="audit-orders-table"><thead><tr>
+          <th>ID</th><th>Symbol</th><th>Exchange</th><th>Side</th><th>Qty</th>
+          <th>Price</th><th>Status</th><th>Reason</th><th>Mode</th><th>Time</th>
+        </tr></thead><tbody>${rows}</tbody></table></div>`;
+      } else {
+        document.getElementById("orders-area").innerHTML = `<div class="empty-state"><div class="empty-icon"><span class="material-symbols-outlined" style="font-size:48px;">inbox</span></div><div class="empty-title">No orders found</div><div class="empty-desc">No orders match filter (${status}, ${side}). Orders appear here once the rebalancer runs.</div></div>`;
+      }
     }
 
-    const vals = vr.ok ? vr.data : [];
-    if (vals.length) {
-      const vrows = vals.map(v => {
-        const rc = v.validation_result==="APPROVED"?"badge-approved":v.validation_result==="REJECTED"?"badge-rejected":"badge-hold";
-        const ts = (v.validated_at||"").replace("T"," ").substring(0,19);
-        return `<tr>
-          <td class="td-main"><a class="td-link" href="analyzer.html?sym=${v.tradingsymbol}">${v.tradingsymbol}</a></td>
-          <td style="font-weight:700">${v.transaction_type}</td>
-          <td class="td-mono">${v.quantity}</td>
-          <td class="td-mono">${fmt(v.price)}</td>
-          <td><span class="badge ${rc}">${v.validation_result}</span></td>
-          <td class="td-dim">${v.failure_reason||"—"}</td>
-          <td class="td-dim td-mono" style="font-size:0.72rem">${ts}</td>
-        </tr>`;
-      }).join("");
-      document.getElementById("val-area").innerHTML = `<div class="table-wrap"><table id="audit-validations-table"><thead><tr>
-        <th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Result</th><th>Failure Reason</th><th>Time</th>
-      </tr></thead><tbody>${vrows}</tbody></table></div>`;
+    if (!vr || !vr.ok) {
+      const errMsg = vr?.error || "Failed to load validation entries.";
+      document.getElementById("val-area").innerHTML = errBox(errMsg);
     } else {
-      document.getElementById("val-area").innerHTML = `<div class="empty-state"><div class="empty-icon"><span class="material-symbols-outlined" style="font-size:48px;">description</span></div><div class="empty-title">No validation entries</div></div>`;
+      const vals = vr.data || [];
+      if (vals.length) {
+        const vrows = vals.map(v => {
+          const rc = v.validation_result === "APPROVED" ? "badge-approved" : v.validation_result === "REJECTED" ? "badge-rejected" : "badge-hold";
+          const ts = (v.validated_at || "").replace("T", " ").substring(0, 19);
+          return `<tr>
+            <td class="td-main"><a class="td-link" href="analyzer.html?sym=${v.tradingsymbol}">${v.tradingsymbol}</a></td>
+            <td style="font-weight:700">${v.transaction_type}</td>
+            <td class="td-mono">${v.quantity}</td>
+            <td class="td-mono">${fmt(v.price)}</td>
+            <td><span class="badge ${rc}">${v.validation_result}</span></td>
+            <td class="td-dim">${v.failure_reason || "—"}</td>
+            <td class="td-dim td-mono" style="font-size:0.72rem">${ts}</td>
+          </tr>`;
+        }).join("");
+        document.getElementById("val-area").innerHTML = `<div class="table-wrap"><table class="data-table" id="audit-validations-table"><thead><tr>
+          <th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Result</th><th>Failure Reason</th><th>Time</th>
+        </tr></thead><tbody>${vrows}</tbody></table></div>`;
+      } else {
+        document.getElementById("val-area").innerHTML = `<div class="empty-state"><div class="empty-icon"><span class="material-symbols-outlined" style="font-size:48px;">gavel</span></div><div class="empty-title">No validation entries</div><div class="empty-desc">Safety gatekeeper validation logs will appear here during rebalance evaluations.</div></div>`;
+      }
     }
   } catch(err) {
     document.getElementById("orders-area").innerHTML = errBox("Load failed: " + err.message);
