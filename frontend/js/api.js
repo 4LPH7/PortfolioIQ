@@ -290,8 +290,26 @@ const PLOTLY_CONFIG = { responsive: true, displayModeBar: false };
 
 function initMobileNavigation() {
   const toggleBtn = document.getElementById("sidebar-toggle-btn");
+  const retractBtn = document.getElementById("sidebar-retract-btn");
   const sidebar = document.querySelector(".sidebar");
   let backdrop = document.getElementById("sidebar-backdrop");
+
+  // Restore desktop retractable shelf preference
+  if (window.innerWidth > 768 && localStorage.getItem("portfolioiq_sidebar_retracted") === "true") {
+    document.body.classList.add("sidebar-retracted");
+  }
+
+  function toggleRetract() {
+    const isRetracted = document.body.classList.toggle("sidebar-retracted");
+    localStorage.setItem("portfolioiq_sidebar_retracted", isRetracted ? "true" : "false");
+  }
+
+  if (retractBtn) {
+    retractBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleRetract();
+    });
+  }
 
   if (!backdrop) {
     backdrop = document.createElement("div");
@@ -314,10 +332,14 @@ function initMobileNavigation() {
 
   if (toggleBtn) {
     toggleBtn.addEventListener("click", () => {
-      if (sidebar && sidebar.classList.contains("open")) {
-        closeSidebar();
+      if (window.innerWidth <= 768) {
+        if (sidebar && sidebar.classList.contains("open")) {
+          closeSidebar();
+        } else {
+          openSidebar();
+        }
       } else {
-        openSidebar();
+        toggleRetract();
       }
     });
   }

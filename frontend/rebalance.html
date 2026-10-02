@@ -10,21 +10,17 @@
 <body>
 <nav class="sidebar" id="main-sidebar" aria-label="Main Navigation">
   <div class="sidebar-header">
-    <div class="sidebar-logo">
-      <div class="sidebar-logo-icon">📈</div>
-      <div><div class="sidebar-logo-text">PortfolioIQ</div><div class="sidebar-badge">v3.0 LIVE</div></div>
-    </div>
+    <div class="sidebar-header-row"><div class="sidebar-logo"><div class="sidebar-logo-icon">📈</div><div><div class="sidebar-logo-text">PortfolioIQ</div><div class="sidebar-badge">v3.0 LIVE</div></div></div><button type="button" class="sidebar-retract-btn" id="sidebar-retract-btn" title="Toggle Sidebar Shelf" aria-label="Toggle sidebar shelf">◀</button></div>
   </div>
   <div class="nav-label">Main</div>
-  <a class="nav-item" href="index.html"><span class="nav-icon">🏠</span> Dashboard</a>
-  <a class="nav-item" href="analyzer.html"><span class="nav-icon">🔬</span> Stock Analyzer</a>
-  <a class="nav-item active" href="rebalance.html"><span class="nav-icon">⚖️</span> Rebalance</a>
-  <a class="nav-item" href="tax.html"><span class="nav-icon">🛡️</span> Tax Guard</a>
-  <a class="nav-item" href="audit.html"><span class="nav-icon">📋</span> Audit Log</a>
-  <a class="nav-item" href="timeline.html"><span class="nav-icon">📅</span> Portfolio Timeline</a>
-  <a class="nav-item" href="report.html"><span class="nav-icon">📑</span> Monthly Statement</a>
-  <a class="nav-item" href="troubleshoot.html"><span class="nav-icon">&#x1F6E0;&#xFE0F;</span> Import &amp; Troubleshoot</a>
-  <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span> Settings</a>
+  <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="nav-icon">🏠</span> <span>Dashboard</span></a>
+  <a class="nav-item" href="analyzer.html" data-tooltip="Stock Analyzer"><span class="nav-icon">🔬</span> <span>Stock Analyzer</span></a>
+  <a class="nav-item active" href="rebalance.html" data-tooltip="Rebalance"><span class="nav-icon">⚖️</span> <span>Rebalance</span></a>
+  <a class="nav-item" href="tax.html" data-tooltip="Tax Guard"><span class="nav-icon">🛡️</span> <span>Tax Guard</span></a>
+  <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="nav-icon">📋</span> <span>Audit Log</span></a>
+  <a class="nav-item" href="timeline.html" data-tooltip="Portfolio Timeline"><span class="nav-icon">📅</span> <span>Portfolio Timeline</span></a>
+  <a class="nav-item" href="report.html" data-tooltip="Monthly Statement"><span class="nav-icon">📑</span> <span>Monthly Statement</span></a>
+<a class="nav-item" href="settings.html" data-tooltip="Settings"><span class="nav-icon">⚙️</span> <span>Settings</span></a>
   <hr class="sidebar-divider"/>
   <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status"><div class="status-dot"></div><span>Loading…</span></a>
   <a href="status.html" id="db-status" class="status-pill status-warn" title="View Database Status"><div class="status-dot"></div><span>Checking…</span></a>
@@ -101,8 +97,7 @@
     <span class="bottom-nav-icon">📅</span>
     <span>Timeline</span>
   </a>
-  <a class="nav-item" href="troubleshoot.html"><span class="nav-icon">&#x1F6E0;&#xFE0F;</span> Import &amp; Troubleshoot</a>
-  <a class="bottom-nav-item" href="settings.html">
+<a class="bottom-nav-item" href="settings.html">
     <span class="bottom-nav-icon">⚙️</span>
     <span>Settings</span>
   </a>

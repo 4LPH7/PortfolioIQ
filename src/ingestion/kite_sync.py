@@ -124,7 +124,8 @@ def sync_holdings(user_id: str = "default") -> int:
         # 1. Load local holdings
         local_rows = session.execute(
             text("""
-                SELECT instrument_token, tradingsymbol, quantity, t1_quantity, average_price, last_synced_at
+                SELECT instrument_token, tradingsymbol, quantity, t1_quantity, average_price, last_synced_at,
+                       COALESCE(data_source, 'KITE') AS data_source
                 FROM user_holdings
                 WHERE user_id = :user_id
             """),
@@ -138,6 +139,7 @@ def sync_holdings(user_id: str = "default") -> int:
                 "t1_quantity": r.t1_quantity,
                 "average_price": float(r.average_price),
                 "last_synced_at": r.last_synced_at,
+                "data_source": getattr(r, "data_source", "KITE") or "KITE",
             }
             for r in local_rows
         }
@@ -246,6 +248,7 @@ def sync_holdings(user_id: str = "default") -> int:
                         day_change_pct,
                         product,
                         has_discrepancy,
+                        data_source,
                         last_synced_at
                     )
                     VALUES (
@@ -268,6 +271,7 @@ def sync_holdings(user_id: str = "default") -> int:
                         :day_change_pct,
                         :product,
                         :has_discrepancy,
+                        'KITE',
                         NOW()
                     )
                     ON CONFLICT (user_id, instrument_token, product) DO UPDATE SET
@@ -284,6 +288,7 @@ def sync_holdings(user_id: str = "default") -> int:
                         day_change          = EXCLUDED.day_change,
                         day_change_pct      = EXCLUDED.day_change_pct,
                         has_discrepancy     = EXCLUDED.has_discrepancy,
+                        data_source         = 'KITE',
                         last_synced_at      = NOW(),
                         updated_at          = NOW()
                 """),
@@ -311,8 +316,11 @@ def sync_holdings(user_id: str = "default") -> int:
             )
             upserted += 1
 
-        # Check for missing holdings
+        # Check for missing holdings: reconcile KITE-sourced holdings that were liquidated
+        # (never wipe user CSV or manual imports)
         for token, local_h in local_holdings.items():
+            if local_h.get("data_source") in ("CSV_IMPORT", "MANUAL"):
+                continue
             if token not in processed_tokens:
                 old_total = local_h["quantity"] + local_h["t1_quantity"]
                 if old_total > 0:
@@ -342,10 +350,10 @@ def sync_holdings(user_id: str = "default") -> int:
                     # Zero out missing holding
                     session.execute(
                         text("""
-                            UPDATE user_holdings
-                            SET quantity = 0, t1_quantity = 0, updated_at = NOW(), last_synced_at = NOW()
-                            WHERE user_id = :user_id AND instrument_token = :token
-                        """),
+                                UPDATE user_holdings
+                                SET quantity = 0, t1_quantity = 0, updated_at = NOW(), last_synced_at = NOW()
+                                WHERE user_id = :user_id AND instrument_token = :token
+                            """),
                         {"user_id": user_id, "token": token},
                     )
 
