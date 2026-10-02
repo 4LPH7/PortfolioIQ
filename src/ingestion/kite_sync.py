@@ -493,9 +493,108 @@ def _ensure_instrument_exists(session, holding: dict) -> None:
     )
 
 
+def sync_positions(user_id: str = "default") -> int:
+    """
+    Pull open positions from Kite API (net positions, both carry-forward and intraday)
+    and upsert into user_positions table (created in migration 022).
+
+    Returns:
+        Number of position rows upserted.
+    """
+    logger.info("Starting Kite positions sync...")
+    kite = get_authenticated_kite()
+
+    try:
+        raw = kite.positions()
+    except Exception as exc:
+        logger.error("Failed to fetch positions from Kite: {}", exc)
+        raise
+
+    # Kite returns {"net": [...], "day": [...]} — we care about net (carry-forward view)
+    net_positions: list[dict] = raw.get("net", [])
+    if not net_positions:
+        logger.warning("Kite returned 0 net positions.")
+        return 0
+
+    upserted = 0
+    with get_db_session() as session:
+        for p in net_positions:
+            instrument_token = p.get("instrument_token")
+            if not instrument_token:
+                logger.warning("Skipping position with no instrument_token: {}", p)
+                continue
+
+            tradingsymbol = p.get("tradingsymbol", "")
+            exchange = p.get("exchange", "NSE")
+            product = p.get("product", "CNC")
+            if product not in {"CNC", "MIS", "NRML", "MTF"}:
+                product = "CNC"
+
+            quantity = p.get("quantity", 0)
+            average_price = float(p.get("average_price", 0))
+            last_price = float(p.get("last_price", 0))
+            pnl = float(p.get("pnl", 0))
+            day_change = float(p.get("day_change", 0))
+            day_change_pct = float(p.get("day_change_percentage", 0))
+
+            # Ensure instrument exists in master
+            _ensure_instrument_exists(
+                session,
+                {
+                    "instrument_token": instrument_token,
+                    "tradingsymbol": tradingsymbol,
+                    "exchange": exchange,
+                    "isin": p.get("isin"),
+                },
+            )
+
+            session.execute(
+                text("""
+                    INSERT INTO user_positions (
+                        user_id, instrument_token, tradingsymbol, exchange,
+                        product, quantity, average_price, last_price,
+                        pnl, day_change, day_change_pct,
+                        data_source, last_synced_at, updated_at
+                    )
+                    VALUES (
+                        :user_id, :instrument_token, :tradingsymbol, :exchange,
+                        :product, :quantity, :average_price, :last_price,
+                        :pnl, :day_change, :day_change_pct,
+                        'KITE', NOW(), NOW()
+                    )
+                    ON CONFLICT (user_id, instrument_token, product) DO UPDATE SET
+                        quantity         = EXCLUDED.quantity,
+                        average_price    = EXCLUDED.average_price,
+                        last_price       = EXCLUDED.last_price,
+                        pnl              = EXCLUDED.pnl,
+                        day_change       = EXCLUDED.day_change,
+                        day_change_pct   = EXCLUDED.day_change_pct,
+                        last_synced_at   = NOW(),
+                        updated_at       = NOW()
+                """),
+                {
+                    "user_id": user_id,
+                    "instrument_token": instrument_token,
+                    "tradingsymbol": tradingsymbol,
+                    "exchange": exchange,
+                    "product": product,
+                    "quantity": quantity,
+                    "average_price": average_price,
+                    "last_price": last_price,
+                    "pnl": pnl,
+                    "day_change": day_change,
+                    "day_change_pct": day_change_pct,
+                },
+            )
+            upserted += 1
+
+    logger.success("Positions sync complete. {} positions upserted.", upserted)
+    return upserted
+
+
 def run_start_of_day_sync() -> dict[str, Any]:
     """
-    Full start-of-day sync: holdings + margins.
+    Full start-of-day sync: holdings + positions + margins.
     Called by APScheduler at 09:15 AM IST on market days.
 
     Returns:
@@ -511,6 +610,12 @@ def run_start_of_day_sync() -> dict[str, Any]:
     except Exception as exc:
         logger.error("Holdings sync failed: {}", exc)
         results["holdings_error"] = str(exc)
+
+    try:
+        results["positions_upserted"] = sync_positions()
+    except Exception as exc:
+        logger.error("Positions sync failed: {}", exc)
+        results["positions_error"] = str(exc)
 
     try:
         margins = sync_margins()

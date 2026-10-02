@@ -1130,3 +1130,308 @@ def import_holdings_csv():
         message=f"Successfully imported {len(final_holdings)} holdings from CSV.",
     )
     return jsonify({"ok": True, "data": result_dto.model_dump()}), 200
+
+
+# ─────────────────────────────────────────────────────────────
+# Positions & Smart CSV Import (migration 022)
+# ─────────────────────────────────────────────────────────────
+
+
+@api_v1_bp.route("/holdings/positions", methods=["GET"])
+@require_api_key
+def get_positions():
+    """Return live positions from user_positions table (populated by Kite sync or CSV import)."""
+    from sqlalchemy import text as sa_text
+
+    user_id = request.args.get("user_id", "default")
+    with get_db_session() as session:
+        rows = (
+            session.execute(
+                sa_text("""
+                SELECT tradingsymbol, exchange, product, quantity,
+                       average_price, last_price, pnl, day_change, day_change_pct,
+                       data_source, last_synced_at
+                FROM user_positions
+                WHERE user_id = :user_id
+                ORDER BY ABS(quantity) DESC, tradingsymbol
+            """),
+                {"user_id": user_id},
+            )
+            .mappings()
+            .all()
+        )
+    return jsonify(
+        {
+            "ok": True,
+            "data": [dict(r) for r in rows],
+            "count": len(rows),
+        }
+    ), 200
+
+
+@api_v1_bp.route("/holdings/import-smart", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+def import_smart_csv():
+    """
+    Auto-detect and import a Zerodha CSV export (holdings, positions, or ledger).
+    Returns a preview payload before committing. Add ?commit=1 to write to DB.
+    """
+    from decimal import Decimal
+
+    from sqlalchemy import text as sa_text
+
+    from src.ingestion.broker_csv_import import BrokerCSVError, parse_broker_csv
+
+    user_id = request.args.get("user_id", "default")
+    commit = request.args.get("commit", "0") in ("1", "true", "yes")
+
+    if "file" in request.files:
+        f = request.files["file"]
+        raw = f.read()
+        filename = f.filename or "upload.csv"
+    elif request.is_json and request.json and "csv_text" in request.json:
+        raw = request.json["csv_text"].encode()
+        filename = request.json.get("filename", "inline.csv")
+    else:
+        return format_error_response(
+            "MISSING_FILE", "Provide a file upload or csv_text in JSON body.", 400
+        )
+
+    try:
+        parsed = parse_broker_csv(filename, raw)
+    except BrokerCSVError as exc:
+        return format_error_response("PARSE_ERROR", str(exc), 400)
+
+    kind = parsed["kind"]
+    rows = parsed["rows"]
+
+    if not commit:
+        return jsonify(
+            {
+                "ok": True,
+                "preview": True,
+                "kind": kind,
+                "filename": filename,
+                "row_count": len(rows),
+                "skipped_count": parsed.get("skipped_count", 0),
+                "rows": rows[:50],  # cap preview at 50 rows
+            }
+        ), 200
+
+    # ── commit to DB ──────────────────────────────────────────
+    imported = 0
+    errors_out: list[str] = []
+
+    with get_db_session() as session:
+        if kind in ("holdings", "positions"):
+            table = "user_holdings" if kind == "holdings" else "user_positions"
+            for r in rows:
+                sym = r["symbol"]
+                qty = r["quantity"]
+                avg = float(r["average_price"])
+                ltp = float(r.get("last_price") or Decimal("0"))
+                exchange = r.get("exchange") or "NSE"
+                product = r.get("product", "CNC")
+
+                # Resolve or create instrument_master token
+                existing = session.execute(
+                    sa_text(
+                        "SELECT instrument_token FROM instrument_master WHERE tradingsymbol = :s AND exchange = :e LIMIT 1"
+                    ),
+                    {"s": sym, "e": exchange},
+                ).fetchone()
+                if existing:
+                    token = existing[0]
+                else:
+                    import zlib
+
+                    token = (zlib.crc32(f"{exchange}:{sym}".encode()) & 0x7FFFFFFF) or 100001
+                    session.execute(
+                        sa_text("""
+                            INSERT INTO instrument_master (instrument_token, exchange_token, tradingsymbol, name, isin, exchange, instrument_type, is_active)
+                            VALUES (:tok, :tok, :sym, :sym, NULL, :exch, 'EQ', TRUE)
+                            ON CONFLICT (instrument_token) DO NOTHING
+                        """),
+                        {"tok": token, "sym": sym, "exch": exchange},
+                    )
+
+                if table == "user_holdings":
+                    session.execute(
+                        sa_text("""
+                            INSERT INTO user_holdings (
+                                user_id, instrument_token, tradingsymbol, exchange, isin,
+                                quantity, t1_quantity, opening_quantity, used_quantity,
+                                authorised_quantity, collateral_quantity, average_price,
+                                last_price, close_price, pnl, day_change, day_change_pct,
+                                product, has_discrepancy, last_synced_at, data_source
+                            )
+                            VALUES (
+                                :uid, :tok, :sym, :exch, NULL,
+                                :qty, 0, :qty, 0, :qty, 0, :avg,
+                                :ltp, :ltp, 0, 0, 0,
+                                :prod, FALSE, NOW(), 'CSV_IMPORT'
+                            )
+                            ON CONFLICT (user_id, instrument_token, product) DO UPDATE SET
+                                quantity = EXCLUDED.quantity,
+                                average_price = EXCLUDED.average_price,
+                                last_price = EXCLUDED.last_price,
+                                opening_quantity = EXCLUDED.opening_quantity,
+                                last_synced_at = NOW(),
+                                data_source = 'CSV_IMPORT',
+                                updated_at = NOW()
+                        """),
+                        {
+                            "uid": user_id,
+                            "tok": token,
+                            "sym": sym,
+                            "exch": exchange,
+                            "qty": qty,
+                            "avg": avg,
+                            "ltp": ltp,
+                            "prod": product,
+                        },
+                    )
+                else:  # user_positions
+                    session.execute(
+                        sa_text("""
+                            INSERT INTO user_positions (
+                                user_id, instrument_token, tradingsymbol, exchange,
+                                product, quantity, average_price, last_price,
+                                pnl, day_change, day_change_pct,
+                                data_source, last_synced_at, updated_at
+                            )
+                            VALUES (
+                                :uid, :tok, :sym, :exch,
+                                :prod, :qty, :avg, :ltp,
+                                0, 0, 0,
+                                'CSV_IMPORT', NOW(), NOW()
+                            )
+                            ON CONFLICT (user_id, instrument_token, product) DO UPDATE SET
+                                quantity = EXCLUDED.quantity,
+                                average_price = EXCLUDED.average_price,
+                                last_price = EXCLUDED.last_price,
+                                last_synced_at = NOW(),
+                                data_source = 'CSV_IMPORT',
+                                updated_at = NOW()
+                        """),
+                        {
+                            "uid": user_id,
+                            "tok": token,
+                            "sym": sym,
+                            "exch": exchange,
+                            "qty": qty,
+                            "avg": avg,
+                            "ltp": ltp,
+                            "prod": product,
+                        },
+                    )
+                imported += 1
+
+        elif kind == "ledger":
+            for r in rows:
+                if r.get("entry_kind") == "BALANCE_SNAPSHOT":
+                    continue
+                try:
+                    session.execute(
+                        sa_text("""
+                            INSERT INTO broker_ledger_entries (
+                                user_id, import_hash, posting_date, particulars,
+                                cost_center, voucher_type, debit, credit,
+                                net_balance, entry_kind, source_file
+                            )
+                            VALUES (
+                                :uid, :hash, :dt, :particulars,
+                                :cc, :vt, :debit, :credit,
+                                :bal, :kind, :src
+                            )
+                            ON CONFLICT (user_id, import_hash) DO NOTHING
+                        """),
+                        {
+                            "uid": user_id,
+                            "hash": r["import_hash"],
+                            "dt": r["posting_date"],
+                            "particulars": r.get("particulars", ""),
+                            "cc": r.get("cost_center", ""),
+                            "vt": r.get("voucher_type", ""),
+                            "debit": float(r.get("debit") or 0),
+                            "credit": float(r.get("credit") or 0),
+                            "bal": float(r.get("net_balance") or 0)
+                            if r.get("net_balance") is not None
+                            else None,
+                            "kind": r.get("entry_kind", "OTHER"),
+                            "src": filename,
+                        },
+                    )
+                    imported += 1
+                except Exception as exc:
+                    errors_out.append(f"Row {r.get('source_row', '?')}: {exc}")
+
+    return jsonify(
+        {
+            "ok": True,
+            "preview": False,
+            "kind": kind,
+            "filename": filename,
+            "imported_count": imported,
+            "skipped_count": parsed.get("skipped_count", 0),
+            "errors": errors_out[:10],
+            "message": f"Imported {imported} {kind} rows from {filename}.",
+        }
+    ), 200
+
+
+@api_v1_bp.route("/ledger", methods=["GET"])
+@require_api_key
+def get_ledger():
+    """Return broker ledger entries from broker_ledger_entries table."""
+    from sqlalchemy import text as sa_text
+
+    user_id = request.args.get("user_id", "default")
+    try:
+        limit = min(int(request.args.get("limit", 100)), 500)
+    except ValueError:
+        limit = 100
+    kind = request.args.get("kind")
+
+    with get_db_session() as session:
+        if kind:
+            rows = (
+                session.execute(
+                    sa_text("""
+                    SELECT posting_date, particulars, cost_center, voucher_type,
+                           debit, credit, net_balance, entry_kind, source_file, imported_at
+                    FROM broker_ledger_entries
+                    WHERE user_id = :uid AND entry_kind = :kind
+                    ORDER BY posting_date DESC NULLS LAST, id DESC
+                    LIMIT :lim
+                """),
+                    {"uid": user_id, "kind": kind.upper(), "lim": limit},
+                )
+                .mappings()
+                .all()
+            )
+        else:
+            rows = (
+                session.execute(
+                    sa_text("""
+                    SELECT posting_date, particulars, cost_center, voucher_type,
+                           debit, credit, net_balance, entry_kind, source_file, imported_at
+                    FROM broker_ledger_entries
+                    WHERE user_id = :uid
+                    ORDER BY posting_date DESC NULLS LAST, id DESC
+                    LIMIT :lim
+                """),
+                    {"uid": user_id, "lim": limit},
+                )
+                .mappings()
+                .all()
+            )
+
+    return jsonify(
+        {
+            "ok": True,
+            "data": [dict(r) for r in rows],
+            "count": len(rows),
+        }
+    ), 200
