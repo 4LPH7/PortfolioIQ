@@ -60,7 +60,12 @@ def test_market_status_accessible_without_auth(client: FlaskClient) -> None:
         assert res_legacy.json == {"ok": True, "data": mock_status}
 
 
-def test_broker_callback_returns_to_configured_frontend(client: FlaskClient) -> None:
+@pytest.mark.parametrize(
+    "callback_path", ["/api/v1/broker/callback", "/callback"]
+)
+def test_broker_callback_returns_to_configured_frontend(
+    client: FlaskClient, callback_path: str
+) -> None:
     """A successful Kite login returns to this deployment's configured UI."""
     from types import SimpleNamespace
 
@@ -72,8 +77,7 @@ def test_broker_callback_returns_to_configured_frontend(client: FlaskClient) -> 
         ),
     ):
         response = client.get(
-            "/api/v1/broker/callback?request_token=one-time-token",
-            follow_redirects=False,
+            f"{callback_path}?request_token=one-time-token", follow_redirects=False
         )
 
     assert response.status_code == 302

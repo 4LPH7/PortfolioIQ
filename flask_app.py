@@ -85,6 +85,15 @@ def index():
 app.register_blueprint(api_v1_bp, url_prefix="/api/v1")
 app.register_blueprint(api_v1_bp, url_prefix="/api", name="api_legacy")
 
+# Kite apps configured before the API callback was namespaced may still redirect
+# to this root path. Keep it as an alias so those sign-ins complete successfully.
+app.add_url_rule(
+    "/callback",
+    endpoint="kite_callback_legacy",
+    view_func=app.view_functions["api_v1.broker_callback"],
+    methods=["GET"],
+)
+
 # Startup Safety Gate Verification (Phase 8)
 try:
     _safety_report = verify_startup_safety()
