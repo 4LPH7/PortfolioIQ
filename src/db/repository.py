@@ -592,18 +592,26 @@ def get_realized_ltcg_ytd(
         fy_year = today.year if today.month >= 4 else today.year - 1
         fy_start_date = date(fy_year, 4, 1)
 
-    query = text("""
-        SELECT COALESCE(SUM(realized_pnl), 0) AS total_ltcg
-        FROM holding_tax_lots
-        WHERE user_id = :user_id
-          AND holding_period_category = 'LTCG'
-          AND updated_at >= :fy_start_date
-          AND remaining_quantity = 0
-    """)
-    with get_db_session() as session:
-        result = session.execute(query, {"user_id": user_id, "fy_start_date": fy_start_date})
-        row = result.mappings().first()
-        return Decimal(str(row["total_ltcg"])) if row else Decimal("0.00")
+    try:
+        query = text("""
+            SELECT COALESCE(SUM(
+                CASE WHEN htl.remaining_quantity < htl.quantity AND htl.buy_date <= (htl.created_at::date - 365)
+                THEN (htl.quantity - htl.remaining_quantity) * (uh.last_price - COALESCE(htl.adjusted_price, htl.buy_price))
+                ELSE 0 END
+            ), 0) AS total_ltcg
+            FROM holding_tax_lots htl
+            JOIN user_holdings uh ON uh.id = htl.holding_id
+            WHERE uh.user_id = :user_id
+              AND htl.created_at >= :fy_start_date
+        """)
+        with get_db_session() as session:
+            result = session.execute(query, {"user_id": user_id, "fy_start_date": fy_start_date})
+            row = result.mappings().first()
+            val = row["total_ltcg"] if row else 0
+            return Decimal(str(val)) if val is not None else Decimal("0.00")
+    except Exception as exc:
+        logger.warning("Could not calculate realized LTCG YTD from tax lots: {}. Returning 0.00", exc)
+        return Decimal("0.00")
 
 
 # ============================================================

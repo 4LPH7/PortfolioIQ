@@ -413,6 +413,7 @@ def get_analytics_performance():
     Max Drawdown, Beta, Jensen's Alpha), and basis-point drag attribution.
     """
     from src.analytics.performance import compute_portfolio_performance_summary
+    from src.db.repository import get_cash_flows, get_daily_snapshots
 
     benchmark = request.args.get("benchmark", "NIFTY 50 TRI")
     try:
@@ -423,12 +424,24 @@ def get_analytics_performance():
     window = request.args.get("window", "all")
     user_id = request.args.get("user_id", "default")
 
-    summary = compute_portfolio_performance_summary(
-        user_id=user_id,
-        benchmark_name=benchmark,
-        rf_annual=rf_rate,
-        window=window,
-    )
+    snapshots = get_daily_snapshots(user_id=user_id)
+    cash_flows = get_cash_flows(user_id=user_id)
+
+    try:
+        summary = compute_portfolio_performance_summary(
+            snapshots=snapshots,
+            cash_flows=cash_flows,
+            rf_annual=rf_rate,
+            user_id=user_id,
+        )
+    except TypeError:
+        summary = compute_portfolio_performance_summary(
+            user_id=user_id,
+            benchmark_name=benchmark,
+            rf_annual=rf_rate,
+            window=window,
+        )
+
     return jsonify({"ok": True, "data": summary.model_dump(mode="json")}), 200
 
 

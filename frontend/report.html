@@ -32,16 +32,41 @@
       margin-top: 2rem;
     }
     @media print {
+      @page {
+        size: A4 portrait;
+        margin: 8mm 10mm;
+      }
+      .page-header,
+      .page-actions,
+      .topbar,
+      .sidebar,
+      .bottom-nav {
+        display: none !important;
+      }
+      main.main {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+      }
       .statement-container {
         max-width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
       }
+      .statement-header {
+        border-bottom: 2px solid #0f172a !important;
+        padding: 0 0 0.5rem 0 !important;
+        margin-bottom: 0.5rem !important;
+      }
       .disclaimer-box {
-        background: #f8f9fa !important;
-        border: 1px solid #cccccc !important;
-        border-left: 4px solid #333333 !important;
-        color: #333333 !important;
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        border-left: 3.5px solid #0284c7 !important;
+        color: #475569 !important;
+        margin-top: 0.4rem !important;
+        padding: 0.35rem 0.55rem !important;
+        font-size: 0.6rem !important;
+        line-height: 1.35 !important;
       }
     }
   </style>
@@ -349,7 +374,7 @@
       const [perfRes, taxRes, holdRes] = await Promise.all([
         apiGet("/analytics/performance"),
         apiGet("/analytics/tax-harvesting"),
-        apiGet("/api/holdings"),
+        apiGet("/portfolio/summary"),
       ]);
 
       renderPerformance(perfRes && perfRes.ok ? perfRes.data : null);
@@ -423,11 +448,15 @@
   function renderTaxLedger(tax) {
     if (!tax) return;
 
-    const exemptRemain = parseFloat(tax.remaining_ltcg_exemption ?? 125000);
+    const exemptLimit = parseFloat(tax.ltcg_exemption_limit ?? 125000);
+    const exemptRemain = parseFloat(tax.ltcg_exemption_remaining ?? tax.remaining_ltcg_exemption ?? 125000);
     const stcgReal = parseFloat(tax.realized_stcg ?? 0);
-    const ltcgReal = parseFloat(tax.realized_ltcg ?? 0);
+    const ltcgReal = parseFloat(tax.ltcg_realized_ytd ?? tax.realized_ltcg ?? 0);
     const stcgTax = parseFloat(tax.estimated_stcg_tax ?? (stcgReal * 0.20));
-    const ltcgTax = parseFloat(tax.estimated_ltcg_tax ?? (Math.max(0, ltcgReal - 125000) * 0.125));
+    const ltcgTax = parseFloat(tax.estimated_ltcg_tax ?? (Math.max(0, ltcgReal - exemptLimit) * 0.125));
+
+    const elLimit = document.getElementById("tax-exempt-limit");
+    if (elLimit) elLimit.textContent = `₹${exemptLimit.toLocaleString("en-IN")}`;
 
     const elExempt = document.getElementById("tax-exempt-remain");
     if (elExempt) elExempt.textContent = `Remaining: ₹${exemptRemain.toLocaleString("en-IN")}`;
@@ -451,10 +480,10 @@
     const aumEl = document.getElementById("stmt-aum");
 
     const holdings = data?.holdings || [];
-    const totalAum = data?.total_aum || 0;
+    const totalAum = data?.total_aum != null ? data.total_aum : (data?.net_worth || 0);
 
     if (aumEl) aumEl.textContent = fmt(totalAum);
-    if (badge) badge.textContent = `${holdings.length} holdings`;
+    if (badge) badge.textContent = `${holdings.length} ${holdings.length === 1 ? "holding" : "holdings"}`;
 
     if (!tbody) return;
 
@@ -471,15 +500,18 @@
 
     tbody.innerHTML = holdings.map(h => {
       const pnlCls = h.pnl >= 0 ? "td-pos" : "td-neg";
+      const qty = h.qty != null ? h.qty : (h.quantity || 0);
+      const invested = h.invested != null ? h.invested : (h.invested_value || 0);
+      const curVal = h.current_value != null ? h.current_value : (qty * (h.current_price || 0));
       return `
         <tr>
           <td class="font-bold text-accent">${h.symbol}</td>
           <td><span class="badge badge-hold">${h.exchange || "NSE"}</span></td>
-          <td class="text-right font-mono">${h.quantity}</td>
+          <td class="text-right font-mono">${qty}</td>
           <td class="text-right font-mono">${fmt(h.avg_price)}</td>
-          <td class="text-right font-mono">${fmt(h.current_price)}</td>
-          <td class="text-right font-mono">${fmt(h.invested_value)}</td>
-          <td class="text-right font-mono font-bold">${fmt(h.current_value)}</td>
+          <td class="text-right font-mono font-bold">${fmt(h.current_price)}</td>
+          <td class="text-right font-mono">${fmt(invested)}</td>
+          <td class="text-right font-mono font-bold">${fmt(curVal)}</td>
           <td class="text-right font-mono ${pnlCls}">${fmt(h.pnl)}</td>
           <td class="text-right font-mono ${pnlCls}">${fmtPct(h.pnl_pct)}</td>
         </tr>
