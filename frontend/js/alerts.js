@@ -75,7 +75,7 @@
       drawer.innerHTML = `
         <div class="drawer-header">
           <div class="flex items-center gap-sm">
-            <span style="font-size: 1.25rem;">🔔</span>
+            <span class="material-symbols-outlined" style="font-size:1.25rem;color:var(--accent)">notifications</span>
             <div class="font-bold text-md">Notifications</div>
             <span class="badge badge-hold" id="drawer-count-badge">0</span>
           </div>
@@ -84,7 +84,7 @@
               Clear All
             </button>
             <button type="button" class="drawer-close-btn" onclick="PortfolioIQAlerts.closeDrawer()" aria-label="Close notifications">
-              &times;
+              <span class="material-symbols-outlined" style="font-size:1.15rem">close</span>
             </button>
           </div>
         </div>
@@ -125,7 +125,7 @@
     bellBtn.onclick = toggleDrawer;
 
     bellBtn.innerHTML = `
-      <span class="bell-icon" aria-hidden="true">🔔</span>
+      <span class="bell-icon material-symbols-outlined" aria-hidden="true" style="font-size:1.15rem">notifications</span>
       <span class="bell-badge" id="bell-badge" style="display:none;">0</span>
     `;
 
@@ -209,7 +209,7 @@
     if (filtered.length === 0) {
       listEl.innerHTML = `
         <div class="empty-state py-lg">
-          <div class="empty-icon" style="font-size: 2.2rem;">✨</div>
+          <div class="empty-icon"><span class="material-symbols-outlined" style="font-size:2.4rem;color:var(--accent)">verified</span></div>
           <div class="empty-title">All clear!</div>
           <div class="empty-desc text-xs text-muted">No active ${activeFilter === "ALL" ? "" : activeFilter.toLowerCase()} alerts.</div>
         </div>
@@ -218,10 +218,10 @@
     }
 
     const typeIcons = {
-      DRIFT: "⚖️",
-      PRICE_STALE: "⏱️",
-      TAX: "🛡️",
-      SYSTEM: "🔌",
+      DRIFT: '<span class="material-symbols-outlined">balance</span>',
+      PRICE_STALE: '<span class="material-symbols-outlined">schedule</span>',
+      TAX: '<span class="material-symbols-outlined">shield</span>',
+      SYSTEM: '<span class="material-symbols-outlined">power</span>',
     };
 
     const severityBadges = {
@@ -231,7 +231,7 @@
     };
 
     listEl.innerHTML = filtered.map((a) => {
-      const icon = typeIcons[a.type] || "ℹ️";
+      const icon = typeIcons[a.type] || '<span class="material-symbols-outlined">info</span>';
       const sevBadge = severityBadges[a.severity] || "";
       const timeStr = formatRelativeTime(a.timestamp);
       const actionHtml = a.action_label && a.action_url

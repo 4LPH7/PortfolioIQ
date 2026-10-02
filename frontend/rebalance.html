@@ -5,34 +5,35 @@
   <meta name="view-transition" content="same-origin"/>
   <title>PortfolioIQ — Rebalance Engine</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
   <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
 <nav class="sidebar" id="main-sidebar" aria-label="Main Navigation">
   <div class="sidebar-header">
-    <div class="sidebar-header-row"><div class="sidebar-logo"><div class="sidebar-logo-icon">📈</div><div><div class="sidebar-logo-text">PortfolioIQ</div><div class="sidebar-badge">v3.0 LIVE</div></div></div><button type="button" class="sidebar-retract-btn" id="sidebar-retract-btn" title="Toggle Sidebar Shelf" aria-label="Toggle sidebar shelf">◀</button></div>
+    <div class="sidebar-header-row"><div class="sidebar-logo"><div class="sidebar-logo-icon"><span class="material-symbols-outlined">trending_up</span></div><div><div class="sidebar-logo-text">PortfolioIQ</div><div class="sidebar-badge">v3.0 LIVE</div></div></div><button type="button" class="sidebar-retract-btn" id="sidebar-retract-btn" title="Toggle Sidebar Shelf" aria-label="Toggle sidebar shelf"><span class="material-symbols-outlined">chevron_left</span></button></div>
   </div>
   <div class="nav-label">Main</div>
-  <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="nav-icon">🏠</span> <span>Dashboard</span></a>
-  <a class="nav-item" href="analyzer.html" data-tooltip="Stock Analyzer"><span class="nav-icon">🔬</span> <span>Stock Analyzer</span></a>
-  <a class="nav-item active" href="rebalance.html" data-tooltip="Rebalance"><span class="nav-icon">⚖️</span> <span>Rebalance</span></a>
-  <a class="nav-item" href="tax.html" data-tooltip="Tax Guard"><span class="nav-icon">🛡️</span> <span>Tax Guard</span></a>
-  <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="nav-icon">📋</span> <span>Audit Log</span></a>
-  <a class="nav-item" href="timeline.html" data-tooltip="Portfolio Timeline"><span class="nav-icon">📅</span> <span>Portfolio Timeline</span></a>
-  <a class="nav-item" href="report.html" data-tooltip="Monthly Statement"><span class="nav-icon">📑</span> <span>Monthly Statement</span></a>
-<a class="nav-item" href="settings.html" data-tooltip="Settings"><span class="nav-icon">⚙️</span> <span>Settings</span></a>
+  <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="material-symbols-outlined nav-icon">dashboard</span> <span>Dashboard</span></a>
+  <a class="nav-item" href="analyzer.html" data-tooltip="Stock Analyzer"><span class="material-symbols-outlined nav-icon">analytics</span> <span>Stock Analyzer</span></a>
+  <a class="nav-item active" href="rebalance.html" data-tooltip="Rebalance"><span class="material-symbols-outlined nav-icon">balance</span> <span>Rebalance</span></a>
+  <a class="nav-item" href="tax.html" data-tooltip="Tax Guard"><span class="material-symbols-outlined nav-icon">shield</span> <span>Tax Guard</span></a>
+  <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="material-symbols-outlined nav-icon">receipt_long</span> <span>Audit Log</span></a>
+  <a class="nav-item" href="timeline.html" data-tooltip="Portfolio Timeline"><span class="material-symbols-outlined nav-icon">timeline</span> <span>Portfolio Timeline</span></a>
+  <a class="nav-item" href="report.html" data-tooltip="Monthly Statement"><span class="material-symbols-outlined nav-icon">description</span> <span>Monthly Statement</span></a>
+<a class="nav-item" href="settings.html" data-tooltip="Settings"><span class="material-symbols-outlined nav-icon">settings</span> <span>Settings</span></a>
   <hr class="sidebar-divider"/>
   <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status"><div class="status-dot"></div><span>Loading…</span></a>
   <a href="status.html" id="db-status" class="status-pill status-warn" title="View Database Status"><div class="status-dot"></div><span>Checking…</span></a>
 </nav>
 <header class="topbar" role="banner">
   <button type="button" class="sidebar-toggle-btn" id="sidebar-toggle-btn" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="main-sidebar">
-    <span aria-hidden="true">☰</span>
+    <span class="material-symbols-outlined" aria-hidden="true">menu</span>
   </button>
   <div class="topbar-breadcrumb"><span>PortfolioIQ</span><span class="sep">/</span><span class="crumb-current">Rebalance Engine</span></div>
   <div class="topbar-right">
     <button type="button" class="topbar-bell-btn" id="notification-bell-btn" onclick="PortfolioIQAlerts.toggleDrawer()" title="View Notifications" aria-label="View notifications">
-      <span class="bell-icon">🔔</span>
+      <span class="material-symbols-outlined bell-icon">notifications</span>
       <span class="bell-badge" id="bell-badge" style="display:none;">0</span>
     </button>
     <div class="topbar-time" id="clock">—</div>
@@ -45,36 +46,36 @@
       <p class="page-subtitle">Drift detection · CNC order generation · Tax-aware recommendations</p>
     </div>
     <div class="page-actions">
-      <button class="btn" onclick="loadPage()">↻ Refresh</button>
+      <button class="btn" onclick="loadPage()"><span class="material-symbols-outlined spin-icon" style="font-size:16px;vertical-align:middle;margin-right:4px;">sync</span> Refresh</button>
     </div>
   </div>
 
   <div id="banner-area"></div>
 
   <div class="kpi-grid stagger" id="kpis">
-    <div class="kpi-card"><span class="kpi-icon">📡</span><div class="kpi-label">Total Signals</div><div class="kpi-value" id="k-total">—</div></div>
-    <div class="kpi-card"><span class="kpi-icon">🚨</span><div class="kpi-label">Actionable</div><div class="kpi-value" id="k-action">—</div></div>
-    <div class="kpi-card"><span class="kpi-icon">📋</span><div class="kpi-label">Proposed Orders</div><div class="kpi-value" id="k-orders">—</div></div>
-    <div class="kpi-card"><span class="kpi-icon">⚠️</span><div class="kpi-label">Tax Warnings</div><div class="kpi-value" id="k-tax">—</div></div>
+    <div class="kpi-card"><span class="material-symbols-outlined kpi-icon">sensors</span><div class="kpi-label">Total Signals</div><div class="kpi-value" id="k-total">—</div></div>
+    <div class="kpi-card"><span class="material-symbols-outlined kpi-icon" style="color:var(--yellow)">warning</span><div class="kpi-label">Actionable</div><div class="kpi-value" id="k-action">—</div></div>
+    <div class="kpi-card"><span class="material-symbols-outlined kpi-icon">receipt_long</span><div class="kpi-label">Proposed Orders</div><div class="kpi-value" id="k-orders">—</div></div>
+    <div class="kpi-card"><span class="material-symbols-outlined kpi-icon" style="color:var(--yellow)">report_problem</span><div class="kpi-label">Tax Warnings</div><div class="kpi-value" id="k-tax">—</div></div>
   </div>
 
   <div class="flex justify-between items-center mb-sm">
     <div class="section-header" style="margin:0">Drift Signals</div>
-    <button type="button" class="btn btn-xs btn-ghost" data-export="drift-table" title="Export CSV">📥 Export CSV</button>
+    <button type="button" class="btn btn-xs btn-ghost" data-export="drift-table" title="Export CSV"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">download</span> Export CSV</button>
   </div>
   <div id="drift-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div><span>Analysing drift…</span></div></div></div>
 
   <div class="flex justify-between items-center mb-sm">
     <div class="section-header" style="margin:0">Proposed CNC Orders</div>
-    <button type="button" class="btn btn-xs btn-ghost" data-export="rebalance-orders-table" title="Export CSV">📥 Export CSV</button>
+    <button type="button" class="btn btn-xs btn-ghost" data-export="rebalance-orders-table" title="Export CSV"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">download</span> Export CSV</button>
   </div>
   <div id="orders-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div></div></div></div>
 
   <div class="alert alert-info mt-md">
-    <span class="alert-icon">🛡️</span>
+    <span class="alert-icon"><span class="material-symbols-outlined">shield</span></span>
     <div class="alert-body">
       <div class="alert-title">Dry Run Mode Active</div>
-      <div class="alert-text">Orders shown are simulated only. Enable live execution in ⚙️ Settings → <code>dry_run_mode = false</code> only after thorough validation over multiple market sessions.</div>
+      <div class="alert-text">Orders shown are simulated only. Enable live execution in Settings → <code>dry_run_mode = false</code> only after thorough validation over multiple market sessions.</div>
     </div>
   </div>
 </main>
@@ -82,23 +83,23 @@
 <!-- ── Bottom Mobile Navigation ───────────────────────────── -->
 <nav class="bottom-nav" aria-label="Mobile Navigation">
   <a class="bottom-nav-item" href="index.html">
-    <span class="bottom-nav-icon">🏠</span>
+    <span class="material-symbols-outlined bottom-nav-icon">dashboard</span>
     <span>Dashboard</span>
   </a>
   <a class="bottom-nav-item" href="analyzer.html">
-    <span class="bottom-nav-icon">🔬</span>
+    <span class="material-symbols-outlined bottom-nav-icon">analytics</span>
     <span>Analyzer</span>
   </a>
   <a class="bottom-nav-item active" href="rebalance.html">
-    <span class="bottom-nav-icon">⚖️</span>
+    <span class="material-symbols-outlined bottom-nav-icon">balance</span>
     <span>Rebalance</span>
   </a>
   <a class="bottom-nav-item" href="timeline.html">
-    <span class="bottom-nav-icon">📅</span>
+    <span class="material-symbols-outlined bottom-nav-icon">timeline</span>
     <span>Timeline</span>
   </a>
 <a class="bottom-nav-item" href="settings.html">
-    <span class="bottom-nav-icon">⚙️</span>
+    <span class="material-symbols-outlined bottom-nav-icon">settings</span>
     <span>Settings</span>
   </a>
 </nav>
@@ -119,9 +120,9 @@ async function loadPage() {
     // Banner
     const ba = document.getElementById("banner-area");
     if ((drift.actionable_signals||0) > 0) {
-      ba.innerHTML = `<div class="banner banner-warn fade-in"><div class="banner-emoji">⚠️</div><div class="banner-content"><div class="banner-title">${drift.actionable_signals} Actionable Drift Signal${drift.actionable_signals!==1?"s":""} Detected</div><div class="banner-body">Portfolio weights have breached thresholds. Rebalance orders generated below. Review carefully before enabling live execution.</div></div></div>`;
+      ba.innerHTML = `<div class="banner banner-warn fade-in"><div class="banner-emoji"><span class="material-symbols-outlined" style="color:var(--yellow);font-size:28px;">warning</span></div><div class="banner-content"><div class="banner-title">${drift.actionable_signals} Actionable Drift Signal${drift.actionable_signals!==1?"s":""} Detected</div><div class="banner-body">Portfolio weights have breached thresholds. Rebalance orders generated below. Review carefully before enabling live execution.</div></div></div>`;
     } else {
-      ba.innerHTML = `<div class="banner banner-ok fade-in"><div class="banner-emoji">✅</div><div class="banner-content"><div class="banner-title">Portfolio is Well Balanced</div><div class="banner-body">All holding weights are within target thresholds. No rebalancing action required today.</div></div></div>`;
+      ba.innerHTML = `<div class="banner banner-ok fade-in"><div class="banner-emoji"><span class="material-symbols-outlined" style="color:var(--green);font-size:28px;">check_circle</span></div><div class="banner-content"><div class="banner-title">Portfolio is Well Balanced</div><div class="banner-body">All holding weights are within target thresholds. No rebalancing action required today.</div></div></div>`;
     }
 
     // KPIs
@@ -158,7 +159,7 @@ async function loadPage() {
         <th>Name</th><th>Current</th><th>Target</th><th>Drift</th><th>Magnitude</th><th>Severity</th><th>Status</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;
     } else {
-      document.getElementById("drift-area").innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">No drift signals</div><div class="empty-desc">Set up target allocations in the DB to enable drift detection.</div></div>`;
+      document.getElementById("drift-area").innerHTML = `<div class="empty-state"><div class="empty-icon"><span class="material-symbols-outlined" style="color:var(--green);font-size:48px;">check_circle</span></div><div class="empty-title">No drift signals</div><div class="empty-desc">Set up target allocations in the DB to enable drift detection.</div></div>`;
     }
 
     // Orders table
@@ -166,7 +167,7 @@ async function loadPage() {
     if (orders.length) {
       const rows = orders.map(o => {
         const sc = o.side === "SELL" ? "var(--red)" : "var(--green)";
-        const tw = o.has_tax_warning ? '<span class="badge badge-dry-run" style="font-size:0.6rem">⚠️ TAX</span> ' : "";
+        const tw = o.has_tax_warning ? '<span class="badge badge-dry-run" style="font-size:0.6rem"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:middle;margin-right:2px;">warning</span> TAX</span> ' : "";
         return `<tr>
           <td><span style="color:${sc};font-weight:800;font-size:1rem">${o.side}</span></td>
           <td class="td-main">${o.symbol} ${tw}</td>
@@ -181,7 +182,7 @@ async function loadPage() {
         <th>Side</th><th>Symbol</th><th>Exchange</th><th>Qty</th><th>Est. Price</th><th>Est. Value</th><th>Reason</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;
     } else {
-      document.getElementById("orders-area").innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">No orders needed</div><div class="empty-desc">Portfolio is within drift thresholds — no rebalancing required.</div></div>`;
+      document.getElementById("orders-area").innerHTML = `<div class="empty-state"><div class="empty-icon"><span class="material-symbols-outlined" style="color:var(--green);font-size:48px;">check_circle</span></div><div class="empty-title">No orders needed</div><div class="empty-desc">Portfolio is within drift thresholds — no rebalancing required.</div></div>`;
     }
   } catch(err) {
     document.getElementById("drift-area").innerHTML = errBox("Load failed: " + err.message);

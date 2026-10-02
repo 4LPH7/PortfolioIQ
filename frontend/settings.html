@@ -5,6 +5,7 @@
   <meta name="view-transition" content="same-origin"/>
   <title>PortfolioIQ — Settings</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
   <link rel="stylesheet" href="css/main.css"/>
   <style>
     .abstract-card {
@@ -134,24 +135,24 @@
   <div class="sidebar-header">
     <div class="sidebar-header-row">
       <div class="sidebar-logo">
-        <div class="sidebar-logo-icon">📈</div>
+        <div class="sidebar-logo-icon"><span class="material-symbols-outlined">trending_up</span></div>
         <div>
           <div class="sidebar-logo-text">PortfolioIQ</div>
           <div class="sidebar-badge">v3.0 LIVE</div>
         </div>
       </div>
-      <button type="button" class="sidebar-retract-btn" id="sidebar-retract-btn" title="Toggle Sidebar Shelf" aria-label="Toggle sidebar shelf">◀</button>
+      <button type="button" class="sidebar-retract-btn" id="sidebar-retract-btn" title="Toggle Sidebar Shelf" aria-label="Toggle sidebar shelf"><span class="material-symbols-outlined">chevron_left</span></button>
     </div>
   </div>
   <div class="nav-label">Main</div>
-  <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="nav-icon">🏠</span> <span>Dashboard</span></a>
-  <a class="nav-item" href="analyzer.html" data-tooltip="Stock Analyzer"><span class="nav-icon">🔬</span> <span>Stock Analyzer</span></a>
-  <a class="nav-item" href="rebalance.html" data-tooltip="Rebalance"><span class="nav-icon">⚖️</span> <span>Rebalance</span></a>
-  <a class="nav-item" href="tax.html" data-tooltip="Tax Guard"><span class="nav-icon">🛡️</span> <span>Tax Guard</span></a>
-  <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="nav-icon">📋</span> <span>Audit Log</span></a>
-  <a class="nav-item" href="timeline.html" data-tooltip="Portfolio Timeline"><span class="nav-icon">📅</span> <span>Portfolio Timeline</span></a>
-  <a class="nav-item" href="report.html" data-tooltip="Monthly Statement"><span class="nav-icon">📑</span> <span>Monthly Statement</span></a>
-  <a class="nav-item active" href="settings.html" data-tooltip="Settings"><span class="nav-icon">⚙️</span> <span>Settings</span></a>
+  <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="material-symbols-outlined nav-icon">dashboard</span> <span>Dashboard</span></a>
+  <a class="nav-item" href="analyzer.html" data-tooltip="Stock Analyzer"><span class="material-symbols-outlined nav-icon">analytics</span> <span>Stock Analyzer</span></a>
+  <a class="nav-item" href="rebalance.html" data-tooltip="Rebalance"><span class="material-symbols-outlined nav-icon">balance</span> <span>Rebalance</span></a>
+  <a class="nav-item" href="tax.html" data-tooltip="Tax Guard"><span class="material-symbols-outlined nav-icon">shield</span> <span>Tax Guard</span></a>
+  <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="material-symbols-outlined nav-icon">receipt_long</span> <span>Audit Log</span></a>
+  <a class="nav-item" href="timeline.html" data-tooltip="Portfolio Timeline"><span class="material-symbols-outlined nav-icon">timeline</span> <span>Portfolio Timeline</span></a>
+  <a class="nav-item" href="report.html" data-tooltip="Monthly Statement"><span class="material-symbols-outlined nav-icon">description</span> <span>Monthly Statement</span></a>
+  <a class="nav-item active" href="settings.html" data-tooltip="Settings"><span class="material-symbols-outlined nav-icon">settings</span> <span>Settings</span></a>
   <hr class="sidebar-divider"/>
   <div class="nav-label">Engine Status</div>
   <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status"><div class="status-dot"></div><span>Loading…</span></a>
@@ -160,12 +161,12 @@
 
 <header class="topbar" role="banner">
   <button type="button" class="sidebar-toggle-btn" id="sidebar-toggle-btn" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="main-sidebar">
-    <span aria-hidden="true">☰</span>
+    <span class="material-symbols-outlined" aria-hidden="true">menu</span>
   </button>
   <div class="topbar-breadcrumb"><span>PortfolioIQ</span><span class="sep">/</span><span class="crumb-current">Settings</span></div>
   <div class="topbar-right">
     <button type="button" class="topbar-bell-btn" id="notification-bell-btn" onclick="PortfolioIQAlerts.toggleDrawer()" title="View Notifications" aria-label="View notifications">
-      <span class="bell-icon">🔔</span>
+      <span class="material-symbols-outlined bell-icon">notifications</span>
       <span class="bell-badge" id="bell-badge" style="display:none;">0</span>
     </button>
     <div class="topbar-time" id="clock">—</div>
@@ -183,14 +184,14 @@
   <!-- Primary Broker Authentication Cards -->
   <div class="grid-2" style="gap:1.1rem">
     <div class="card" style="text-align:center">
-      <div style="font-size:2.8rem;margin-bottom:0.8rem">🔄</div>
+      <div style="font-size:2.8rem;margin-bottom:0.8rem"><span class="material-symbols-outlined spin-icon" style="font-size:2.8rem;">sync</span></div>
       <div class="font-heavy" style="font-size:1.05rem;margin-bottom:0.3rem">Kite SOD &amp; Live Sync</div>
       <div class="text-sm text-muted mb-md">Pull live holdings, positions, and margins from Zerodha. Preserves imported data safely.</div>
       <button class="btn btn-primary" style="width:100%" id="btn-sync-now" onclick="doSync()"><span class="btn-text">Sync with Zerodha Now</span></button>
       <div id="sync-result" class="text-sm mt-sm"></div>
     </div>
     <div class="card" style="text-align:center">
-      <div style="font-size:2.8rem;margin-bottom:0.8rem">🔑</div>
+      <div style="font-size:2.8rem;margin-bottom:0.8rem"><span class="material-symbols-outlined" style="font-size:2.8rem;">key</span></div>
       <div class="font-heavy" style="font-size:1.05rem;margin-bottom:0.3rem">Daily Zerodha Sign-In</div>
       <div class="text-sm text-muted mb-md">Kite requires daily OAuth re-authentication. Connect every morning for quotes and execution.</div>
       <button class="btn btn-primary" style="width:100%" id="broker-login-btn" onclick="connectBroker()">Connect Zerodha</button>
@@ -202,12 +203,12 @@
   <div class="abstract-card" id="data-abstract">
     <div class="abstract-header">
       <div class="abstract-title">
-        <span>🛠️</span> Real Data Management &amp; Ingestion Abstract
+        <span class="material-symbols-outlined" style="vertical-align:middle;margin-right:4px;">build</span> Real Data Management &amp; Ingestion Abstract
       </div>
       <div style="display:flex;gap:0.5rem;align-items:center;">
-        <button class="abs-tab-btn active" id="tab-btn-csv" onclick="setAbstractTab('csv')">📁 CSV Import</button>
-        <button class="abs-tab-btn" id="tab-btn-manual" onclick="setAbstractTab('manual')">✏️ Manual Entry</button>
-        <button class="abs-tab-btn" id="tab-btn-ledger" onclick="setAbstractTab('ledger')">📒 Ledger</button>
+        <button class="abs-tab-btn active" id="tab-btn-csv" onclick="setAbstractTab('csv')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">folder</span> CSV Import</button>
+        <button class="abs-tab-btn" id="tab-btn-manual" onclick="setAbstractTab('manual')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">edit</span> Manual Entry</button>
+        <button class="abs-tab-btn" id="tab-btn-ledger" onclick="setAbstractTab('ledger')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">menu_book</span> Ledger</button>
       </div>
     </div>
 
@@ -227,7 +228,7 @@
       </div>
       <div class="abs-stat-box">
         <div class="abs-stat-label">Mock Data Status</div>
-        <div class="abs-stat-val" style="color:var(--green);font-size:0.95rem;padding-top:0.3rem">✓ Real Only</div>
+        <div class="abs-stat-val" style="color:var(--green);font-size:0.95rem;padding-top:0.3rem"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">check_circle</span> Real Only</div>
       </div>
     </div>
 
@@ -235,7 +236,7 @@
     <div id="sec-csv" class="abs-section">
       <div class="abs-dropzone" id="abs-dropzone" onclick="document.getElementById('abs-file-input').click()">
         <input type="file" id="abs-file-input" accept=".csv,text/csv" onchange="onAbstractFile(event)"/>
-        <div style="font-size:2rem;margin-bottom:0.4rem">📄</div>
+        <div style="font-size:2rem;margin-bottom:0.4rem"><span class="material-symbols-outlined" style="font-size:2.5rem;color:var(--cyan)">upload_file</span></div>
         <div class="text-sm text-muted">Drop Zerodha CSV (Holdings, Positions, or Funds Ledger) or <strong style="color:var(--accent)">browse</strong></div>
         <div id="abs-file-name" style="font-weight:700;color:var(--accent);margin-top:0.3rem;font-size:0.85rem"></div>
       </div>
@@ -245,7 +246,7 @@
         <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
           <span class="kind-pill" id="abs-kind-pill">—</span>
           <span class="text-xs text-muted" id="abs-rows-info">—</span>
-          <button class="btn btn-xs btn-ghost" onclick="clearAbstractCsv()" style="margin-left:auto">✕ Clear</button>
+          <button class="btn btn-xs btn-ghost" onclick="clearAbstractCsv()" style="margin-left:auto"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:2px;">close</span> Clear</button>
         </div>
         <div class="abs-preview-table-wrap">
           <table class="data-table" id="abs-preview-tbl" style="font-size:0.8rem">
@@ -254,7 +255,7 @@
           </table>
         </div>
         <div style="margin-top:0.8rem;display:flex;gap:0.75rem;align-items:center">
-          <button class="btn btn-sm btn-primary" id="btn-abs-commit" onclick="commitAbstractCsv()">✅ Import to Portfolio</button>
+          <button class="btn btn-sm btn-primary" id="btn-abs-commit" onclick="commitAbstractCsv()"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">cloud_upload</span> Import to Portfolio</button>
           <span id="abs-commit-status" class="text-xs"></span>
         </div>
       </div>
@@ -291,7 +292,7 @@
     <div id="sec-ledger" class="abs-section" style="display:none">
       <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
         <span class="text-xs text-muted">Recent Zerodha statement movements:</span>
-        <button class="btn btn-xs btn-ghost" onclick="loadAbstractLedger()" style="margin-left:auto">🔄 Refresh</button>
+        <button class="btn btn-xs btn-ghost" onclick="loadAbstractLedger()" style="margin-left:auto"><span class="material-symbols-outlined spin-icon" style="font-size:14px;vertical-align:middle;margin-right:2px;">sync</span> Refresh</button>
       </div>
       <div class="abs-preview-table-wrap">
         <table class="data-table" id="abs-ledger-tbl" style="font-size:0.8rem">
@@ -312,23 +313,23 @@
 <!-- ── Bottom Mobile Navigation ───────────────────────────── -->
 <nav class="bottom-nav" aria-label="Mobile Navigation">
   <a class="bottom-nav-item" href="index.html">
-    <span class="bottom-nav-icon">🏠</span>
+    <span class="material-symbols-outlined bottom-nav-icon">dashboard</span>
     <span>Dashboard</span>
   </a>
   <a class="bottom-nav-item" href="analyzer.html">
-    <span class="bottom-nav-icon">🔬</span>
+    <span class="material-symbols-outlined bottom-nav-icon">analytics</span>
     <span>Analyzer</span>
   </a>
   <a class="bottom-nav-item" href="rebalance.html">
-    <span class="bottom-nav-icon">⚖️</span>
+    <span class="material-symbols-outlined bottom-nav-icon">balance</span>
     <span>Rebalance</span>
   </a>
   <a class="bottom-nav-item" href="timeline.html">
-    <span class="bottom-nav-icon">📅</span>
+    <span class="material-symbols-outlined bottom-nav-icon">timeline</span>
     <span>Timeline</span>
   </a>
   <a class="bottom-nav-item active" href="settings.html">
-    <span class="bottom-nav-icon">⚙️</span>
+    <span class="material-symbols-outlined bottom-nav-icon">settings</span>
     <span>Settings</span>
   </a>
 </nav>
@@ -388,10 +389,10 @@ async function doSync() {
   if (btn) btn.disabled = false;
   if (r.ok) {
     el.style.color = "var(--green)";
-    el.textContent = `✓ Synced ${r.data?.holdings_upserted||0} holdings, ${r.data?.positions_upserted||0} positions · Cash ₹${Number(r.data?.available_cash||0).toLocaleString('en-IN')}`;
+    el.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--green);">check</span> ' + `Synced ${r.data?.holdings_upserted||0} holdings, ${r.data?.positions_upserted||0} positions · Cash ₹${Number(r.data?.available_cash||0).toLocaleString('en-IN')}`;
     loadAbstractStats();
   } else {
-    el.style.color = "var(--red)"; el.textContent = "✗ " + (r.error || "Sync failed");
+    el.style.color = "var(--red)"; el.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--red);">close</span> ' + (r.error || "Sync failed");
   }
 }
 
@@ -472,18 +473,18 @@ async function commitAbstractCsv() {
   const btn = document.getElementById("btn-abs-commit");
   const st = document.getElementById("abs-commit-status");
   btn.disabled = true;
-  st.textContent = "⏳ Importing…";
+  st.innerHTML = '<span class="material-symbols-outlined spin-icon" style="font-size:16px;vertical-align:middle;">sync</span> Importing…';
   st.style.color = "var(--text-muted)";
   try {
     const input = document.getElementById("abs-file-input");
     const formData = new FormData();
     if (input.files[0]) formData.append("file", input.files[0]);
     const res = await apiPostForm("/holdings/import-smart?commit=1", formData);
-    st.textContent = `✓ ${res.message}`;
+    st.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--green);">check</span> ' + res.message;
     st.style.color = "var(--green)";
     loadAbstractStats();
   } catch(err) {
-    st.textContent = "✗ " + err.message;
+    st.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--red);">close</span> ' + err.message;
     st.style.color = "var(--red)";
   } finally {
     btn.disabled = false;
@@ -517,14 +518,14 @@ async function addManualRowAndCommit() {
   try {
     const csvText = `Instrument,Qty.,Avg. cost,LTP,Exchange,Product\r\n${sym},${qty},${avg},${avg},${exch},${prod}\r\n`;
     await apiPost("/holdings/import-smart?commit=1", { csv_text: csvText, filename: `manual_${dest}.csv` });
-    st.textContent = `✓ Added ${sym} (${qty} shares)`;
+    st.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--green);">check</span> ' + `Added ${sym} (${qty} shares)`;
     st.style.color = "var(--green)";
     document.getElementById("m-sym").value = "";
     document.getElementById("m-qty").value = "";
     document.getElementById("m-avg").value = "";
     loadAbstractStats();
   } catch(err) {
-    st.textContent = "✗ " + err.message;
+    st.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--red);">close</span> ' + err.message;
     st.style.color = "var(--red)";
   }
 }

@@ -6,34 +6,35 @@
   <title>PortfolioIQ — Tax Guard</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
   <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
 <nav class="sidebar" id="main-sidebar" aria-label="Main Navigation">
   <div class="sidebar-header">
-    <div class="sidebar-header-row"><div class="sidebar-logo"><div class="sidebar-logo-icon">📈</div><div><div class="sidebar-logo-text">PortfolioIQ</div><div class="sidebar-badge">v3.0 LIVE</div></div></div><button type="button" class="sidebar-retract-btn" id="sidebar-retract-btn" title="Toggle Sidebar Shelf" aria-label="Toggle sidebar shelf">◀</button></div>
+    <div class="sidebar-header-row"><div class="sidebar-logo"><div class="sidebar-logo-icon"><span class="material-symbols-outlined">trending_up</span></div><div><div class="sidebar-logo-text">PortfolioIQ</div><div class="sidebar-badge">v3.0 LIVE</div></div></div><button type="button" class="sidebar-retract-btn" id="sidebar-retract-btn" title="Toggle Sidebar Shelf" aria-label="Toggle sidebar shelf"><span class="material-symbols-outlined">chevron_left</span></button></div>
   </div>
   <div class="nav-label">Main</div>
-  <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="nav-icon">🏠</span> <span>Dashboard</span></a>
-  <a class="nav-item" href="analyzer.html" data-tooltip="Stock Analyzer"><span class="nav-icon">🔬</span> <span>Stock Analyzer</span></a>
-  <a class="nav-item" href="rebalance.html" data-tooltip="Rebalance"><span class="nav-icon">⚖️</span> <span>Rebalance</span></a>
-  <a class="nav-item active" href="tax.html" data-tooltip="Tax Guard"><span class="nav-icon">🛡️</span> <span>Tax Guard</span></a>
-  <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="nav-icon">📋</span> <span>Audit Log</span></a>
-  <a class="nav-item" href="timeline.html" data-tooltip="Portfolio Timeline"><span class="nav-icon">📅</span> <span>Portfolio Timeline</span></a>
-  <a class="nav-item" href="report.html" data-tooltip="Monthly Statement"><span class="nav-icon">📑</span> <span>Monthly Statement</span></a>
-<a class="nav-item" href="settings.html" data-tooltip="Settings"><span class="nav-icon">⚙️</span> <span>Settings</span></a>
+  <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="material-symbols-outlined nav-icon">dashboard</span> <span>Dashboard</span></a>
+  <a class="nav-item" href="analyzer.html" data-tooltip="Stock Analyzer"><span class="material-symbols-outlined nav-icon">analytics</span> <span>Stock Analyzer</span></a>
+  <a class="nav-item" href="rebalance.html" data-tooltip="Rebalance"><span class="material-symbols-outlined nav-icon">balance</span> <span>Rebalance</span></a>
+  <a class="nav-item active" href="tax.html" data-tooltip="Tax Guard"><span class="material-symbols-outlined nav-icon">shield</span> <span>Tax Guard</span></a>
+  <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="material-symbols-outlined nav-icon">receipt_long</span> <span>Audit Log</span></a>
+  <a class="nav-item" href="timeline.html" data-tooltip="Portfolio Timeline"><span class="material-symbols-outlined nav-icon">timeline</span> <span>Portfolio Timeline</span></a>
+  <a class="nav-item" href="report.html" data-tooltip="Monthly Statement"><span class="material-symbols-outlined nav-icon">description</span> <span>Monthly Statement</span></a>
+<a class="nav-item" href="settings.html" data-tooltip="Settings"><span class="material-symbols-outlined nav-icon">settings</span> <span>Settings</span></a>
   <hr class="sidebar-divider"/>
   <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status"><div class="status-dot"></div><span>Loading…</span></a>
   <a href="status.html" id="db-status" class="status-pill status-warn" title="View Database Status"><div class="status-dot"></div><span>Checking…</span></a>
 </nav>
 <header class="topbar" role="banner">
   <button type="button" class="sidebar-toggle-btn" id="sidebar-toggle-btn" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="main-sidebar">
-    <span aria-hidden="true">☰</span>
+    <span class="material-symbols-outlined" aria-hidden="true">menu</span>
   </button>
   <div class="topbar-breadcrumb"><span>PortfolioIQ</span><span class="sep">/</span><span class="crumb-current">Tax Guard</span></div>
   <div class="topbar-right">
     <button type="button" class="topbar-bell-btn" id="notification-bell-btn" onclick="PortfolioIQAlerts.toggleDrawer()" title="View Notifications" aria-label="View notifications">
-      <span class="bell-icon">🔔</span>
+      <span class="material-symbols-outlined bell-icon">notifications</span>
       <span class="bell-badge" id="bell-badge" style="display:none;">0</span>
     </button>
     <div class="topbar-time" id="clock">—</div>
@@ -49,9 +50,9 @@
 
   <!-- KPIs -->
   <div class="kpi-grid stagger">
-    <div class="kpi-card positive"><span class="kpi-icon">🏆</span><div class="kpi-label" data-tip="Held > 12 months — taxed at 12.5%">LTCG Quantity</div><div class="kpi-value" id="ltcg-qty">—</div><div class="kpi-delta pos">@ 12.5% rate</div></div>
-    <div class="kpi-card negative"><span class="kpi-icon">⏱️</span><div class="kpi-label" data-tip="Held ≤ 12 months — taxed at 20%">STCG Quantity</div><div class="kpi-value" id="stcg-qty">—</div><div class="kpi-delta neg">@ 20% rate</div></div>
-    <div class="kpi-card"><span class="kpi-icon">💸</span><div class="kpi-label">Est. Total Tax</div><div class="kpi-value" id="tax-total">—</div></div>
+    <div class="kpi-card positive"><span class="material-symbols-outlined kpi-icon">military_tech</span><div class="kpi-label" data-tip="Held > 12 months — taxed at 12.5%">LTCG Quantity</div><div class="kpi-value" id="ltcg-qty">—</div><div class="kpi-delta pos">@ 12.5% rate</div></div>
+    <div class="kpi-card negative"><span class="material-symbols-outlined kpi-icon">timer</span><div class="kpi-label" data-tip="Held ≤ 12 months — taxed at 20%">STCG Quantity</div><div class="kpi-value" id="stcg-qty">—</div><div class="kpi-delta neg">@ 20% rate</div></div>
+    <div class="kpi-card"><span class="material-symbols-outlined kpi-icon">payments</span><div class="kpi-label">Est. Total Tax</div><div class="kpi-value" id="tax-total">—</div></div>
   </div>
 
   <!-- Near LTCG alerts -->
@@ -82,7 +83,7 @@
 
   <div class="flex justify-between items-center mb-sm">
     <div class="section-header" style="margin:0">Tax Lot Summary by Holding</div>
-    <button type="button" class="btn btn-xs btn-ghost" data-export="tax-lots-table" title="Export CSV">📥 Export CSV</button>
+    <button type="button" class="btn btn-xs btn-ghost" data-export="tax-lots-table" title="Export CSV"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">download</span> Export CSV</button>
   </div>
   <div id="tax-table-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div><span>Loading tax lots…</span></div></div></div>
 
@@ -91,23 +92,23 @@
 <!-- ── Bottom Mobile Navigation ───────────────────────────── -->
 <nav class="bottom-nav" aria-label="Mobile Navigation">
   <a class="bottom-nav-item" href="index.html">
-    <span class="bottom-nav-icon">🏠</span>
+    <span class="material-symbols-outlined bottom-nav-icon">dashboard</span>
     <span>Dashboard</span>
   </a>
   <a class="bottom-nav-item" href="analyzer.html">
-    <span class="bottom-nav-icon">🔬</span>
+    <span class="material-symbols-outlined bottom-nav-icon">analytics</span>
     <span>Analyzer</span>
   </a>
   <a class="bottom-nav-item" href="rebalance.html">
-    <span class="bottom-nav-icon">⚖️</span>
+    <span class="material-symbols-outlined bottom-nav-icon">balance</span>
     <span>Rebalance</span>
   </a>
   <a class="bottom-nav-item" href="timeline.html">
-    <span class="bottom-nav-icon">📅</span>
+    <span class="material-symbols-outlined bottom-nav-icon">timeline</span>
     <span>Timeline</span>
   </a>
 <a class="bottom-nav-item" href="settings.html">
-    <span class="bottom-nav-icon">⚙️</span>
+    <span class="material-symbols-outlined bottom-nav-icon">settings</span>
     <span>Settings</span>
   </a>
 </nav>
@@ -133,10 +134,10 @@ setInterval(() => { document.getElementById("clock").textContent = new Date().to
     const nearEl = document.getElementById("near-ltcg-area");
     const near = d.near_ltcg_holdings || [];
     if (near.length) {
-      nearEl.innerHTML = `<div class="section-header">⏰ Near LTCG Conversion (within 30 days)</div>` +
+      nearEl.innerHTML = `<div class="section-header"><span class="material-symbols-outlined" style="vertical-align:middle;margin-right:6px;">schedule</span> Near LTCG Conversion (within 30 days)</div>` +
         near.map(h => `
         <div class="alert alert-warn">
-          <span class="alert-icon">⚠️</span>
+          <span class="alert-icon"><span class="material-symbols-outlined">warning</span></span>
           <div class="alert-body">
             <div class="alert-title">${h.symbol} — ${h.quantity} shares</div>
             <div class="alert-text">Converts to LTCG on <strong>${h.next_ltcg_date}</strong>. Waiting saves you <strong>7.5%</strong> tax (20% → 12.5% rate).</div>
@@ -182,7 +183,7 @@ setInterval(() => { document.getElementById("clock").textContent = new Date().to
         <th>STCG Tax (20%)</th><th>LTCG Tax (12.5%)</th><th>Total Est. Tax</th><th>Next LTCG Date</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;
     } else {
-      document.getElementById("tax-table-area").innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">No tax lots recorded</div><div class="empty-desc">Add historical purchase data to <code>holding_tax_lots</code> to enable FIFO STCG/LTCG analysis.</div></div>`;
+      document.getElementById("tax-table-area").innerHTML = `<div class="empty-state"><div class="empty-icon"><span class="material-symbols-outlined" style="font-size:48px;">receipt_long</span></div><div class="empty-title">No tax lots recorded</div><div class="empty-desc">Add historical purchase data to <code>holding_tax_lots</code> to enable FIFO STCG/LTCG analysis.</div></div>`;
     }
   } catch(err) {
     document.getElementById("tax-table-area").innerHTML = errBox("Tax data unavailable: " + err.message);

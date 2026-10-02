@@ -51,17 +51,17 @@ function showToast(message, type = "info", duration = 4000) {
   toast.setAttribute("role", "status");
 
   const icons = {
-    info: "ℹ️",
-    success: "✅",
-    warn: "⚠️",
-    error: "❌",
+    info: `<span class="material-symbols-outlined" style="font-size:18px;">info</span>`,
+    success: `<span class="material-symbols-outlined" style="font-size:18px;color:#00ff88;">check_circle</span>`,
+    warn: `<span class="material-symbols-outlined" style="font-size:18px;color:#ffd600;">warning</span>`,
+    error: `<span class="material-symbols-outlined" style="font-size:18px;color:#ff3366;">error</span>`,
   };
-  const icon = icons[type] || "ℹ️";
+  const icon = icons[type] || icons.info;
 
   toast.innerHTML = `
     <span class="toast-icon" aria-hidden="true">${icon}</span>
     <span class="toast-message">${message}</span>
-    <button type="button" class="toast-close" aria-label="Dismiss notification">×</button>
+    <button type="button" class="toast-close" aria-label="Dismiss notification"><span class="material-symbols-outlined" style="font-size:16px;">close</span></button>
   `;
 
   const closeBtn = toast.querySelector(".toast-close");
@@ -207,10 +207,13 @@ function sigColor(signal) {
 
 function sigIcon(signal) {
   const map = {
-    "STRONG BUY": "🚀", "BUY": "📈", "HOLD": "⏸️",
-    "SELL": "📉", "STRONG SELL": "🔻",
+    "STRONG BUY": `<span class="material-symbols-outlined" style="font-size:16px;color:#00ff88;vertical-align:middle;">rocket_launch</span>`,
+    "BUY": `<span class="material-symbols-outlined" style="font-size:16px;color:#00d4ff;vertical-align:middle;">trending_up</span>`,
+    "HOLD": `<span class="material-symbols-outlined" style="font-size:16px;color:#ffd600;vertical-align:middle;">pause_circle</span>`,
+    "SELL": `<span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;vertical-align:middle;">trending_down</span>`,
+    "STRONG SELL": `<span class="material-symbols-outlined" style="font-size:16px;color:#ff3366;vertical-align:middle;">arrow_downward</span>`,
   };
-  return map[signal] || "⏸️";
+  return map[signal] || `<span class="material-symbols-outlined" style="font-size:16px;color:#ffd600;vertical-align:middle;">pause_circle</span>`;
 }
 
 function loading(msg = "Loading…") {
@@ -218,7 +221,7 @@ function loading(msg = "Loading…") {
 }
 
 function errBox(msg) {
-  return `<div class="alert alert-err"><span class="alert-icon">⚠️</span><div class="alert-body"><div class="alert-title">Error</div><div class="alert-text">${msg}</div></div></div>`;
+  return `<div class="alert alert-err"><span class="alert-icon"><span class="material-symbols-outlined" style="color:#ff3366;">error</span></span><div class="alert-body"><div class="alert-title">Error</div><div class="alert-text">${msg}</div></div></div>`;
 }
 
 // ── Sidebar status ─────────────────────────────────────────────
@@ -231,7 +234,7 @@ async function loadSidebarStatus() {
     if (pill) {
       const isOpen = mkt.is_open;
       pill.className = `status-pill ${isOpen ? "status-ok" : "status-warn"}`;
-      pill.innerHTML = `<span>${isOpen ? "🟢" : "🟡"}</span><span>${mkt.status_text}</span>`;
+      pill.innerHTML = `<div class="status-dot"></div><span>${mkt.status_text}</span>`;
     }
   } catch { /* offline */ }
 
@@ -240,11 +243,11 @@ async function loadSidebarStatus() {
     const pill = document.getElementById("db-status");
     if (pill) {
       pill.className = `status-pill ${h.db ? "status-ok" : "status-err"}`;
-      pill.innerHTML = `<span>${h.db ? "🗄️" : "🔴"}</span><span>${h.db ? "Database OK" : "DB Offline"}</span>`;
+      pill.innerHTML = `<div class="status-dot"></div><span>${h.db ? "Database OK" : "DB Offline"}</span>`;
     }
   } catch {
     const pill = document.getElementById("db-status");
-    if (pill) { pill.className = "status-pill status-err"; pill.innerHTML = "🔴 Backend offline"; }
+    if (pill) { pill.className = "status-pill status-err"; pill.innerHTML = `<div class="status-dot"></div><span>Backend offline</span>`; }
   }
 }
 

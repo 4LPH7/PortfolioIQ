@@ -8,6 +8,7 @@
   <title>PortfolioIQ — Welcome &amp; Onboarding</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
   <link rel="stylesheet" href="css/main.css"/>
   <style>
     .onboarding-wrap {
@@ -133,7 +134,7 @@
 <div class="onboarding-wrap">
   <!-- Header -->
   <div class="text-center mb-lg">
-    <div style="font-size: 2.8rem; margin-bottom: 0.5rem;">📈</div>
+    <div style="font-size: 2.8rem; margin-bottom: 0.5rem;"><span class="material-symbols-outlined" style="font-size:3rem;color:var(--cyan);">trending_up</span></div>
     <h1 style="font-size: 2rem; font-weight: 800; letter-spacing: -0.02em;">Welcome to PortfolioIQ</h1>
     <p class="text-muted text-sm mt-sm">Algorithmic portfolio management and trading safety for Indian equities.</p>
   </div>
@@ -162,7 +163,7 @@
     </p>
 
     <div class="mode-card selected" id="card-paper" onclick="selectMode(true)">
-      <div style="font-size: 1.8rem;">🛡️</div>
+      <div style="font-size: 1.8rem;"><span class="material-symbols-outlined" style="font-size:2rem;color:var(--green);">shield</span></div>
       <div class="flex-1">
         <div class="font-bold flex items-center gap-sm">
           <span>Paper Trading / Simulation Mode</span>
@@ -176,7 +177,7 @@
     </div>
 
     <div class="mode-card" id="card-live" onclick="selectMode(false)">
-      <div style="font-size: 1.8rem;">⚡</div>
+      <div style="font-size: 1.8rem;"><span class="material-symbols-outlined" style="font-size:2rem;color:var(--yellow);">bolt</span></div>
       <div class="flex-1">
         <div class="font-bold flex items-center gap-sm">
           <span>Live Broker Execution (Zerodha Kite)</span>
@@ -203,7 +204,7 @@
     <div class="flex justify-between items-center mt-lg">
       <div></div>
       <button type="button" class="btn btn-primary" onclick="goToStep(2)">
-        Continue to Holdings ➔
+        Continue to Holdings <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-left:4px;">arrow_forward</span>
       </button>
     </div>
   </div>
@@ -218,16 +219,16 @@
     <!-- Ingestion Options -->
     <div class="grid-2 mb-md">
       <button type="button" class="btn btn-ghost" id="tab-btn-sync" onclick="toggleIngestTab('sync')">
-        🔄 Live Broker Sync
+        <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">sync</span> Live Broker Sync
       </button>
       <button type="button" class="btn btn-primary" id="tab-btn-csv" onclick="toggleIngestTab('csv')">
-        📁 Upload CSV Export
+        <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">folder</span> Upload CSV Export
       </button>
     </div>
 
     <!-- Tab A: Live Sync -->
     <div id="ingest-sync-area" style="display: none;" class="card text-center py-lg">
-      <div style="font-size: 2.2rem; margin-bottom: 0.75rem;">🔄</div>
+      <div style="font-size: 2.2rem; margin-bottom: 0.75rem;"><span class="material-symbols-outlined" style="font-size:2.5rem;color:var(--cyan);">sync</span></div>
       <div class="font-bold text-md mb-sm">Sync Directly from Zerodha Kite</div>
       <p class="text-muted text-sm mb-md" style="max-width: 480px; margin: 0 auto 1.5rem;">
         Fetches your holdings, T1 quantities, and purchase prices straight from your active Zerodha session.
@@ -241,7 +242,7 @@
     <!-- Tab B: CSV Drag & Drop -->
     <div id="ingest-csv-area">
       <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-file-input').click()">
-        <div class="drop-icon">📂</div>
+        <div class="drop-icon"><span class="material-symbols-outlined" style="font-size:2.8rem;color:var(--cyan);">folder_open</span></div>
         <div class="font-bold text-md">Click or drag &amp; drop your Zerodha CSV file here</div>
         <p class="text-muted text-xs mt-sm">Supports Zerodha Holdings CSV and Tradebook CSV formats</p>
         <input type="file" id="csv-file-input" accept=".csv" style="display: none;" onchange="handleFileSelected(event)"/>
@@ -269,7 +270,7 @@
         ⬅ Back
       </button>
       <button type="button" class="btn btn-primary" onclick="goToStep(3)">
-        Continue to Targets ➔
+        Continue to Targets <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-left:4px;">arrow_forward</span>
       </button>
     </div>
   </div>
@@ -333,10 +334,10 @@
     </div>
 
     <div class="alert alert-info mt-md">
-      <span class="alert-icon">💡</span>
+      <span class="alert-icon"><span class="material-symbols-outlined">lightbulb</span></span>
       <div class="alert-body">
         <div class="alert-title">SEBI Algorithmic Safety Notice</div>
-        <div class="alert-text">All parameters can be modified at any time in ⚙️ Settings. Inactivity lock and gatekeeper order constraints remain active by default.</div>
+        <div class="alert-text">All parameters can be modified at any time in Settings. Inactivity lock and gatekeeper order constraints remain active by default.</div>
       </div>
     </div>
 
@@ -345,7 +346,7 @@
         ⬅ Back
       </button>
       <button type="button" class="btn btn-primary btn-lg" onclick="finishOnboarding()">
-        🎉 Save &amp; Finish Setup
+        <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">celebration</span> Save &amp; Finish Setup
       </button>
     </div>
   </div>
@@ -405,14 +406,14 @@ async function testBrokerConnection() {
   try {
     const res = await apiGet("/system/status");
     if (res.ok && res.data.broker?.authenticated) {
-      desc.textContent = "✅ Active Zerodha Kite session connected.";
+      desc.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--green);margin-right:4px;">check_circle</span> Active Zerodha Kite session connected.';
       desc.style.color = "var(--green)";
     } else {
-      desc.textContent = "⚠️ Zerodha token inactive or missing. Visit Settings to authenticate.";
+      desc.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--yellow);margin-right:4px;">warning</span> Zerodha token inactive or missing. Visit Settings to authenticate.';
       desc.style.color = "var(--yellow)";
     }
   } catch (err) {
-    desc.textContent = "🔴 Connection error: " + err.message;
+    desc.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--red);margin-right:4px;">cancel</span> Connection error: ' + err.message;
     desc.style.color = "var(--red)";
   }
 }
@@ -446,16 +447,16 @@ async function runLiveKiteSync() {
   try {
     const res = await apiPost("/holdings/sync", {});
     if (res.ok) {
-      msg.textContent = "✅ Successfully synced holdings from Zerodha Kite.";
+      msg.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--green);margin-right:4px;">check_circle</span> Successfully synced holdings from Zerodha Kite.';
       msg.style.color = "var(--green)";
       showToast("Holdings synced successfully!", "success");
     } else {
-      msg.textContent = "⚠️ Sync failed: " + (res.error || "Token expired or missing.");
+      msg.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--yellow);margin-right:4px;">warning</span> Sync failed: ' + (res.error || "Token expired or missing.");
       msg.style.color = "var(--red)";
       showToast("Sync failed. Check broker credentials.", "error");
     }
   } catch (err) {
-    msg.textContent = "🔴 Error: " + err.message;
+    msg.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--red);margin-right:4px;">cancel</span> Error: ' + err.message;
     msg.style.color = "var(--red)";
   } finally {
     btn.disabled = false;
@@ -549,7 +550,7 @@ async function uploadSelectedCSV() {
 
     if (res.ok && data.ok) {
       showToast(`Imported ${data.data.imported_count} holdings successfully!`, "success");
-      btn.textContent = `✓ Ingested (${data.data.imported_count})`;
+      btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;color:var(--green);margin-right:4px;">check</span> Ingested (${data.data.imported_count})`;
       btn.classList.remove("btn-primary");
       btn.classList.add("btn-ghost");
     } else {
