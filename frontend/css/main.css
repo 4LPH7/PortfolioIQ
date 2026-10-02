@@ -351,17 +351,30 @@ body.sidebar-retracted .nav-item:hover::after {
 }
 
 .sidebar-logo-icon {
-  width: 34px; height: 34px;
-  background: linear-gradient(135deg, #00d4ff, #00ff88);
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px -2px rgba(0, 212, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
   flex-shrink: 0;
-  transition: transform var(--t-spring);
-  overflow: hidden;
-  padding: 4px;
+  position: relative;
+  transition: transform var(--t-spring), filter var(--t-normal);
+  padding: 0;
+}
+
+/* Ethereal liquid radial glow aura behind the logo */
+.sidebar-logo-icon::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  background: radial-gradient(circle at center, rgba(0, 212, 255, 0.5) 0%, rgba(0, 255, 136, 0.3) 45%, transparent 72%);
+  border-radius: 50%;
+  filter: blur(8px);
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity var(--t-normal), transform var(--t-normal);
+  opacity: 0.85;
 }
 
 .sidebar-logo-img {
@@ -369,10 +382,25 @@ body.sidebar-retracted .nav-item:hover::after {
   height: 100%;
   object-fit: contain;
   display: block;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.75)) drop-shadow(0 0 16px rgba(0, 255, 136, 0.45));
+  transition: filter var(--t-normal);
 }
 
 .sidebar-logo:hover .sidebar-logo-icon {
-  transform: scale(1.05) rotate(-2deg);
+  transform: scale(1.08);
+}
+
+.sidebar-logo:hover .sidebar-logo-icon::before {
+  opacity: 1;
+  transform: scale(1.15);
+  background: radial-gradient(circle at center, rgba(0, 212, 255, 0.75) 0%, rgba(0, 255, 136, 0.5) 50%, transparent 75%);
+  filter: blur(10px);
+}
+
+.sidebar-logo:hover .sidebar-logo-img {
+  filter: drop-shadow(0 0 12px rgba(0, 212, 255, 0.95)) drop-shadow(0 0 24px rgba(0, 255, 136, 0.65));
 }
 
 .sidebar-logo-text {
