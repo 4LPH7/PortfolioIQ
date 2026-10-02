@@ -261,6 +261,11 @@ function animateValue(el, end, prefix="₹", dp=2, durationMs=900) {
         const pnlCls = h.pnl >= 0 ? "td-pos" : "td-neg";
         const arrow  = h.pnl >= 0 ? "▲" : "▼";
         const pctBar = Math.min(Math.abs(h.pnl_pct || 0) / 20 * 100, 100);
+        const isImported = h.data_source === "CSV_IMPORT" || h.data_source === "MANUAL";
+        const srcBadge = isImported
+          ? `<span class="badge badge-hold" style="font-size:0.6rem;padding:0.15rem 0.45rem" title="Imported CSV data">📁 IMPORT</span>`
+          : `<span class="badge badge-strong-buy" style="font-size:0.6rem;padding:0.15rem 0.45rem" title="Live Zerodha broker data">⚡ LIVE</span>`;
+
         return `<tr class="${h.pnl >= 0 ? 'row-positive' : 'row-negative'}">
           <td><a class="td-main td-link" href="analyzer.html?sym=${h.symbol}">${h.symbol}</a></td>
           <td><span class="badge badge-hold" style="font-size:0.6rem;padding:0.15rem 0.5rem">${h.exchange}</span></td>
@@ -279,11 +284,23 @@ function animateValue(el, end, prefix="₹", dp=2, durationMs=900) {
             </div>
           </td>
           <td class="td-mono">${(h.weight_pct||0).toFixed(1)}%</td>
-          <td class="td-dim">${h.price_source || "—"}</td>
+          <td>${srcBadge}</td>
         </tr>`;
       }).join("");
 
+      const importedBanner = d.has_imported_data ? `
+        <div class="banner banner-warn mb-md" id="imported-data-banner" style="display:flex;align-items:center;gap:0.75rem;padding:0.65rem 1rem;background:rgba(255,183,77,0.1);border:1px solid rgba(255,183,77,0.3);border-radius:8px;margin-bottom:1rem;">
+          <span class="material-symbols-outlined" style="color:var(--yellow);font-size:20px;">info</span>
+          <div style="flex:1;font-size:0.8rem;color:var(--text-main);">
+            <strong>Imported data detected (${d.imported_count} ${d.imported_count === 1 ? 'holding' : 'holdings'}).</strong> Showing imported records alongside your live Zerodha account.
+          </div>
+          <button class="btn btn-xs btn-primary" onclick="purgeImportedHoldings()" style="white-space:nowrap;">
+            <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:2px;">delete_sweep</span> Switch to Pure Live Broker
+          </button>
+        </div>` : "";
+
       document.getElementById("holdings-wrap").innerHTML = `
+        ${importedBanner}
         <div class="table-wrap">
           <table id="holdings-table">
             <thead><tr>
@@ -384,6 +401,21 @@ function animateValue(el, end, prefix="₹", dp=2, durationMs=900) {
     document.getElementById("holdings-wrap").innerHTML = errBox("Failed to load: " + err.message + ". Is the Flask API running? (python flask_app.py)");
   }
 })();
+
+async function purgeImportedHoldings() {
+  if (!confirm("Are you sure you want to purge imported CSV data and keep only live Zerodha broker holdings?")) return;
+  try {
+    const res = await apiPost("/holdings/purge-imported", {});
+    if (res.ok) {
+      if (typeof showToast === "function") showToast("Switched to pure live broker portfolio!", "success");
+      setTimeout(() => location.reload(), 400);
+    } else {
+      alert(res.error || "Failed to purge imported records.");
+    }
+  } catch(e) {
+    alert("Error: " + e.message);
+  }
+}
 </script>
 </body>
 </html>

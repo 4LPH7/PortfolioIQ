@@ -445,7 +445,7 @@ async function runLiveKiteSync() {
   msg.textContent = "";
 
   try {
-    const res = await apiPost("/holdings/sync", {});
+    const res = await apiPost("/holdings/sync?mode=live_only", {});
     if (res.ok) {
       msg.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--green);margin-right:4px;">check_circle</span> Successfully synced holdings from Zerodha Kite.';
       msg.style.color = "var(--green)";

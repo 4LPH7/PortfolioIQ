@@ -54,6 +54,7 @@ class HoldingValuation:
     day_change_pct: Decimal = Decimal("0")
     weight_pct: Decimal = Decimal("0")  # % of total AUM
     product: str = "CNC"
+    data_source: str = "KITE"
 
     def __post_init__(self):
         total_qty = self.quantity + self.t1_quantity
@@ -131,7 +132,7 @@ def compute_portfolio_valuation(user_id: str = "default") -> PortfolioValuation:
             h.product,
             im.sector,
             im.industry,
-            im.yf_ticker,
+            COALESCE(h.data_source, 'KITE') AS data_source,
             lp.last_price     AS live_price,
             lp.close_price    AS live_close,
             lp.is_stale,
@@ -187,6 +188,7 @@ def compute_portfolio_valuation(user_id: str = "default") -> PortfolioValuation:
             close_price=close_price,
             price_source=price_source,
             product=row.get("product", "CNC"),
+            data_source=row.get("data_source", "KITE"),
         )
         pv.holdings.append(hv)
 
@@ -247,6 +249,10 @@ def get_valuation_summary(user_id: str = "default") -> dict[str, Any]:
     Used by the Streamlit dashboard and export modules.
     """
     pv = compute_portfolio_valuation(user_id)
+    has_imported = any(getattr(h, "data_source", "KITE") != "KITE" for h in pv.holdings)
+    imported_count = sum(1 for h in pv.holdings if getattr(h, "data_source", "KITE") != "KITE")
+    live_count = sum(1 for h in pv.holdings if getattr(h, "data_source", "KITE") == "KITE")
+
     return {
         "user_id": pv.user_id,
         "total_aum": float(pv.total_aum),
@@ -257,6 +263,9 @@ def get_valuation_summary(user_id: str = "default") -> dict[str, Any]:
         "available_cash": float(pv.available_cash),
         "net_worth": float(pv.net_worth),
         "holdings_count": len(pv.holdings),
+        "has_imported_data": has_imported,
+        "imported_count": imported_count,
+        "live_count": live_count,
         "live_prices": pv.live_count,
         "stale_prices": pv.stale_count,
         "sector_weights": {k: float(v) for k, v in pv.sector_weights.items()},
@@ -275,6 +284,7 @@ def get_valuation_summary(user_id: str = "default") -> dict[str, Any]:
                 "day_change": float(h.day_change),
                 "weight_pct": float(h.weight_pct),
                 "price_source": h.price_source,
+                "data_source": getattr(h, "data_source", "KITE"),
             }
             for h in pv.holdings
         ],

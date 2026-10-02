@@ -369,13 +369,52 @@ def update_config(payload: UpdateConfigDTO):
 
 
 @api_v1_bp.route("/settings/sync", methods=["POST"])
+@api_v1_bp.route("/holdings/sync", methods=["POST"])
 @require_api_key
 @limiter.limit(get_settings().rate_limit_mutations)
 def manual_sync():
     from src.ingestion.kite_sync import run_start_of_day_sync
 
-    result = run_start_of_day_sync()
+    user_id = request.args.get("user_id", "default")
+    replace_imported = (
+        request.args.get("mode") == "live_only"
+        or request.args.get("replace_imported") in ("1", "true", "yes")
+        or (request.is_json and request.json and request.json.get("replace_imported"))
+        or (request.is_json and request.json and request.json.get("mode") == "live_only")
+    )
+    result = run_start_of_day_sync(user_id=user_id, replace_imported=bool(replace_imported))
+    try:
+        from src.ingestion.kite_quote_poller import poll_kite_quotes
+
+        poll_kite_quotes()
+    except Exception as exc:
+        logger.debug("Quote poller after sync: {}", exc)
+
     return jsonify({"ok": True, "data": result})
+
+
+@api_v1_bp.route("/holdings/purge-imported", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+def purge_imported():
+    """Purge all imported CSV and manual holdings/positions, leaving only live broker data."""
+    from src.ingestion.kite_quote_poller import poll_kite_quotes
+    from src.ingestion.kite_sync import purge_imported_holdings
+
+    user_id = request.args.get("user_id", "default")
+    count = purge_imported_holdings(user_id=user_id)
+    try:
+        poll_kite_quotes()
+    except Exception as exc:
+        logger.debug("Quote poller after purge: {}", exc)
+
+    return jsonify({
+        "ok": True,
+        "data": {
+            "purged_count": count,
+            "message": f"Successfully purged {count} imported records. Showing live broker portfolio only.",
+        },
+    })
 
 
 @api_v1_bp.route("/settings/db-stats")

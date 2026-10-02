@@ -188,6 +188,11 @@
       <div class="font-heavy" style="font-size:1.05rem;margin-bottom:0.3rem">Kite SOD &amp; Live Sync</div>
       <div class="text-sm text-muted mb-md">Pull live holdings, positions, and margins from Zerodha. Preserves imported data safely.</div>
       <button class="btn btn-primary" style="width:100%" id="btn-sync-now" onclick="doSync()"><span class="btn-text">Sync with Zerodha Now</span></button>
+      <div style="display:flex;gap:0.5rem;margin-top:0.6rem;">
+        <button class="btn btn-sm btn-ghost text-red" style="width:100%" id="btn-purge-imported" onclick="purgeImportedSettings()" title="Purge imported CSV records and keep only live Zerodha broker records">
+          <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">delete_sweep</span> Purge Imported Data
+        </button>
+      </div>
       <div id="sync-result" class="text-sm mt-sm"></div>
     </div>
     <div class="card" style="text-align:center">
@@ -393,6 +398,26 @@ async function doSync() {
     loadAbstractStats();
   } else {
     el.style.color = "var(--red)"; el.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--red);">close</span> ' + (r.error || "Sync failed");
+  }
+}
+
+async function purgeImportedSettings() {
+  if (!confirm("Are you sure you want to purge all imported CSV records and keep only real live Zerodha broker data?")) return;
+  const el = document.getElementById("sync-result");
+  el.style.color = "var(--text-muted)"; el.textContent = "⟳ Purging imported records…";
+  try {
+    const res = await apiPost("/holdings/purge-imported", {});
+    if (res.ok) {
+      el.style.color = "var(--green)";
+      el.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--green);">check</span> ' + (res.data?.message || "Imported records purged successfully.");
+      loadAbstractStats();
+    } else {
+      el.style.color = "var(--red)";
+      el.textContent = res.error || "Failed to purge imported records.";
+    }
+  } catch(e) {
+    el.style.color = "var(--red)";
+    el.textContent = "Error: " + e.message;
   }
 }
 

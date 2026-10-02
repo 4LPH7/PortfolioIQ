@@ -180,15 +180,43 @@ def _ensure_instrument_exists(session, holding: dict) -> None:
     )
 
 
-def sync_holdings(user_id: str = "default") -> int:
+def purge_imported_holdings(user_id: str = "default") -> int:
+    """
+    Purge all CSV_IMPORT, MANUAL, and legacy imported holdings and positions for user,
+    leaving only real broker-synced holdings.
+    """
+    with get_db_session() as session:
+        r1 = session.execute(
+            text("""
+                DELETE FROM user_holdings
+                WHERE user_id = :uid AND data_source IN ('CSV_IMPORT', 'MANUAL', 'legacy')
+            """),
+            {"uid": user_id},
+        )
+        r2 = session.execute(
+            text("""
+                DELETE FROM user_positions
+                WHERE user_id = :uid AND data_source IN ('CSV_IMPORT', 'MANUAL', 'legacy')
+            """),
+            {"uid": user_id},
+        )
+        count = (r1.rowcount or 0) + (r2.rowcount or 0)
+    logger.info("Purged {} imported holdings/positions for user '{}'", count, user_id)
+    return count
+
+
+def sync_holdings(user_id: str = "default", replace_imported: bool = False) -> int:
     """
     Pull holdings from Kite API and upsert into user_holdings table.
     Performs reconciliation against local holdings. Preserves imported
-    (CSV/manual) data safely and reconciles matching securities seamlessly.
+    (CSV/manual) data safely unless replace_imported=True is explicitly set.
 
     Returns:
         Number of holdings upserted.
     """
+    if replace_imported:
+        purge_imported_holdings(user_id=user_id)
+
     logger.info("Starting Kite holdings sync for user='{}'...", user_id)
     kite = get_authenticated_kite()
 
@@ -788,7 +816,7 @@ def sync_positions(user_id: str = "default") -> int:
     return upserted
 
 
-def run_start_of_day_sync(user_id: str = "default") -> dict[str, Any]:
+def run_start_of_day_sync(user_id: str = "default", replace_imported: bool = False) -> dict[str, Any]:
     """
     Full start-of-day sync: holdings + positions + margins.
     Called manually or by APScheduler at 09:15 AM IST on market days.
@@ -802,7 +830,7 @@ def run_start_of_day_sync(user_id: str = "default") -> dict[str, Any]:
 
     results: dict[str, Any] = {"ok": True}
     try:
-        results["holdings_upserted"] = sync_holdings(user_id=user_id)
+        results["holdings_upserted"] = sync_holdings(user_id=user_id, replace_imported=replace_imported)
     except Exception as exc:
         logger.error("Holdings sync failed: {}", exc)
         results["holdings_error"] = str(exc)
