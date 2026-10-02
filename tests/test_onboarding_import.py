@@ -41,14 +41,28 @@ def api_key() -> str:
     return get_settings().portfolioiq_api_key
 
 
+@pytest.fixture(autouse=True)
+def cleanup_test_holdings():
+    yield
+    try:
+        from sqlalchemy import text
+
+        from src.db.connection import get_db_session
+
+        with get_db_session() as s:
+            s.execute(text("DELETE FROM user_holdings WHERE user_id = 'test_onboarding_user'"))
+    except Exception:
+        pass
+
+
 class TestCSVImportEndpoint:
     def test_import_requires_authentication(self, client: FlaskClient):
-        res = client.post("/api/v1/holdings/import-csv")
+        res = client.post("/api/v1/holdings/import-csv?user_id=test_onboarding_user")
         assert res.status_code == 401
 
     def test_import_empty_payload(self, client: FlaskClient, api_key: str):
         res = client.post(
-            "/api/v1/holdings/import-csv",
+            "/api/v1/holdings/import-csv?user_id=test_onboarding_user",
             headers={"X-API-Key": api_key},
             json={},
         )
@@ -59,7 +73,7 @@ class TestCSVImportEndpoint:
     def test_import_missing_columns(self, client: FlaskClient, api_key: str):
         csv_data = "Instrument,CMP,LTP\nINFY,1500.00,1510.00"
         res = client.post(
-            "/api/v1/holdings/import-csv",
+            "/api/v1/holdings/import-csv?user_id=test_onboarding_user",
             headers={"X-API-Key": api_key},
             json={"csv_text": csv_data},
         )
@@ -75,7 +89,7 @@ class TestCSVImportEndpoint:
             "TCS,5,3500.00,3600.00,18000.00,500.00,2.86%,-0.20%\n"
         )
         res = client.post(
-            "/api/v1/holdings/import-csv",
+            "/api/v1/holdings/import-csv?user_id=test_onboarding_user",
             headers={"X-API-Key": api_key},
             json={"csv_text": csv_data},
         )
@@ -100,7 +114,7 @@ class TestCSVImportEndpoint:
             "RELIANCE,2026-09-05,NSE,EQ,EQ,buy,5,2600.00,ord2,trd2\n"
         )
         res = client.post(
-            "/api/v1/holdings/import-csv",
+            "/api/v1/holdings/import-csv?user_id=test_onboarding_user",
             headers={"X-API-Key": api_key},
             json={"csv_text": csv_data},
         )
@@ -121,7 +135,7 @@ class TestCSVImportEndpoint:
             "file": (io.BytesIO(csv_bytes), "holdings.csv", "text/csv"),
         }
         res = client.post(
-            "/api/v1/holdings/import-csv",
+            "/api/v1/holdings/import-csv?user_id=test_onboarding_user",
             headers={"X-API-Key": api_key},
             content_type="multipart/form-data",
             data=data,
