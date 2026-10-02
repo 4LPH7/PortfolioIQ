@@ -442,7 +442,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// ── React Bits Spotlight Controller (Global Cursor Tracking) ───
+// ── React Bits Pointer Effects Controller (Spotlight & BorderGlow) ───
 function initSpotlightController() {
   if (typeof window === "undefined") return;
 
@@ -452,15 +452,48 @@ function initSpotlightController() {
     document.body.style.setProperty("--mouse-y", `${e.clientY}px`);
   }, { passive: true });
 
-  // Track cursor relative to each card for the SpotlightCard effect
+  // Calculate edge proximity and cursor angle for React Bits BorderGlow
+  function updateBorderGlow(card, clientX, clientY) {
+    const rect = card.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const dx = x - cx;
+    const dy = y - cy;
+
+    let kx = Infinity;
+    let ky = Infinity;
+    if (dx !== 0) kx = cx / Math.abs(dx);
+    if (dy !== 0) ky = cy / Math.abs(dy);
+    const edge = Math.min(Math.max(1 / Math.min(kx, ky), 0), 1);
+
+    let degrees = 0;
+    if (dx !== 0 || dy !== 0) {
+      const radians = Math.atan2(dy, dx);
+      degrees = radians * (180 / Math.PI) + 90;
+      if (degrees < 0) degrees += 360;
+    }
+
+    card.style.setProperty("--edge-proximity", `${(edge * 100).toFixed(3)}`);
+    card.style.setProperty("--cursor-angle", `${degrees.toFixed(3)}deg`);
+  }
+
+  // Track cursor relative to each card for SpotlightCard and BorderGlow
   document.addEventListener("pointermove", (e) => {
     const card = e.target.closest(".card-spotlight, .card, .kpi-card");
-    if (!card) return;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    card.style.setProperty("--mouse-x", `${x}px`);
-    card.style.setProperty("--mouse-y", `${y}px`);
+    if (card) {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      card.style.setProperty("--mouse-x", `${x}px`);
+      card.style.setProperty("--mouse-y", `${y}px`);
+    }
+
+    const glowCard = e.target.closest(".border-glow-card");
+    if (glowCard) {
+      updateBorderGlow(glowCard, e.clientX, e.clientY);
+    }
   }, { passive: true });
 }
 
