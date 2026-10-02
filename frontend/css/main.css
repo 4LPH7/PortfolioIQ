@@ -1425,17 +1425,28 @@ select option { background: var(--bg2); color: var(--text); }
   background: rgba(0,212,255,0.04);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
-  padding: 0.45rem 1rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 36px;
+  padding: 0.4rem 0.8rem;
   display: flex;
-  gap: 1.5rem;
-  overflow: hidden;
+  gap: 1.25rem;
+  overflow-x: auto;
+  overflow-y: hidden;
   font-size: 0.8rem;
   font-family: 'JetBrains Mono', monospace;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-inline: contain;
 }
+.ticker-strip:empty { display: none; }
+.ticker-strip::-webkit-scrollbar { display: none; }
 .ticker-item {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0.4rem;
   white-space: nowrap;
@@ -2111,5 +2122,3 @@ dialog[open].session-dialog::backdrop {
     animation: none !important;
   }
 }
-
-
