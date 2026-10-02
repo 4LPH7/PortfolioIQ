@@ -136,18 +136,22 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  --mouse-x: 50vw;
+  --mouse-y: 50vh;
+  --bg-spotlight-color: rgba(0, 212, 255, 0.12);
 }
 
 a { color: var(--accent); text-decoration: none; transition: color var(--t-fast); }
 a:hover { color: var(--accent-hover); }
 
 /* ── Refined Subtle Dark Atmospheric Background ─────────────── */
-/* ── Liquid Glass Midnight Indigo Atmospheric Mesh ─────────── */
+/* ── Liquid Glass Midnight Indigo Atmospheric Mesh with Dynamic Pointer Spotlight ── */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   background:
+    radial-gradient(circle 750px at var(--mouse-x, 50vw) var(--mouse-y, 50vh), var(--bg-spotlight-color, rgba(0, 212, 255, 0.12)), rgba(0, 255, 136, 0.04) 40%, transparent 80%),
     radial-gradient(1200px 700px at 10% -50px, rgba(49, 46, 129, 0.35), transparent 70%),
     radial-gradient(1000px 600px at 90% 15%, rgba(14, 165, 233, 0.12), transparent 65%),
     radial-gradient(900px 600px at 85% 95%, rgba(16, 185, 129, 0.08), transparent 70%),
@@ -155,6 +159,7 @@ body::before {
     linear-gradient(180deg, #050713 0%, #080c1d 50%, #050712 100%);
   pointer-events: none;
   z-index: 0;
+  transition: opacity 0.4s ease;
 }
 
 body::after {
@@ -351,30 +356,15 @@ body.sidebar-retracted .nav-item:hover::after {
 }
 
 .sidebar-logo-icon {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  position: relative;
-  transition: transform var(--t-spring), filter var(--t-normal);
   padding: 0;
-}
-
-/* Ethereal liquid radial glow aura behind the logo */
-.sidebar-logo-icon::before {
-  content: "";
-  position: absolute;
-  inset: -6px;
-  background: radial-gradient(circle at center, rgba(0, 212, 255, 0.5) 0%, rgba(0, 255, 136, 0.3) 45%, transparent 72%);
-  border-radius: 50%;
-  filter: blur(8px);
-  pointer-events: none;
-  z-index: 0;
-  transition: opacity var(--t-normal), transform var(--t-normal);
-  opacity: 0.85;
+  transition: transform var(--t-spring);
 }
 
 .sidebar-logo-img {
@@ -382,25 +372,14 @@ body.sidebar-retracted .nav-item:hover::after {
   height: 100%;
   object-fit: contain;
   display: block;
-  position: relative;
-  z-index: 1;
-  filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.75)) drop-shadow(0 0 16px rgba(0, 255, 136, 0.45));
-  transition: filter var(--t-normal);
-}
-
-.sidebar-logo:hover .sidebar-logo-icon {
-  transform: scale(1.08);
-}
-
-.sidebar-logo:hover .sidebar-logo-icon::before {
-  opacity: 1;
-  transform: scale(1.15);
-  background: radial-gradient(circle at center, rgba(0, 212, 255, 0.75) 0%, rgba(0, 255, 136, 0.5) 50%, transparent 75%);
-  filter: blur(10px);
+  /* Glowing liquid neon aura directly on the logo emblem contours */
+  filter: drop-shadow(0 0 6px #00d4ff) drop-shadow(0 0 14px rgba(0, 255, 136, 0.8));
+  transition: filter var(--t-normal), transform var(--t-spring);
 }
 
 .sidebar-logo:hover .sidebar-logo-img {
-  filter: drop-shadow(0 0 12px rgba(0, 212, 255, 0.95)) drop-shadow(0 0 24px rgba(0, 255, 136, 0.65));
+  transform: scale(1.08);
+  filter: drop-shadow(0 0 10px #00d4ff) drop-shadow(0 0 22px rgba(0, 255, 136, 0.95));
 }
 
 .sidebar-logo-text {
@@ -711,6 +690,7 @@ body.sidebar-retracted .nav-item:hover::after {
   background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.25) 50%, transparent 100%);
   opacity: 0.7;
   transition: opacity 0.25s ease;
+  z-index: 2;
 }
 .card:hover::before { opacity: 1; }
 
@@ -718,6 +698,72 @@ body.sidebar-retracted .nav-item:hover::after {
   border-color: rgba(255, 255, 255, 0.18);
   transform: translateY(-2px);
   box-shadow: 0 24px 60px -8px rgba(0, 0, 0, 0.75), inset 0 1px 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REACT BITS SPOTLIGHTCARD COMPONENT INTEGRATION
+   ══════════════════════════════════════════════════════════════ */
+.card-spotlight,
+.card,
+.kpi-card {
+  --mouse-x: 50%;
+  --mouse-y: 50%;
+  --spotlight-color: rgba(0, 229, 255, 0.16);
+}
+
+.card-spotlight {
+  position: relative;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background-color: var(--surface-card);
+  backdrop-filter: blur(28px) saturate(210%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%);
+  padding: 1.5rem 1.75rem;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.2s ease, transform var(--t-spring), box-shadow 0.25s ease;
+}
+
+/* Spotlight radial gradient overlay following pointer */
+.card-spotlight::before,
+.card::after,
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle 350px at var(--mouse-x, 50%) var(--mouse-y, 50%), var(--spotlight-color, rgba(0, 229, 255, 0.16)), transparent 80%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.card-spotlight:hover::before,
+.card-spotlight:focus-within::before,
+.card:hover::after,
+.card:focus-within::after,
+.kpi-card:hover::before,
+.kpi-card:focus-within::before {
+  opacity: 0.65;
+}
+
+/* Keep card contents interactive and crisp above the spotlight layer */
+.card-spotlight > *,
+.card > *,
+.kpi-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-spotlight::before,
+  .card::after,
+  .kpi-card::before {
+    transition: none !important;
+  }
 }
 
 /* Card variants */

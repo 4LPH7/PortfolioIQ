@@ -441,3 +441,31 @@ document.addEventListener("DOMContentLoaded", () => {
     if (el.getAttribute("href") === path) el.classList.add("active");
   });
 });
+
+// ── React Bits Spotlight Controller (Global Cursor Tracking) ───
+function initSpotlightController() {
+  if (typeof window === "undefined") return;
+
+  // Track cursor position for the whole-site atmospheric background spotlight
+  window.addEventListener("pointermove", (e) => {
+    document.body.style.setProperty("--mouse-x", `${e.clientX}px`);
+    document.body.style.setProperty("--mouse-y", `${e.clientY}px`);
+  }, { passive: true });
+
+  // Track cursor relative to each card for the SpotlightCard effect
+  document.addEventListener("pointermove", (e) => {
+    const card = e.target.closest(".card-spotlight, .card, .kpi-card");
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    card.style.setProperty("--mouse-x", `${x}px`);
+    card.style.setProperty("--mouse-y", `${y}px`);
+  }, { passive: true });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initSpotlightController);
+} else {
+  initSpotlightController();
+}
