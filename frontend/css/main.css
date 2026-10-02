@@ -219,16 +219,17 @@ body::after {
   width: 100%;
 }
 
+/* Sidebar shelf retract / shrink button (hidden on desktop, only shown when mobile drawer is expanded) */
 .sidebar-retract-btn {
-  display: flex;
+  display: none !important;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border);
-  color: var(--text-muted);
+  color: var(--cyan);
   font-size: 1.1rem;
   cursor: pointer;
   transition: all var(--t-fast);
@@ -236,9 +237,8 @@ body::after {
   z-index: 10;
 }
 .sidebar-retract-btn:hover {
-  background: rgba(0, 212, 255, 0.15);
+  background: rgba(0, 212, 255, 0.2);
   border-color: var(--cyan);
-  color: var(--cyan);
   box-shadow: 0 0 12px rgba(0, 212, 255, 0.35);
 }
 
@@ -989,7 +989,7 @@ body.sidebar-retracted .sidebar-retract-btn:hover {
    SIDEBAR SHELF TOGGLE & MOBILE ACCESSIBILITY
    ══════════════════════════════════════════════════════════════ */
 .sidebar-toggle-btn {
-  display: inline-flex;
+  display: none; /* Hidden on desktop; only visible on small screens */
   align-items: center;
   justify-content: center;
   background: var(--surface2);
@@ -1071,6 +1071,14 @@ body.sidebar-retracted .sidebar-retract-btn:hover {
   .sidebar-toggle-btn { display: inline-flex !important; }
   .bottom-nav { display: flex !important; }
 
+  /* On small screens, the retrieve/shrink button is ONLY visible when the shelf is expanded (.sidebar.open) */
+  .sidebar .sidebar-retract-btn {
+    display: none !important;
+  }
+  .sidebar.open .sidebar-retract-btn {
+    display: flex !important;
+  }
+
   .sidebar {
     position: fixed !important;
     top: 0 !important;
@@ -1098,6 +1106,14 @@ body.sidebar-retracted .sidebar-retract-btn:hover {
     padding: 0 1rem !important;
   }
   .ticker-strip {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  /* Extra buttons are never shown on desktop */
+  .sidebar-retract-btn,
+  .sidebar-toggle-btn {
     display: none !important;
   }
 }

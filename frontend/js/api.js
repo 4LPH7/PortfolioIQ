@@ -308,48 +308,35 @@ function initMobileNavigation() {
   const toggleBtn = document.getElementById("sidebar-toggle-btn");
   const retractBtn = document.getElementById("sidebar-retract-btn");
   const sidebar = document.querySelector(".sidebar");
-  const sidebarHeader = document.querySelector(".sidebar-header");
   let backdrop = document.getElementById("sidebar-backdrop");
 
   function isMobile() {
     return window.innerWidth <= 768;
   }
 
-  function updateRetractButtonUI(isRetracted) {
-    if (!retractBtn) return;
-    const icon = retractBtn.querySelector(".material-symbols-outlined");
-    if (isMobile()) {
-      if (icon) icon.textContent = "close";
-      retractBtn.title = "Close Navigation Menu";
-      retractBtn.setAttribute("aria-label", "Close navigation menu");
-    } else {
-      if (icon) icon.textContent = isRetracted ? "chevron_right" : "chevron_left";
-      retractBtn.title = isRetracted ? "Expand Sidebar Shelf" : "Minimize Sidebar Shelf";
-      retractBtn.setAttribute("aria-label", isRetracted ? "Expand sidebar shelf" : "Minimize sidebar shelf");
-    }
+  // Ensure desktop view is always clean, full-width, and never trapped in retracted shelf
+  if (!isMobile()) {
+    localStorage.removeItem("portfolioiq_sidebar_retracted");
+    document.body.classList.remove("sidebar-retracted");
   }
 
-  // Restore desktop retractable shelf preference
-  const savedRetracted = localStorage.getItem("portfolioiq_sidebar_retracted") === "true";
-  if (!isMobile() && savedRetracted) {
-    document.body.classList.add("sidebar-retracted");
-  }
-  updateRetractButtonUI(document.body.classList.contains("sidebar-retracted"));
-
-  function toggleRetract() {
-    const isRetracted = document.body.classList.toggle("sidebar-retracted");
-    localStorage.setItem("portfolioiq_sidebar_retracted", isRetracted ? "true" : "false");
-    updateRetractButtonUI(isRetracted);
-    if (toggleBtn) {
-      toggleBtn.setAttribute("aria-expanded", isRetracted ? "false" : "true");
-    }
+  if (!backdrop && typeof document !== "undefined") {
+    backdrop = document.createElement("div");
+    backdrop.id = "sidebar-backdrop";
+    backdrop.className = "sidebar-backdrop";
+    document.body.appendChild(backdrop);
   }
 
   function openSidebar() {
     if (sidebar) sidebar.classList.add("open");
     if (backdrop) backdrop.classList.add("open");
     if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "true");
-    updateRetractButtonUI(false);
+    if (retractBtn) {
+      const icon = retractBtn.querySelector(".material-symbols-outlined");
+      if (icon) icon.textContent = "chevron_left";
+      retractBtn.title = "Shrink Navigation Shelf";
+      retractBtn.setAttribute("aria-label", "Shrink navigation shelf");
+    }
   }
 
   function closeSidebar() {
@@ -358,50 +345,23 @@ function initMobileNavigation() {
     if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
   }
 
-  // Button on top of the shelf (#sidebar-retract-btn):
-  // - In mobile view or when drawer is open: minimizes/dismisses the shelf
-  // - In desktop view: toggles between compact 68px and retrieved 240px shelf
-  if (retractBtn) {
-    retractBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (isMobile() || (sidebar && sidebar.classList.contains("open"))) {
-        closeSidebar();
-      } else {
-        toggleRetract();
-      }
-    });
-  }
-
-  // On desktop: clicking header/logo in minimized state also retrieves the shelf!
-  if (sidebarHeader) {
-    sidebarHeader.addEventListener("click", (e) => {
-      if (!isMobile() && document.body.classList.contains("sidebar-retracted")) {
-        if (!e.target.closest("#sidebar-retract-btn")) {
-          toggleRetract();
-        }
-      }
-    });
-  }
-
-  if (!backdrop) {
-    backdrop = document.createElement("div");
-    backdrop.id = "sidebar-backdrop";
-    backdrop.className = "sidebar-backdrop";
-    document.body.appendChild(backdrop);
-  }
-
+  // Hamburger button in topbar (mobile only)
   if (toggleBtn) {
     toggleBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (isMobile()) {
-        if (sidebar && sidebar.classList.contains("open")) {
-          closeSidebar();
-        } else {
-          openSidebar();
-        }
+      if (sidebar && sidebar.classList.contains("open")) {
+        closeSidebar();
       } else {
-        toggleRetract();
+        openSidebar();
       }
+    });
+  }
+
+  // Shelf header shrink / retrieve button (visible on mobile only when expanded)
+  if (retractBtn) {
+    retractBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeSidebar();
     });
   }
 
@@ -416,10 +376,9 @@ function initMobileNavigation() {
   });
 
   window.addEventListener("resize", () => {
-    const isRetracted = document.body.classList.contains("sidebar-retracted");
-    updateRetractButtonUI(isRetracted);
-    if (!isMobile() && sidebar && sidebar.classList.contains("open")) {
+    if (!isMobile()) {
       closeSidebar();
+      document.body.classList.remove("sidebar-retracted");
     }
   });
 
