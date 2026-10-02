@@ -183,6 +183,7 @@ function colorClass(n) {
 }
 
 function signalBadge(signal) {
+  const norm = (signal || "").replace(/_/g, " ").toUpperCase().trim();
   const map = {
     "STRONG BUY":  "badge-strong-buy",
     "BUY":         "badge-buy",
@@ -190,11 +191,12 @@ function signalBadge(signal) {
     "SELL":        "badge-sell",
     "STRONG SELL": "badge-strong-sell",
   };
-  const cls = map[signal] || "badge-hold";
-  return `<span class="badge ${cls}">${signal || "—"}</span>`;
+  const cls = map[norm] || "badge-hold";
+  return `<span class="badge ${cls}">${norm || "—"}</span>`;
 }
 
 function sigColor(signal) {
+  const norm = (signal || "").replace(/_/g, " ").toUpperCase().trim();
   const map = {
     "STRONG BUY":  "#00ff88",
     "BUY":         "#00d4ff",
@@ -202,10 +204,11 @@ function sigColor(signal) {
     "SELL":        "#ff6b35",
     "STRONG SELL": "#ff3366",
   };
-  return map[signal] || "#ffd600";
+  return map[norm] || "#ffd600";
 }
 
 function sigIcon(signal) {
+  const norm = (signal || "").replace(/_/g, " ").toUpperCase().trim();
   const map = {
     "STRONG BUY": `<span class="material-symbols-outlined" style="font-size:16px;color:#00ff88;vertical-align:middle;">rocket_launch</span>`,
     "BUY": `<span class="material-symbols-outlined" style="font-size:16px;color:#00d4ff;vertical-align:middle;">trending_up</span>`,
@@ -213,7 +216,7 @@ function sigIcon(signal) {
     "SELL": `<span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;vertical-align:middle;">trending_down</span>`,
     "STRONG SELL": `<span class="material-symbols-outlined" style="font-size:16px;color:#ff3366;vertical-align:middle;">arrow_downward</span>`,
   };
-  return map[signal] || `<span class="material-symbols-outlined" style="font-size:16px;color:#ffd600;vertical-align:middle;">pause_circle</span>`;
+  return map[norm] || `<span class="material-symbols-outlined" style="font-size:16px;color:#ffd600;vertical-align:middle;">pause_circle</span>`;
 }
 
 function loading(msg = "Loading…") {
@@ -266,7 +269,17 @@ function initTabs(containerId) {
       btn.classList.add("active");
       const target = btn.dataset.tab;
       const panel = container.querySelector(`.tab-panel[data-tab="${target}"]`);
-      if (panel) panel.classList.add("active");
+      if (panel) {
+        panel.classList.add("active");
+        requestAnimationFrame(() => {
+          panel.querySelectorAll(".js-plotly-plot").forEach(plot => {
+            if (window.Plotly && typeof window.Plotly.Plots.resize === "function") {
+              window.Plotly.Plots.resize(plot);
+            }
+          });
+          window.dispatchEvent(new Event("resize"));
+        });
+      }
     });
   });
 

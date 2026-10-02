@@ -7,7 +7,7 @@
   <title>PortfolioIQ — Stock Analyzer</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
   <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
@@ -23,7 +23,7 @@
   <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="material-symbols-outlined nav-icon">receipt_long</span> <span>Audit Log</span></a>
   <a class="nav-item" href="timeline.html" data-tooltip="Portfolio Timeline"><span class="material-symbols-outlined nav-icon">timeline</span> <span>Portfolio Timeline</span></a>
   <a class="nav-item" href="report.html" data-tooltip="Monthly Statement"><span class="material-symbols-outlined nav-icon">description</span> <span>Monthly Statement</span></a>
-<a class="nav-item" href="settings.html" data-tooltip="Settings"><span class="material-symbols-outlined nav-icon">settings</span> <span>Settings</span></a>
+  <a class="nav-item" href="settings.html" data-tooltip="Settings"><span class="material-symbols-outlined nav-icon">settings</span> <span>Settings</span></a>
   <hr class="sidebar-divider"/>
   <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status"><div class="status-dot"></div><span>Loading…</span></a>
   <a href="status.html" id="db-status" class="status-pill status-warn" title="View Database Status"><div class="status-dot"></div><span>Checking…</span></a>
@@ -64,15 +64,32 @@
 
   <!-- Controls -->
   <div class="card mt-sm" style="padding:1.25rem 1.5rem">
-    <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap">
-      <div class="form-group" style="flex:1;max-width:340px">
-        <label class="form-label">Select Holding to Analyze</label>
+    <div style="display:flex;gap:1.25rem;align-items:flex-end;flex-wrap:wrap">
+      <div class="form-group" style="flex:1;min-width:240px;max-width:320px">
+        <label class="form-label" for="symbol-select">Select Portfolio Holding</label>
         <select id="symbol-select"><option value="">Loading holdings…</option></select>
       </div>
+      <div class="form-group" style="flex:1;min-width:180px;max-width:240px">
+        <label class="form-label" for="symbol-input">Or Enter Custom Symbol</label>
+        <input type="text" id="symbol-input" placeholder="e.g. INFY, RELIANCE, TCS" style="text-transform:uppercase" />
+      </div>
       <button class="btn btn-primary btn-lg" id="run-btn" onclick="runAnalysis()">
-        <span class="btn-text">▶ Run Full Analysis</span>
+        <span class="material-symbols-outlined" style="font-size:18px;margin-right:6px;vertical-align:middle;">play_arrow</span>
+        <span class="btn-text">Run Full Analysis</span>
       </button>
       <div id="run-status" class="text-sm text-dim" style="align-self:center"></div>
+    </div>
+
+    <!-- Quick preset chips -->
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-top:0.85rem;">
+      <span class="text-xs text-dim">Quick Scrips:</span>
+      <button type="button" class="btn btn-xs btn-ghost chip-btn" onclick="quickSelect('INFY')">INFY</button>
+      <button type="button" class="btn btn-xs btn-ghost chip-btn" onclick="quickSelect('RELIANCE')">RELIANCE</button>
+      <button type="button" class="btn btn-xs btn-ghost chip-btn" onclick="quickSelect('TCS')">TCS</button>
+      <button type="button" class="btn btn-xs btn-ghost chip-btn" onclick="quickSelect('GOLDCASE')">GOLDCASE</button>
+      <button type="button" class="btn btn-xs btn-ghost chip-btn" onclick="quickSelect('MONQ50')">MONQ50</button>
+      <button type="button" class="btn btn-xs btn-ghost chip-btn" onclick="quickSelect('HDFCBANK')">HDFCBANK</button>
+      <button type="button" class="btn btn-xs btn-ghost chip-btn" onclick="quickSelect('ITBEES')">ITBEES</button>
     </div>
   </div>
 
@@ -80,6 +97,7 @@
 </main>
 
 <div class="dry-run-notice"><div class="dry-run-dot"></div>DRY RUN — No real orders</div>
+
 <!-- ── Bottom Mobile Navigation ───────────────────────────── -->
 <nav class="bottom-nav" aria-label="Mobile Navigation">
   <a class="bottom-nav-item" href="index.html">
@@ -98,7 +116,7 @@
     <span class="material-symbols-outlined bottom-nav-icon">timeline</span>
     <span>Timeline</span>
   </a>
-<a class="bottom-nav-item" href="settings.html">
+  <a class="bottom-nav-item" href="settings.html">
     <span class="material-symbols-outlined bottom-nav-icon">settings</span>
     <span>Settings</span>
   </a>
@@ -109,38 +127,119 @@
 <script src="js/alerts.js"></script>
 <script src="js/api.js"></script>
 <script>
-setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " IST"; }, 1000);
+setInterval(() => {
+  const clockEl = document.getElementById("clock");
+  if (clockEl) {
+    clockEl.textContent = new Date().toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    }) + " IST";
+  }
+}, 1000);
 
 // Pre-select from URL params
-const urlSym = new URLSearchParams(location.search).get("sym");
+const urlSym = (new URLSearchParams(location.search).get("sym") || "").toUpperCase();
+
+function quickSelect(sym) {
+  const inp = document.getElementById("symbol-input");
+  const sel = document.getElementById("symbol-select");
+  if (inp) inp.value = sym;
+  if (sel) {
+    let found = false;
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === sym) {
+        sel.selectedIndex = i;
+        found = true;
+        break;
+      }
+    }
+    if (!found) sel.value = "";
+  }
+  runAnalysis();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const inp = document.getElementById("symbol-input");
+  if (inp) {
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        runAnalysis();
+      }
+    });
+  }
+  const sel = document.getElementById("symbol-select");
+  if (sel) {
+    sel.addEventListener("change", () => {
+      if (sel.value && inp) inp.value = sel.value;
+    });
+  }
+});
 
 (async () => {
   try {
     const r = await apiGet("/api/holdings/symbols");
-    if (r.ok) {
-      const sel = document.getElementById("symbol-select");
+    const sel = document.getElementById("symbol-select");
+    const inp = document.getElementById("symbol-input");
+    if (r.ok && Array.isArray(r.data) && r.data.length > 0) {
       sel.innerHTML = `<option value="">— Pick a holding —</option>` +
-        r.data.map(s => `<option value="${s.symbol}" ${s.symbol===urlSym?"selected":""}>${s.symbol} &nbsp;·&nbsp; avg ₹${(s.avg_price||0).toFixed(2)}</option>`).join("");
-      if (urlSym) runAnalysis();
+        r.data.map(s => `<option value="${s.symbol}" ${s.symbol === urlSym ? "selected" : ""}>${s.symbol} &nbsp;·&nbsp; avg ₹${(s.avg_price || 0).toFixed(2)}</option>`).join("");
+      if (urlSym) {
+        if (inp) inp.value = urlSym;
+        runAnalysis();
+      }
+    } else {
+      sel.innerHTML = `<option value="">— Popular Scrips —</option>` +
+        ["INFY", "RELIANCE", "TCS", "GOLDCASE", "MONQ50", "HDFCBANK", "ITBEES"].map(s =>
+          `<option value="${s}" ${s === urlSym ? "selected" : ""}>${s}</option>`
+        ).join("");
+      if (urlSym) {
+        if (inp) inp.value = urlSym;
+        runAnalysis();
+      } else {
+        // default select INFY
+        sel.value = "INFY";
+        if (inp) inp.value = "INFY";
+      }
     }
-  } catch {}
+  } catch (err) {
+    const sel = document.getElementById("symbol-select");
+    if (sel) {
+      sel.innerHTML = `<option value="">— Popular Scrips —</option>` +
+        ["INFY", "RELIANCE", "TCS", "GOLDCASE", "MONQ50"].map(s => `<option value="${s}">${s}</option>`).join("");
+    }
+  }
 })();
 
 async function runAnalysis() {
-  const symbol = document.getElementById("symbol-select").value;
-  if (!symbol) return;
+  const sel = document.getElementById("symbol-select");
+  const inp = document.getElementById("symbol-input");
+  const symbol = ((inp && inp.value.trim()) || (sel && sel.value) || "").toUpperCase();
+  if (!symbol) {
+    if (typeof showToast === "function") showToast("Please select a holding or type a symbol to analyze.", "warn");
+    return;
+  }
   const area = document.getElementById("result-area");
   const btn  = document.getElementById("run-btn");
   const status = document.getElementById("run-status");
-  area.innerHTML = `<div class="loading-wrap"><div class="spinner"></div><span>Fetching 1-year data &amp; running 5 models for <strong>${symbol}</strong>…</span></div>`;
+  area.innerHTML = `<div class="loading-wrap"><div class="spinner"></div><span>Fetching historical market data &amp; running 5 analytical models for <strong>${symbol}</strong>…</span></div>`;
   btn.disabled = true;
   status.textContent = "";
   const t0 = Date.now();
   try {
-    const r = await apiGet(`/api/analysis/${symbol}`);
+    const r = await apiGet(`/api/analysis/${encodeURIComponent(symbol)}`);
     btn.disabled = false;
-    status.textContent = `Completed in ${((Date.now()-t0)/1000).toFixed(1)}s`;
-    if (!r.ok) { area.innerHTML = errBox(r.error); return; }
+    status.textContent = `Completed in ${((Date.now() - t0) / 1000).toFixed(1)}s`;
+    if (!r.ok) {
+      area.innerHTML = errBox(r.error || "Analysis request failed.");
+      return;
+    }
+    if (r.data && r.data.error) {
+      area.innerHTML = errBox(r.data.error);
+      return;
+    }
     renderResult(r.data);
   } catch(err) {
     btn.disabled = false;
@@ -152,11 +251,16 @@ function renderResult(d) {
   const comp = d.composite || {};
   const pnlPct = d.avg_buy_price ? ((d.current_price - d.avg_buy_price) / d.avg_buy_price * 100) : 0;
   const sigCol = sigColor(comp.signal);
-  const score  = comp.score || 0;
+  const score  = comp.score != null ? comp.score : 0;
 
-  // Score ring circumference: r=54, C=2πr≈339
+  // Score ring circumference: r=54, C=2πr≈339.3
   const C = 339.3;
-  const dashVal = (score / 100) * C;
+  const dashVal = (Math.max(0, Math.min(100, score)) / 100) * C;
+
+  const symLabel = d.tradingsymbol || d.symbol || "—";
+  const evidenceBadgeHtml = d.evidence_badge ?
+    `<span class="badge ${d.status === 'PROVEN_EDGE' ? 'badge-buy' : d.status === 'UNPROVEN_NOISE' ? 'badge-sell' : 'badge-hold'}">${d.evidence_badge}</span>` :
+    `<span class="text-dim text-sm">${d.data_points || 0} trading days</span>`;
 
   document.getElementById("result-area").innerHTML = `
   <!-- Summary header -->
@@ -164,13 +268,13 @@ function renderResult(d) {
     <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:center;justify-content:space-between">
       <div style="display:flex;gap:2.5rem;flex-wrap:wrap">
         ${[
-          ["Symbol", `<span class="text-mono font-bold" style="font-size:1.3rem;color:var(--accent)">${d.symbol}</span>`],
+          ["Symbol", `<span class="text-mono font-bold" style="font-size:1.3rem;color:var(--accent)">${symLabel}</span>`],
           ["Current Price", `<span class="text-mono font-bold" style="font-size:1.2rem">${fmt(d.current_price)}</span>`],
           ["Avg Buy Price", fmt(d.avg_buy_price)],
-          ["Return", `<span style="color:${pnlPct>=0?'var(--green)':'var(--red)'};font-weight:700;font-size:1.1rem">${pnlPct>=0?"+":""}${pnlPct.toFixed(2)}%</span>`],
-          ["Data Range", `<span class="text-dim text-sm">${d.data_start} → ${d.data_end}</span>`],
-          ["Data Points", `<span class="text-dim text-sm">${d.data_points} trading days</span>`],
-        ].map(([l,v])=>`<div><div class="kpi-label">${l}</div><div style="margin-top:0.3rem">${v}</div></div>`).join("")}
+          ["Return", `<span style="color:${pnlPct >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:700;font-size:1.1rem">${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%</span>`],
+          ["Evidence Hurdle", evidenceBadgeHtml],
+          ["Data Range", `<span class="text-dim text-sm">${d.data_start || "—"} → ${d.data_end || "—"}</span>`],
+        ].map(([l, v]) => `<div><div class="kpi-label">${l}</div><div style="margin-top:0.3rem">${v}</div></div>`).join("")}
       </div>
     </div>
   </div>
@@ -196,16 +300,22 @@ function renderResult(d) {
       <div style="flex:1;min-width:200px">
         <div class="kpi-label mb-sm">Composite Signal</div>
         <div style="font-size:1.4rem;font-weight:800;color:${sigCol};margin-bottom:0.6rem">
-          ${sigIcon(comp.signal)} ${comp.signal || "—"}
+          ${sigIcon(comp.signal)} ${comp.signal || "HOLD"}
         </div>
-        <p class="text-sm text-muted" style="line-height:1.6;margin-bottom:1rem">${comp.summary || "—"}</p>
+        <p class="text-sm text-muted" style="line-height:1.6;margin-bottom:1rem">${comp.summary || "Quantitative multi-method signal evaluation."}</p>
         <div class="grid-2" style="gap:0.5rem">
-          ${[["RSI (20%)",comp.rsi_score],["MACD (25%)",comp.macd_score],["Bollinger (20%)",comp.bollinger_score],["Lin. Reg (20%)",comp.lr_score]].map(([l,v])=>`
+          ${[
+            ["RSI (20%)", comp.rsi_score],
+            ["MACD (25%)", comp.macd_score],
+            ["Bollinger (20%)", comp.bollinger_score],
+            ["Lin. Reg (20%)", comp.lr_score],
+            ["Monte Carlo (15%)", comp.monte_carlo_score != null ? comp.monte_carlo_score : (d.monte_carlo ? d.monte_carlo.prob_profit : null)]
+          ].map(([l, v]) => `
           <div class="metric-sm">
             <div class="metric-sm-label">${l}</div>
-            <div class="metric-sm-val">${v!=null?v.toFixed(0):"—"}<span class="text-dim" style="font-size:0.7rem">/100</span></div>
+            <div class="metric-sm-val">${v != null ? Math.round(v) : "—"}<span class="text-dim" style="font-size:0.7rem">/100</span></div>
             <div class="progress-bar" style="margin-top:4px">
-              <div class="progress-fill" style="width:${v||0}%;background:linear-gradient(90deg,${sigCol}88,${sigCol})"></div>
+              <div class="progress-fill" style="width:${Math.max(0, Math.min(100, v || 0))}%;background:linear-gradient(90deg,${sigCol}88,${sigCol})"></div>
             </div>
           </div>`).join("")}
         </div>
@@ -221,7 +331,7 @@ function renderResult(d) {
   <div id="charts-tabs">
     <div class="tabs">
       <button class="tab-btn" data-tab="rsi"><span class="material-symbols-outlined" style="font-size:16px;margin-right:4px;vertical-align:middle;">show_chart</span> RSI</button>
-      <button class="tab-btn" data-tab="macd">〽️ MACD</button>
+      <button class="tab-btn" data-tab="macd"><span class="material-symbols-outlined" style="font-size:16px;margin-right:4px;vertical-align:middle;">insights</span> MACD</button>
       <button class="tab-btn" data-tab="bb"><span class="material-symbols-outlined" style="font-size:16px;margin-right:4px;vertical-align:middle;">stacked_line_chart</span> Bollinger</button>
       <button class="tab-btn" data-tab="lr"><span class="material-symbols-outlined" style="font-size:16px;margin-right:4px;vertical-align:middle;">ssid_chart</span> Linear Reg</button>
       <button class="tab-btn" data-tab="mc"><span class="material-symbols-outlined" style="font-size:16px;margin-right:4px;vertical-align:middle;">casino</span> Monte Carlo</button>
@@ -261,17 +371,48 @@ function renderResult(d) {
 
   // Signal cards
   const methods = [
-    { label:"RSI", icon:'<span class="material-symbols-outlined">show_chart</span>', res:d.rsi, weight:"20%", score: comp.rsi_score,
-      detail: d.rsi ? `RSI ${d.rsi.current_rsi?.toFixed(1)} · ${d.rsi.overbought?"Overbought":d.rsi.oversold?"Oversold":"Neutral"}` : "—" },
-    { label:"MACD", icon:"〽️", res:d.macd, weight:"25%", score: comp.macd_score,
-      detail: d.macd ? `${d.macd.is_crossover?'<span class="material-symbols-outlined" style="font-size:16px;color:#00ff88;vertical-align:middle;">rocket_launch</span> Bullish crossover! ':""}MACD ${d.macd.macd_line?.toFixed(3)} · Sig ${d.macd.signal_line?.toFixed(3)}` : "—" },
-    { label:"Bollinger", icon:'<span class="material-symbols-outlined">stacked_line_chart</span>', res:d.bollinger, weight:"20%", score: comp.bollinger_score,
-      detail: d.bollinger ? `%B ${d.bollinger.percent_b?.toFixed(3)} · BW ${d.bollinger.bandwidth?.toFixed(3)}` : "—" },
-    { label:"Lin. Regression", icon:'<span class="material-symbols-outlined">ssid_chart</span>', res:d.linear_regression, weight:"20%", score: comp.lr_score,
-      detail: d.linear_regression ? `Slope ${d.linear_regression.slope_pct?.toFixed(3)}%/day · R² ${d.linear_regression.r_squared?.toFixed(3)}` : "—" },
-    { label:"Monte Carlo", icon:'<span class="material-symbols-outlined">casino</span>', res:d.monte_carlo, weight:"15%", score: d.monte_carlo?.prob_profit,
-      detail: d.monte_carlo ? `P(profit) ${d.monte_carlo.prob_profit?.toFixed(0)}% · Median ${fmt(d.monte_carlo.p50)}` : "—" },
+    {
+      label: "RSI",
+      icon: '<span class="material-symbols-outlined">show_chart</span>',
+      res: d.rsi,
+      weight: "20%",
+      score: comp.rsi_score,
+      detail: d.rsi ? `RSI ${d.rsi.current_rsi?.toFixed(1)} · ${d.rsi.overbought ? "Overbought" : d.rsi.oversold ? "Oversold" : "Neutral"}` : "—"
+    },
+    {
+      label: "MACD",
+      icon: '<span class="material-symbols-outlined">insights</span>',
+      res: d.macd,
+      weight: "25%",
+      score: comp.macd_score,
+      detail: d.macd ? `${d.macd.is_crossover ? '<span class="material-symbols-outlined" style="font-size:16px;color:#00ff88;vertical-align:middle;">rocket_launch</span> Bullish crossover! ' : ""}${d.macd.is_crossunder ? '<span class="material-symbols-outlined" style="font-size:16px;color:#ff3366;vertical-align:middle;">arrow_drop_down</span> Bearish crossunder! ' : ""}MACD ${d.macd.macd_line?.toFixed(3)} · Sig ${d.macd.signal_line?.toFixed(3)}` : "—"
+    },
+    {
+      label: "Bollinger",
+      icon: '<span class="material-symbols-outlined">stacked_line_chart</span>',
+      res: d.bollinger,
+      weight: "20%",
+      score: comp.bollinger_score,
+      detail: d.bollinger ? `%B ${d.bollinger.percent_b?.toFixed(3)} · BW ${d.bollinger.bandwidth?.toFixed(3)}` : "—"
+    },
+    {
+      label: "Lin. Regression",
+      icon: '<span class="material-symbols-outlined">ssid_chart</span>',
+      res: d.linear_regression,
+      weight: "20%",
+      score: comp.lr_score,
+      detail: d.linear_regression ? `Slope ${d.linear_regression.slope_pct?.toFixed(3)}%/day · R² ${d.linear_regression.r_squared?.toFixed(3)}` : "—"
+    },
+    {
+      label: "Monte Carlo",
+      icon: '<span class="material-symbols-outlined">casino</span>',
+      res: d.monte_carlo,
+      weight: "15%",
+      score: comp.monte_carlo_score != null ? comp.monte_carlo_score : d.monte_carlo?.prob_profit,
+      detail: d.monte_carlo ? `P(profit) ${d.monte_carlo.prob_profit?.toFixed(0)}% · Median ${fmt(d.monte_carlo.p50)}` : "—"
+    },
   ];
+
   document.getElementById("signal-cards").innerHTML = methods.map(m => {
     const sig = m.res?.signal || "HOLD";
     const col = sigColor(sig);
@@ -284,7 +425,7 @@ function renderResult(d) {
 
   const sigTbody = document.getElementById("analyzer-signals-tbody");
   if (sigTbody) {
-    sigTbody.innerHTML = methods.map(m => {
+    let rowsHtml = methods.map(m => {
       const sig = m.res?.signal || "HOLD";
       return `<tr>
         <td class="font-bold">${m.icon} ${m.label}</td>
@@ -294,145 +435,227 @@ function renderResult(d) {
         <td class="text-right font-mono text-accent font-bold">${m.weight}</td>
       </tr>`;
     }).join("");
+
+    if (d.indicators && d.indicators.length > 0) {
+      rowsHtml += `<tr><td colspan="5" class="text-xs text-dim" style="background:rgba(255,255,255,0.03);padding:0.5rem 0.75rem;font-weight:700;">OUT-OF-SAMPLE WALK-FORWARD FACTOR EVALUATIONS (INFORMATION COEFFICIENT)</td></tr>`;
+      rowsHtml += d.indicators.map(ind => {
+        const pValStr = ind.p_value != null ? `p=${ind.p_value.toFixed(3)}` : "";
+        const icStr = ind.ic_spearman != null ? `IC ${ind.ic_spearman >= 0 ? "+" : ""}${ind.ic_spearman.toFixed(3)}` : "";
+        const statStr = ind.is_pruned ? "Pruned (IC ≤ 0)" : "Active Dynamic Weight";
+        return `<tr>
+          <td class="font-bold"><span class="material-symbols-outlined" style="font-size:16px;margin-right:4px;vertical-align:middle;">tune</span> ${ind.name}</td>
+          <td>${signalBadge(ind.signal_label)}</td>
+          <td class="text-sm text-muted">${icStr} · ${pValStr} · ${statStr}</td>
+          <td class="text-right font-mono font-medium">${ind.score != null ? Math.round(ind.score) : "—"}/100</td>
+          <td class="text-right font-mono text-accent font-bold">${ind.weight != null ? (ind.weight * 100).toFixed(1) + "%" : "0%"}</td>
+        </tr>`;
+      }).join("");
+    }
+    sigTbody.innerHTML = rowsHtml;
   }
 
   initTabs("charts-tabs");
 
-  // ── RSI ──
-  if (d.rsi) {
-    const rsi = d.rsi; const col = rsi.overbought?"#ff3366":rsi.oversold?"#00ff88":"#00d4ff";
+  // ── 1. RSI Tab ──
+  if (d.rsi && d.rsi.dates && d.rsi.dates.length > 0) {
+    const rsi = d.rsi;
+    const col = rsi.overbought ? "var(--red)" : rsi.oversold ? "var(--green)" : "var(--accent)";
     document.getElementById("tab-rsi").innerHTML = `
       <div class="flex items-center gap-md mb-sm flex-wrap">
-        <div><span class="kpi-label">Current RSI</span><div style="font-size:1.6rem;font-weight:800;color:${col};margin-top:0.2rem">${rsi.current_rsi?.toFixed(2)}</div></div>
+        <div><span class="kpi-label">Current RSI</span><div style="font-size:1.6rem;font-weight:800;color:${col};margin-top:0.2rem">${rsi.current_rsi != null ? rsi.current_rsi.toFixed(2) : "—"}</div></div>
         <div><span class="kpi-label">Zone</span><div style="margin-top:0.4rem">${signalBadge(rsi.signal)}</div></div>
-        <div><span class="kpi-label">Status</span><div style="margin-top:0.3rem;font-weight:600;color:${col}">${rsi.overbought?'<span class="material-symbols-outlined" style="color:var(--red);font-size:16px;vertical-align:middle;">arrow_circle_down</span> Overbought — potential reversal':rsi.oversold?'<span class="material-symbols-outlined" style="color:var(--green);font-size:16px;vertical-align:middle;">arrow_circle_up</span> Oversold — potential bounce':'<span class="material-symbols-outlined" style="color:var(--yellow);font-size:16px;vertical-align:middle;">horizontal_rule</span> Neutral momentum'}</div></div>
+        <div><span class="kpi-label">Status</span><div style="margin-top:0.3rem;font-weight:600;color:${col}">${rsi.overbought ? '<span class="material-symbols-outlined" style="color:var(--red);font-size:16px;vertical-align:middle;">arrow_circle_down</span> Overbought — potential reversal' : rsi.oversold ? '<span class="material-symbols-outlined" style="color:var(--green);font-size:16px;vertical-align:middle;">arrow_circle_up</span> Oversold — potential bounce' : '<span class="material-symbols-outlined" style="color:var(--yellow);font-size:16px;vertical-align:middle;">horizontal_rule</span> Neutral momentum'}</div></div>
       </div>
-      <p class="text-sm text-muted mb-sm">RSI (14-day Wilder's) measures price momentum. &lt;30 = oversold, &gt;70 = overbought.</p>
+      <p class="text-sm text-muted mb-sm">RSI (14-day Wilder\'s) measures price momentum. &lt;30 = oversold, &gt;70 = overbought.</p>
       <div id="rsi-chart" class="chart-box"></div>`;
+
+    const x0 = rsi.dates[0];
+    const x1 = rsi.dates[rsi.dates.length - 1];
     Plotly.newPlot("rsi-chart", [
-      {type:"scatter",x:rsi.dates,y:rsi.rsi_series,name:"RSI (14)",
-        fill:"tozeroy",fillcolor:"rgba(0,212,255,0.04)",
-        line:{color:"#00d4ff",width:2.5},
-        hovertemplate:"<b>RSI</b>: %{y:.2f}<br>%{x}<extra></extra>"},
+      {
+        type: "scatter",
+        x: rsi.dates,
+        y: rsi.rsi_series,
+        name: "RSI (14)",
+        fill: "tozeroy",
+        fillcolor: "rgba(0,212,255,0.04)",
+        line: { color: "#00d4ff", width: 2.5 },
+        hovertemplate: "<b>RSI</b>: %{y:.2f}<br>%{x}<extra></extra>"
+      }
     ], {
-      ...PLOTLY_LAYOUT, height:260,
-      yaxis:{...PLOTLY_LAYOUT.yaxis,range:[0,100],tickvals:[0,30,50,70,100]},
-      shapes:[
-        {type:"rect",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:70,y1:100,fillcolor:"rgba(255,51,102,0.06)",line:{width:0}},
-        {type:"rect",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:0,y1:30,fillcolor:"rgba(0,255,136,0.06)",line:{width:0}},
-        {type:"line",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:70,y1:70,line:{color:"rgba(255,51,102,0.35)",width:1,dash:"dash"}},
-        {type:"line",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:50,y1:50,line:{color:"rgba(255,255,255,0.1)",width:1,dash:"dot"}},
-        {type:"line",x0:rsi.dates[0],x1:rsi.dates.at(-1),y0:30,y1:30,line:{color:"rgba(0,255,136,0.35)",width:1,dash:"dash"}},
+      ...PLOTLY_LAYOUT,
+      height: 280,
+      yaxis: { ...PLOTLY_LAYOUT.yaxis, range: [0, 100], tickvals: [0, 30, 50, 70, 100] },
+      shapes: [
+        { type: "rect", x0: x0, x1: x1, y0: 70, y1: 100, fillcolor: "rgba(255,51,102,0.06)", line: { width: 0 } },
+        { type: "rect", x0: x0, x1: x1, y0: 0, y1: 30, fillcolor: "rgba(0,255,136,0.06)", line: { width: 0 } },
+        { type: "line", x0: x0, x1: x1, y0: 70, y1: 70, line: { color: "rgba(255,51,102,0.35)", width: 1, dash: "dash" } },
+        { type: "line", x0: x0, x1: x1, y0: 50, y1: 50, line: { color: "rgba(255,255,255,0.1)", width: 1, dash: "dot" } },
+        { type: "line", x0: x0, x1: x1, y0: 30, y1: 30, line: { color: "rgba(0,255,136,0.35)", width: 1, dash: "dash" } },
       ],
-      annotations:[
-        {x:rsi.dates[0],y:70,text:"Overbought",showarrow:false,xanchor:"left",font:{color:"rgba(255,51,102,0.6)",size:10}},
-        {x:rsi.dates[0],y:30,text:"Oversold",showarrow:false,xanchor:"left",font:{color:"rgba(0,255,136,0.6)",size:10}},
+      annotations: [
+        { x: x0, y: 70, text: "Overbought", showarrow: false, xanchor: "left", font: { color: "rgba(255,51,102,0.7)", size: 10 } },
+        { x: x0, y: 30, text: "Oversold", showarrow: false, xanchor: "left", font: { color: "rgba(0,255,136,0.7)", size: 10 } },
       ]
     }, PLOTLY_CONFIG);
+  } else {
+    document.getElementById("tab-rsi").innerHTML = `<div class="text-dim text-center" style="padding:2.5rem;">RSI indicator data not available for this symbol.</div>`;
   }
 
-  // ── MACD ──
-  if (d.macd) {
+  // ── 2. MACD Tab ──
+  if (d.macd && d.macd.dates && d.macd.dates.length > 0) {
     const m = d.macd;
     document.getElementById("tab-macd").innerHTML = `
       <div class="flex items-center gap-md mb-sm flex-wrap">
-        ${[["MACD Line",m.macd_line?.toFixed(4),m.macd_line>=0?"var(--green)":"var(--red)"],
-           ["Signal Line",m.signal_line?.toFixed(4),"var(--text)"],
-           ["Histogram",m.histogram?.toFixed(4),m.histogram>=0?"var(--green)":"var(--red)"]].map(([l,v,c])=>`
-        <div><span class="kpi-label">${l}</span><div class="text-mono font-bold" style="font-size:1.1rem;color:${c};margin-top:0.3rem">${v||"—"}</div></div>`).join("")}
-        <div style="margin-left:auto">${signalBadge(m.signal)}${m.is_crossover?` <span style="color:var(--green);font-weight:700;margin-left:0.5rem"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">rocket_launch</span> Bullish Crossover!</span>`:""}${m.is_crossunder?` <span style="color:var(--red);font-weight:700;margin-left:0.5rem"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">arrow_drop_down</span> Bearish Crossunder!</span>`:""}</div>
+        ${[
+          ["MACD Line", m.macd_line != null ? m.macd_line.toFixed(4) : "—", m.macd_line >= 0 ? "var(--green)" : "var(--red)"],
+          ["Signal Line", m.signal_line != null ? m.signal_line.toFixed(4) : "—", "var(--text)"],
+          ["Histogram", m.histogram != null ? m.histogram.toFixed(4) : "—", m.histogram >= 0 ? "var(--green)" : "var(--red)"]
+        ].map(([l, v, c]) => `
+        <div><span class="kpi-label">${l}</span><div class="text-mono font-bold" style="font-size:1.1rem;color:${c};margin-top:0.3rem">${v || "—"}</div></div>`).join("")}
+        <div style="margin-left:auto">${signalBadge(m.signal)}${m.is_crossover ? ` <span style="color:var(--green);font-weight:700;margin-left:0.5rem"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">rocket_launch</span> Bullish Crossover!</span>` : ""}${m.is_crossunder ? ` <span style="color:var(--red);font-weight:700;margin-left:0.5rem"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">arrow_drop_down</span> Bearish Crossunder!</span>` : ""}</div>
       </div>
       <p class="text-sm text-muted mb-sm">MACD = 12-day EMA − 26-day EMA. Signal = 9-day EMA of MACD. Histogram = MACD − Signal.</p>
       <div id="macd-chart" class="chart-box"></div>`;
+
     Plotly.newPlot("macd-chart", [
-      {type:"bar",x:m.dates,y:m.hist_series,name:"Histogram",
-        marker:{color:m.hist_series.map(v=>v>=0?"rgba(0,255,136,0.65)":"rgba(255,51,102,0.65)"),
-          line:{color:m.hist_series.map(v=>v>=0?"#00ff88":"#ff3366"),width:1}},
-        hovertemplate:"Histogram: %{y:.5f}<br>%{x}<extra></extra>"},
-      {type:"scatter",x:m.dates,y:m.macd_series,name:"MACD",line:{color:"#00d4ff",width:2.5}},
-      {type:"scatter",x:m.dates,y:m.signal_series,name:"Signal",line:{color:"#ff6b35",width:1.5,dash:"dot"}},
-    ], {...PLOTLY_LAYOUT,height:280,barmode:"overlay"}, PLOTLY_CONFIG);
+      {
+        type: "bar",
+        x: m.dates,
+        y: m.hist_series || [],
+        name: "Histogram",
+        marker: {
+          color: (m.hist_series || []).map(v => v >= 0 ? "rgba(0,255,136,0.65)" : "rgba(255,51,102,0.65)"),
+          line: { color: (m.hist_series || []).map(v => v >= 0 ? "#00ff88" : "#ff3366"), width: 1 }
+        },
+        hovertemplate: "Histogram: %{y:.5f}<br>%{x}<extra></extra>"
+      },
+      { type: "scatter", x: m.dates, y: m.macd_series || [], name: "MACD Line", line: { color: "#00d4ff", width: 2.5 } },
+      { type: "scatter", x: m.dates, y: m.signal_series || [], name: "Signal Line", line: { color: "#ff6b35", width: 1.5, dash: "dot" } },
+    ], { ...PLOTLY_LAYOUT, height: 280, barmode: "overlay" }, PLOTLY_CONFIG);
+  } else {
+    document.getElementById("tab-macd").innerHTML = `<div class="text-dim text-center" style="padding:2.5rem;">MACD indicator data not available for this symbol.</div>`;
   }
 
-  // ── Bollinger ──
-  if (d.bollinger) {
+  // ── 3. Bollinger Bands Tab ──
+  if (d.bollinger && d.bollinger.dates && d.bollinger.dates.length > 0) {
     const b = d.bollinger;
     document.getElementById("tab-bb").innerHTML = `
       <div class="grid-4 mb-sm" style="gap:0.75rem">
-        ${[["Upper Band",fmt(b.upper_band)],["SMA 20",fmt(b.middle_band)],["Lower Band",fmt(b.lower_band)],["%B (0–1)",b.percent_b?.toFixed(4)]].map(([l,v])=>`
-        <div class="metric-sm"><div class="metric-sm-label">${l}</div><div class="metric-sm-val">${v||"—"}</div></div>`).join("")}
+        ${[
+          ["Upper Band", fmt(b.upper_band)],
+          ["SMA 20", fmt(b.middle_band)],
+          ["Lower Band", fmt(b.lower_band)],
+          ["%B (0–1)", b.percent_b != null ? b.percent_b.toFixed(4) : "—"]
+        ].map(([l, v]) => `
+        <div class="metric-sm"><div class="metric-sm-label">${l}</div><div class="metric-sm-val">${v || "—"}</div></div>`).join("")}
       </div>
       <p class="text-sm text-muted mb-sm">Bollinger Bands: 20-day SMA ± 2σ. %B &lt; 0.05 → strong buy zone. %B &gt; 0.95 → strong sell zone.</p>
       <div id="bb-chart" class="chart-box"></div>`;
+
     Plotly.newPlot("bb-chart", [
-      {type:"scatter",x:b.dates,y:b.upper_series,name:"Upper",line:{color:"rgba(0,212,255,0.4)",width:1,dash:"dot"},hovertemplate:"Upper: %{y:.2f}<extra></extra>"},
-      {type:"scatter",x:b.dates,y:b.middle_series,name:"SMA 20",line:{color:"rgba(255,214,0,0.6)",width:1.5},hovertemplate:"SMA: %{y:.2f}<extra></extra>"},
-      {type:"scatter",x:b.dates,y:b.lower_series,name:"Lower",line:{color:"rgba(0,212,255,0.4)",width:1,dash:"dot"},fill:"tonexty",fillcolor:"rgba(0,212,255,0.04)",hovertemplate:"Lower: %{y:.2f}<extra></extra>"},
-      {type:"scatter",x:b.dates,y:b.price_series,name:"Price",line:{color:"#e8f0fe",width:2.5},hovertemplate:"Price: %{y:.2f}<extra></extra>"},
-    ], {...PLOTLY_LAYOUT,height:300}, PLOTLY_CONFIG);
+      { type: "scatter", x: b.dates, y: b.upper_series || [], name: "Upper Band", line: { color: "rgba(0,212,255,0.4)", width: 1, dash: "dot" }, hovertemplate: "Upper: %{y:.2f}<extra></extra>" },
+      { type: "scatter", x: b.dates, y: b.middle_series || [], name: "SMA 20", line: { color: "rgba(255,214,0,0.6)", width: 1.5 }, hovertemplate: "SMA: %{y:.2f}<extra></extra>" },
+      { type: "scatter", x: b.dates, y: b.lower_series || [], name: "Lower Band", line: { color: "rgba(0,212,255,0.4)", width: 1, dash: "dot" }, fill: "tonexty", fillcolor: "rgba(0,212,255,0.04)", hovertemplate: "Lower: %{y:.2f}<extra></extra>" },
+      { type: "scatter", x: b.dates, y: b.price_series || [], name: "Price", line: { color: "#e8f0fe", width: 2.5 }, hovertemplate: "Price: %{y:.2f}<extra></extra>" },
+    ], { ...PLOTLY_LAYOUT, height: 300 }, PLOTLY_CONFIG);
+  } else {
+    document.getElementById("tab-bb").innerHTML = `<div class="text-dim text-center" style="padding:2.5rem;">Bollinger Bands data not available for this symbol.</div>`;
   }
 
-  // ── Linear Regression ──
-  if (d.linear_regression) {
+  // ── 4. Linear Regression Tab ──
+  if (d.linear_regression && d.linear_regression.dates && d.linear_regression.dates.length > 0) {
     const lr = d.linear_regression;
     const sc = lr.slope >= 0 ? "var(--green)" : "var(--red)";
     document.getElementById("tab-lr").innerHTML = `
       <div class="grid-4 mb-sm" style="gap:0.75rem">
-        ${[["Slope/Day",`${lr.slope?.toFixed(4)}`,sc],["% / Day",`${lr.slope_pct>=0?"+":""}${lr.slope_pct?.toFixed(4)}%`,sc],["R² Fit",lr.r_squared?.toFixed(4),"var(--text)"],["30-Day Target",fmt(lr.predicted_30d),"var(--accent)"]].map(([l,v,c])=>`
-        <div class="metric-sm"><div class="metric-sm-label">${l}</div><div class="metric-sm-val" style="color:${c}">${v||"—"}</div></div>`).join("")}
+        ${[
+          ["Slope/Day", `${lr.slope != null ? lr.slope.toFixed(4) : "—"}`, sc],
+          ["% / Day", `${lr.slope_pct != null ? (lr.slope_pct >= 0 ? "+" : "") + lr.slope_pct.toFixed(4) + "%" : "—"}`, sc],
+          ["R² Fit", lr.r_squared != null ? lr.r_squared.toFixed(4) : "—", "var(--text)"],
+          ["30-Day Target", fmt(lr.predicted_30d), "var(--accent)"]
+        ].map(([l, v, c]) => `
+        <div class="metric-sm"><div class="metric-sm-label">${l}</div><div class="metric-sm-val" style="color:${c}">${v || "—"}</div></div>`).join("")}
       </div>
       <p class="text-sm text-muted mb-sm">OLS regression on 30 days of price. Positive slope = uptrend. R² ∈ [0,1] — higher = stronger fit.</p>
       <div id="lr-chart" class="chart-box"></div>`;
-    Plotly.newPlot("lr-chart",[
-      {type:"scatter",x:lr.dates,y:lr.price_series,name:"Price",line:{color:"#00d4ff",width:2.5}},
-      {type:"scatter",x:lr.dates,y:lr.regression_series,name:"Regression",line:{color:"#ffd600",width:2,dash:"dash"}},
-    ],{...PLOTLY_LAYOUT,height:280},PLOTLY_CONFIG);
+
+    Plotly.newPlot("lr-chart", [
+      { type: "scatter", x: lr.dates, y: lr.price_series || [], name: "Historical Price", line: { color: "#00d4ff", width: 2.5 } },
+      { type: "scatter", x: lr.dates, y: lr.regression_series || [], name: "Regression Trendline", line: { color: "#ffd600", width: 2, dash: "dash" } },
+    ], { ...PLOTLY_LAYOUT, height: 280 }, PLOTLY_CONFIG);
+  } else {
+    document.getElementById("tab-lr").innerHTML = `<div class="text-dim text-center" style="padding:2.5rem;">Linear Regression data not available for this symbol.</div>`;
   }
 
-  // ── Monte Carlo ──
+  // ── 5. Monte Carlo Tab ──
   if (d.monte_carlo) {
     const mc = d.monte_carlo;
-    const ec = mc.expected_return_pct >= 0 ? "var(--green)" : "var(--red)";
+    const ec = (mc.expected_return_pct || 0) >= 0 ? "var(--green)" : "var(--red)";
     document.getElementById("tab-mc").innerHTML = `
       <div class="grid-3 mb-sm" style="gap:0.75rem">
-        <div class="metric-sm"><div class="metric-sm-label">P(Profit) ${mc.horizon_days}d</div><div class="metric-sm-val" style="color:var(--green)">${mc.prob_profit?.toFixed(1)}%</div></div>
-        <div class="metric-sm"><div class="metric-sm-label">Expected Return (P50)</div><div class="metric-sm-val" style="color:${ec}">${mc.expected_return_pct>=0?"+":""}${mc.expected_return_pct?.toFixed(2)}%</div></div>
-        <div class="metric-sm"><div class="metric-sm-label">Annual Volatility</div><div class="metric-sm-val">${(mc.annual_volatility*100).toFixed(1)}%</div></div>
+        <div class="metric-sm"><div class="metric-sm-label">P(Profit) ${mc.horizon_days || 30}d</div><div class="metric-sm-val" style="color:var(--green)">${mc.prob_profit != null ? mc.prob_profit.toFixed(1) : "—"}%</div></div>
+        <div class="metric-sm"><div class="metric-sm-label">Expected Return (P50)</div><div class="metric-sm-val" style="color:${ec}">${mc.expected_return_pct != null ? (mc.expected_return_pct >= 0 ? "+" : "") + mc.expected_return_pct.toFixed(2) + "%" : "—"}</div></div>
+        <div class="metric-sm"><div class="metric-sm-label">Annual Volatility</div><div class="metric-sm-val">${mc.annual_volatility != null ? (mc.annual_volatility * 100).toFixed(1) + "%" : "—"}</div></div>
       </div>
       <div id="mc-chart" class="chart-box" style="min-height:340px;margin-bottom:1rem"></div>
-      <div class="section-header mt-0">30-Day Price Percentiles</div>
+      <div class="section-header mt-0">30-Day Price Dispersion Percentiles</div>
       <div class="grid-5" style="gap:0.75rem;margin-bottom:0.75rem">
-        ${[["P10 Pessimistic",mc.p10,"var(--red)"],["P25",mc.p25,"var(--orange)"],["P50 Median",mc.p50,"var(--accent)"],["P75",mc.p75,"var(--green)"],["P90 Optimistic",mc.p90,"#00ff88"]].map(([l,v,c])=>`
+        ${[
+          ["P10 Pessimistic", mc.p10, "var(--red)"],
+          ["P25 Low", mc.p25, "var(--orange)"],
+          ["P50 Median", mc.p50, "var(--accent)"],
+          ["P75 High", mc.p75, "var(--green)"],
+          ["P90 Optimistic", mc.p90, "#00ff88"]
+        ].map(([l, v, c]) => `
         <div class="metric-sm">
           <div class="metric-sm-label">${l}</div>
           <div class="metric-sm-val" style="color:${c}">${fmt(v)}</div>
-          <div style="font-size:0.7rem;color:${v>=mc.current_price?"var(--green)":"var(--red)"};margin-top:0.2rem;font-weight:600">
-            ${v!=null?((v-mc.current_price)/mc.current_price*100>=0?"+":"")+ ((v-mc.current_price)/mc.current_price*100).toFixed(1)+"%":""}
+          <div style="font-size:0.7rem;color:${(v != null && d.current_price && v >= d.current_price) ? "var(--green)" : "var(--red)"};margin-top:0.2rem;font-weight:600">
+            ${(v != null && d.current_price) ? ((v - d.current_price) / d.current_price * 100 >= 0 ? "+" : "") + ((v - d.current_price) / d.current_price * 100).toFixed(1) + "%" : ""}
           </div>
         </div>`).join("")}
       </div>
-      <p class="text-xs text-dim">GBM simulation: ${mc.simulations?.toLocaleString()} paths · Historical drift + volatility · Not financial advice.</p>`;
+      <p class="text-xs text-dim">Student\'s t fat-tailed simulation: ${(mc.simulations || 1000).toLocaleString()} paths · Realized variance &amp; drift · Not financial advice.</p>`;
 
-    const all = [mc.current_price,...mc.fan_p50||[]];
-    const dates = [mc.fan_dates[0],...mc.fan_dates||[]];
-    const p10 = [mc.current_price,...mc.fan_p10||[]];
-    const p25 = [mc.current_price,...mc.fan_p25||[]];
-    const p75 = [mc.current_price,...mc.fan_p75||[]];
-    const p90 = [mc.current_price,...mc.fan_p90||[]];
+    if (mc.fan_dates && mc.fan_dates.length > 0) {
+      const startDate = d.data_end || new Date().toISOString().slice(0, 10);
+      const dates = [startDate, ...mc.fan_dates];
+      const p10 = [d.current_price, ...(mc.fan_p10 || [])];
+      const p25 = [d.current_price, ...(mc.fan_p25 || [])];
+      const p50 = [d.current_price, ...(mc.fan_p50 || [])];
+      const p75 = [d.current_price, ...(mc.fan_p75 || [])];
+      const p90 = [d.current_price, ...(mc.fan_p90 || [])];
 
-    Plotly.newPlot("mc-chart",[
-      {type:"scatter",x:[...dates,...dates.slice().reverse()],y:[...p90,...p10.slice().reverse()],fill:"toself",fillcolor:"rgba(0,212,255,0.04)",line:{width:0},name:"10–90th %ile",showlegend:true},
-      {type:"scatter",x:[...dates,...dates.slice().reverse()],y:[...p75,...p25.slice().reverse()],fill:"toself",fillcolor:"rgba(0,212,255,0.09)",line:{width:0},name:"25–75th %ile",showlegend:true},
-      {type:"scatter",x:dates,y:p90,name:"P90",line:{color:"rgba(0,255,136,0.45)",width:1,dash:"dot"},showlegend:true},
-      {type:"scatter",x:dates,y:all,name:"P50 Median",line:{color:"#00d4ff",width:3},showlegend:true},
-      {type:"scatter",x:dates,y:p10,name:"P10",line:{color:"rgba(255,51,102,0.45)",width:1,dash:"dot"},showlegend:true},
-    ],{
-      ...PLOTLY_LAYOUT,height:340,
-      shapes:[{type:"line",x0:dates[0],x1:dates.at(-1),y0:mc.current_price,y1:mc.current_price,
-        line:{color:"rgba(255,255,255,0.15)",width:1,dash:"dash"}}],
-      annotations:[{x:dates.at(-1),y:mc.current_price,text:`₹${mc.current_price?.toFixed(2)} today`,
-        showarrow:false,xanchor:"right",font:{color:"#8892b0",size:10}}]
-    },PLOTLY_CONFIG);
+      Plotly.newPlot("mc-chart", [
+        { type: "scatter", x: [...dates, ...dates.slice().reverse()], y: [...p90, ...p10.slice().reverse()], fill: "toself", fillcolor: "rgba(0,212,255,0.04)", line: { width: 0 }, name: "10–90th %ile", showlegend: true },
+        { type: "scatter", x: [...dates, ...dates.slice().reverse()], y: [...p75, ...p25.slice().reverse()], fill: "toself", fillcolor: "rgba(0,212,255,0.09)", line: { width: 0 }, name: "25–75th %ile", showlegend: true },
+        { type: "scatter", x: dates, y: p90, name: "P90 Optimistic", line: { color: "rgba(0,255,136,0.55)", width: 1.5, dash: "dot" }, showlegend: true },
+        { type: "scatter", x: dates, y: p50, name: "P50 Median", line: { color: "#00d4ff", width: 3 }, showlegend: true },
+        { type: "scatter", x: dates, y: p10, name: "P10 Pessimistic", line: { color: "rgba(255,51,102,0.55)", width: 1.5, dash: "dot" }, showlegend: true },
+      ], {
+        ...PLOTLY_LAYOUT,
+        height: 340,
+        shapes: [{
+          type: "line",
+          x0: dates[0],
+          x1: dates[dates.length - 1],
+          y0: d.current_price,
+          y1: d.current_price,
+          line: { color: "rgba(255,255,255,0.2)", width: 1, dash: "dash" }
+        }],
+        annotations: [{
+          x: dates[dates.length - 1],
+          y: d.current_price,
+          text: `₹${d.current_price != null ? d.current_price.toFixed(2) : ""} today`,
+          showarrow: false,
+          xanchor: "right",
+          font: { color: "#8892b0", size: 10 }
+        }]
+      }, PLOTLY_CONFIG);
+    }
+  } else {
+    document.getElementById("tab-mc").innerHTML = `<div class="text-dim text-center" style="padding:2.5rem;">Monte Carlo simulation data not available for this symbol.</div>`;
   }
 }
 </script>

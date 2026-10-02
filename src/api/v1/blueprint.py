@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from flask import Blueprint, jsonify, request
+from loguru import logger
 
 from src.api.limiter import limiter
 from src.api.middleware import format_error_response, require_api_key, validate_json
@@ -182,9 +183,14 @@ def get_signal_history():
 @require_api_key
 def analyse_stock(symbol: str):
     """
-    Legacy analysis endpoint aliased to the quantitative signal engine.
+    Stock Analysis endpoint returning full 5-method quantitative models:
+    RSI, MACD, Bollinger Bands, Linear Regression, and Monte Carlo simulation,
+    plus walk-forward quantitative signal indicators and evidence hurdles.
     Emits HTTP Warning 299 header advising migration to /api/v1/signals/<symbol>.
     """
+    import dataclasses
+
+    from src.analytics.predictor import analyse_holding
     from src.analytics.signal_recorder import compute_holding_signal
     from src.analytics.valuator import get_valuation_summary
 
@@ -193,8 +199,60 @@ def analyse_stock(symbol: str):
         (h["avg_price"] for h in summary.get("holdings", []) if h["symbol"] == symbol),
         0.0,
     )
-    sig = compute_holding_signal(symbol, avg_buy_price=avg_price)
-    resp = jsonify({"ok": True, "data": sig.model_dump(mode="json")})
+
+    # 1. Run 5-method technical models
+    try:
+        analysis = analyse_holding(symbol, avg_buy_price=avg_price)
+        data = dataclasses.asdict(analysis)
+        data.pop("ohlcv", None)
+    except Exception as exc:
+        logger.warning("analyse_holding failed for {}: {}", symbol, exc)
+        data = {
+            "symbol": symbol,
+            "tradingsymbol": symbol,
+            "current_price": 0.0,
+            "avg_buy_price": avg_price,
+            "data_start": "",
+            "data_end": "",
+            "data_points": 0,
+            "rsi": None,
+            "macd": None,
+            "bollinger": None,
+            "linear_regression": None,
+            "monte_carlo": None,
+            "composite": None,
+        }
+
+    # 2. Run / merge walk-forward signal engine
+    sig_dto = None
+    try:
+        sig_dto = compute_holding_signal(symbol, avg_buy_price=avg_price)
+    except Exception as exc:
+        logger.warning("compute_holding_signal failed for {}: {}", symbol, exc)
+
+    data["tradingsymbol"] = symbol
+    if sig_dto:
+        sig_dump = sig_dto.model_dump(mode="json")
+        data["tradingsymbol"] = sig_dump.get("tradingsymbol", symbol)
+        data["evidence_badge"] = sig_dump.get("evidence_badge", "")
+        data["status"] = sig_dump.get("status", "PENDING")
+        data["indicators"] = sig_dump.get("indicators", [])
+        data["backtest_summary"] = sig_dump.get("backtest_summary")
+        if not data.get("current_price") and sig_dto.current_price:
+            data["current_price"] = sig_dto.current_price
+        if not data.get("composite"):
+            data["composite"] = {
+                "score": sig_dto.composite_score,
+                "signal": sig_dto.signal_label.replace("_", " "),
+                "summary": f"Quantitative evidence score: {sig_dto.composite_score:.0f}/100 ({sig_dto.evidence_badge}).",
+                "rsi_score": 50,
+                "macd_score": 50,
+                "bollinger_score": 50,
+                "lr_score": 50,
+                "monte_carlo_score": 50,
+            }
+
+    resp = jsonify({"ok": True, "data": data})
     resp.headers["Warning"] = f'299 - "Deprecated endpoint. Use /api/v1/signals/{symbol} instead."'
     return resp
 

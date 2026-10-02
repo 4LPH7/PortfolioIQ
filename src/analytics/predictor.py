@@ -553,6 +553,7 @@ def compute_composite(
 def analyse_holding(
     symbol: str,
     avg_buy_price: float = 0.0,
+    df: pd.DataFrame | None = None,
 ) -> StockAnalysis:
     """
     Run all 5 prediction methods on a single holding.
@@ -560,18 +561,35 @@ def analyse_holding(
     Args:
         symbol: Zerodha tradingsymbol (e.g. 'ITBEES')
         avg_buy_price: Broker average price for context
+        df: Optional pre-loaded daily OHLCV DataFrame
 
     Returns:
         StockAnalysis with all method results populated.
     """
-    yf_ticker = TICKER_MAP.get(symbol, f"{symbol}.NS")
-    logger.info("Analysing {} ({})", symbol, yf_ticker)
+    from src.ingestion.ticker_map import get_yf_ticker
 
-    df = _fetch_history(yf_ticker)
+    yf_ticker = TICKER_MAP.get(symbol, get_yf_ticker(symbol))
+
+    if df is None:
+        try:
+            from src.analytics.historical_cache import get_or_sync_historical_bars
+
+            df = get_or_sync_historical_bars(symbol)
+        except Exception as exc:
+            logger.debug("historical_cache lookup for {} skipped: {}", symbol, exc)
+            df = None
 
     if df is None or len(df) < 35:
-        # Fallback: try .BO if .NS failed
-        alt_ticker = yf_ticker.replace(".NS", ".BO").replace(".BO", ".NS")
+        logger.info("Analysing {} ({})", symbol, yf_ticker)
+        df = _fetch_history(yf_ticker)
+
+    if df is None or len(df) < 35:
+        # Fallback: try .BO if .NS failed, or vice versa
+        alt_ticker = (
+            yf_ticker.replace(".NS", ".BO")
+            if ".NS" in yf_ticker
+            else yf_ticker.replace(".BO", ".NS")
+        )
         if alt_ticker != yf_ticker:
             logger.info("Trying fallback ticker {}", alt_ticker)
             df = _fetch_history(alt_ticker)
