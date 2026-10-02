@@ -57,7 +57,7 @@
     dialog.innerHTML = `
       <div class="session-dialog-card">
         <div class="session-dialog-header">
-          <div class="session-icon"><span class="material-symbols-outlined" style="font-size:2rem;color:var(--accent)">lock</span></div>
+          <div class="session-icon"><span class="material-symbols-outlined">lock</span></div>
           <h2 id="session-modal-title" class="session-title">Unlock PortfolioIQ</h2>
           <p id="session-modal-desc" class="session-desc">
             Enter your Master API Key or Session PIN to access live execution and portfolio analytics.
@@ -86,7 +86,7 @@
                 title="Toggle visibility"
                 aria-label="Toggle password visibility"
               >
-                <span class="material-symbols-outlined" style="font-size:1.15rem">visibility</span>
+                <span class="material-symbols-outlined">visibility</span>
               </button>
             </div>
           </div>
