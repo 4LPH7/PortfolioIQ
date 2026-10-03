@@ -71,7 +71,7 @@
       </div>
       <div class="form-group" style="flex:1;min-width:180px;max-width:240px">
         <label class="form-label" for="symbol-input">Or Enter Custom Symbol</label>
-        <input type="text" id="symbol-input" placeholder="e.g. INFY, RELIANCE, TCS" style="text-transform:uppercase" />
+        <input type="text" id="symbol-input" placeholder="Kite trading symbol" style="text-transform:uppercase" />
       </div>
       <button class="btn btn-primary btn-lg" id="run-btn" onclick="runAnalysis()">
         <span class="material-symbols-outlined" style="font-size:18px;margin-right:6px;vertical-align:middle;">play_arrow</span>
@@ -81,7 +81,7 @@
     </div>
 
     <!-- Quick preset chips -->
-    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-top:0.85rem;">
+    <div id="quick-scrips" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-top:0.85rem;">
       <span class="text-xs text-dim">Quick Scrips:</span>
       <button type="button" class="btn btn-xs btn-ghost chip-btn" onclick="quickSelect('INFY')">INFY</button>
       <button type="button" class="btn btn-xs btn-ghost chip-btn" onclick="quickSelect('RELIANCE')">RELIANCE</button>
@@ -179,37 +179,54 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 (async () => {
+  const sel = document.getElementById("symbol-select");
+  const inp = document.getElementById("symbol-input");
+  const quick = document.getElementById("quick-scrips");
   try {
     const r = await apiGet("/api/holdings/symbols");
-    const sel = document.getElementById("symbol-select");
-    const inp = document.getElementById("symbol-input");
-    if (r.ok && Array.isArray(r.data) && r.data.length > 0) {
-      sel.innerHTML = `<option value="">— Pick a holding —</option>` +
-        r.data.map(s => `<option value="${s.symbol}" ${s.symbol === urlSym ? "selected" : ""}>${s.symbol} &nbsp;·&nbsp; avg ₹${(s.avg_price || 0).toFixed(2)}</option>`).join("");
-      if (urlSym) {
-        if (inp) inp.value = urlSym;
-        runAnalysis();
+    if (!r.ok || !Array.isArray(r.data)) {
+      throw new Error(r.error || "Could not load synced holdings.");
+    }
+
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = r.data.length ? "— Pick a holding —" : "— No synced holdings —";
+    sel.replaceChildren(option);
+
+    const label = document.createElement("span");
+    label.className = "text-xs text-dim";
+    label.textContent = r.data.length ? "My holdings:" : "No synced holdings yet.";
+    quick.replaceChildren(label);
+
+    for (const holding of r.data) {
+      const symbol = String(holding.symbol || "").toUpperCase();
+      if (!symbol) continue;
+      const opt = document.createElement("option");
+      opt.value = symbol;
+      opt.textContent = `${symbol} · avg ₹${Number(holding.avg_price || 0).toFixed(2)}`;
+      sel.appendChild(opt);
+
+      if (quick.childElementCount <= 8) {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "btn btn-xs btn-ghost chip-btn";
+        chip.textContent = symbol;
+        chip.addEventListener("click", () => quickSelect(symbol));
+        quick.appendChild(chip);
       }
-    } else {
-      sel.innerHTML = `<option value="">— Popular Scrips —</option>` +
-        ["INFY", "RELIANCE", "TCS", "GOLDCASE", "MONQ50", "HDFCBANK", "ITBEES"].map(s =>
-          `<option value="${s}" ${s === urlSym ? "selected" : ""}>${s}</option>`
-        ).join("");
-      if (urlSym) {
-        if (inp) inp.value = urlSym;
-        runAnalysis();
-      } else {
-        // default select INFY
-        sel.value = "INFY";
-        if (inp) inp.value = "INFY";
-      }
+    }
+
+    if (urlSym) {
+      inp.value = urlSym;
+      sel.value = urlSym;
+      runAnalysis();
     }
   } catch (err) {
-    const sel = document.getElementById("symbol-select");
-    if (sel) {
-      sel.innerHTML = `<option value="">— Popular Scrips —</option>` +
-        ["INFY", "RELIANCE", "TCS", "GOLDCASE", "MONQ50"].map(s => `<option value="${s}">${s}</option>`).join("");
-    }
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "— Holdings unavailable —";
+    sel.replaceChildren(option);
+    quick.textContent = `Unable to load holdings: ${err.message}`;
   }
 })();
 

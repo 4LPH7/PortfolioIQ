@@ -21,7 +21,6 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
-import yfinance as yf
 from loguru import logger
 from scipy import stats
 
@@ -541,50 +540,6 @@ def compute_composite(
 # ──────────────────────────────────────────────────────────
 
 
-def _generate_synthetic_bars(
-    tradingsymbol: str,
-    target_price: float = 100.0,
-    num_bars: int = 60,
-    daily_vol: float = 0.015,
-) -> pd.DataFrame:
-    """Generate realistic synthetic OHLCV bars when external historical data is limited."""
-    np.random.seed(abs(hash(tradingsymbol)) % (2**31 - 1))
-
-    returns = np.random.normal(loc=0.0004, scale=daily_vol, size=num_bars)
-    prices = [target_price]
-    for r in reversed(returns[1:]):
-        prev = prices[-1] / (1.0 + r)
-        prices.append(max(0.1, prev))
-    prices.reverse()
-
-    end_date = datetime.now()
-    dates = []
-    curr = end_date
-    while len(dates) < num_bars:
-        if curr.weekday() < 5:  # Monday to Friday
-            dates.append(curr.replace(hour=9, minute=15, second=0, microsecond=0))
-        curr -= timedelta(days=1)
-    dates.reverse()
-
-    records = []
-    for dt, close in zip(dates, prices):
-        intra_vol = close * daily_vol * 0.7
-        high = close + abs(np.random.normal(0, intra_vol))
-        low = max(0.05, close - abs(np.random.normal(0, intra_vol)))
-        open_p = (high + low) / 2.0 + np.random.normal(0, intra_vol * 0.5)
-        open_p = min(max(open_p, low), high)
-        records.append({
-            "Date": dt,
-            "Open": round(float(open_p), 2),
-            "High": round(float(high), 2),
-            "Low": round(float(low), 2),
-            "Close": round(float(close), 2),
-            "Volume": int(np.random.randint(5000, 200000)),
-        })
-    df = pd.DataFrame(records).set_index("Date").sort_index()
-    return df
-
-
 def analyse_holding(
     symbol: str,
     avg_buy_price: float = 0.0,
@@ -632,42 +587,11 @@ def analyse_holding(
                 yf_ticker = alt_ticker
 
     if df is None or len(df) < 35:
-        # Graceful fallback: synthesize baseline bars so analyzer never fails
-        base_price = 0.0
-        if df is not None and not df.empty:
-            base_price = float(df["Close"].iloc[-1])
-        elif avg_buy_price > 0:
-            base_price = avg_buy_price
-        else:
-            try:
-                from src.db.connection import execute_sql
-                p_rows = execute_sql(
-                    """
-                    SELECT lp.last_price 
-                    FROM live_prices lp 
-                    JOIN instrument_master im ON im.instrument_token = lp.instrument_token 
-                    WHERE im.tradingsymbol = :s 
-                    ORDER BY lp.last_updated DESC 
-                    LIMIT 1
-                    """,
-                    {"s": symbol},
-                )
-                if p_rows and p_rows[0].get("last_price"):
-                    base_price = float(p_rows[0]["last_price"])
-            except Exception:
-                pass
-
-        if base_price <= 0:
-            base_price = 100.0
-
-        logger.info("Augmenting market data for {} from base_price={}", symbol, base_price)
-        synthetic_df = _generate_synthetic_bars(symbol, target_price=base_price, num_bars=60)
-        if df is not None and not df.empty:
-            cutoff = df.index[0]
-            prefix = synthetic_df[synthetic_df.index < cutoff]
-            df = pd.concat([prefix, df]).sort_index()
-        else:
-            df = synthetic_df
+        available = len(df) if df is not None else 0
+        raise ValueError(
+            f"Insufficient real historical data for {symbol}: "
+            f"{available} bars available; at least 35 are required."
+        )
 
     cur_price = float(df["Close"].iloc[-1])
     result = StockAnalysis(

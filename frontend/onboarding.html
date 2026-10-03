@@ -524,6 +524,11 @@ function renderCSVPreview(csvText) {
 }
 
 async function uploadSelectedCSV() {
+  if (window.PORTFOLIOIQ_STATIC_PREVIEW) {
+    showToast("CSV import is unavailable on this static preview. Run PortfolioIQ locally with Docker.", "warn");
+    return;
+  }
+
   if (!selectedFile) {
     showToast("No CSV file selected.", "warn");
     return;

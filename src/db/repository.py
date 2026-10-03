@@ -610,7 +610,9 @@ def get_realized_ltcg_ytd(
             val = row["total_ltcg"] if row else 0
             return Decimal(str(val)) if val is not None else Decimal("0.00")
     except Exception as exc:
-        logger.warning("Could not calculate realized LTCG YTD from tax lots: {}. Returning 0.00", exc)
+        logger.warning(
+            "Could not calculate realized LTCG YTD from tax lots: {}. Returning 0.00", exc
+        )
         return Decimal("0.00")
 
 

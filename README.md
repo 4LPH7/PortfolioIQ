@@ -2,7 +2,7 @@
 
 > **Institutional-Grade Personal Equity Intelligence & Autonomous Portfolio Rebalancing for Indian Markets (NSE/BSE)**
 
-[![CI/CD Pipeline](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml/badge.svg)](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml)
+[![CI](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml/badge.svg)](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml)
 [![Python Version](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![Coverage](https://img.shields.io/badge/test_coverage-83%25-brightgreen.svg)]()
 [![Critical Path Coverage](https://img.shields.io/badge/safety_critical_coverage-98.9%25-success.svg)]()
@@ -17,30 +17,14 @@ PortfolioIQ is a production-grade algorithmic portfolio management, tax-aware re
 ## 🏛️ System Architecture
 
 ```
-                    ┌────────────────────────────────────────────────────────┐
-                    │                   Netlify Edge CDN                     │
-                    │   Vanilla HTML5 + CSS3 + Plotly.js + View Transitions  │
-                    └───────────────────────────┬────────────────────────────┘
-                                                │ HTTPS REST (X-API-Key)
-                                                ▼
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                           Flask API v1 Gateway (Render / Railway)                       │
-│  Dual-mounted (/api/v1 & /api) · Pydantic DTOs · Flask-Limiter · Correlation Tracking   │
-├───────────────────────────────┬─────────────────────────────┬───────────────────────────┤
-│       Signal Engine           │     Tax Guard & Engine      │     Trading Gatekeeper    │
-│  • Walk-Forward Backtesting   │  • STCG (20%) / LTCG (12.5%)│  • Slippage & Stale Bounds│
-│  • Spearman IC Ranking & IR   │  • ₹1.25L Annual Exemption  │  • Portfolio Concentration│
-│  • Fat-Tailed Student's t     │  • Tax-Loss Harvesting      │  • Margin & Cash Reserve  │
-│  • Calibrated Monte Carlo     │  • 30-Day Conversion Alerts │  • Idempotency & De-dupe  │
-└──────────────┬────────────────┴──────────────┬──────────────┴─────────────┬─────────────┘
-               │                               │                            │
-               ▼                               ▼                            ▼
-┌───────────────────────────────┐ ┌─────────────────────────────┐ ┌───────────────────────┐
-│     PostgreSQL 16 Database    │ │   Zerodha Kite Connect API  │ │   Historical Data &   │
-│  • 21 Idempotent Migrations   │ │  • REST Holdings Sync (T1)  │ │   Market Status       │
-│  • Multi-User Isolated Tables │ │  • Live Quotes & Quotes Poll│ │  • NSE Holiday Calendar │
-│  • Immutable Audit Append-Only│ │  • Authenticated OAuth Flow │ │  • Dual Benchmark Tri   │
-└───────────────────────────────┘ └─────────────────────────────┘ └───────────────────────┘
+GitHub repository ──CI passes on main──▶ GitHub Pages
+                                           Static UI preview only
+                                           (no API or private data)
+
+For live personal use:
+Browser ──▶ Docker frontend ──▶ Flask API ──▶ PostgreSQL
+                                  ├──────────▶ Kite Connect
+                                  └──────────▶ market data services
 ```
 
 ---
@@ -60,7 +44,7 @@ PortfolioIQ features a refined obsidian dark design system built with native **C
 | **⚡ System Status** | [`/status.html`](frontend/status.html) | Real-time health diagnostic dashboard: PostgreSQL database connectivity, Zerodha broker session verification, NSE trading countdown timer, and Phase 8 trading safety certification gates. |
 | **📑 Monthly Report** | [`/report.html`](frontend/report.html) | Executive monthly performance statement formatted for A4/PDF export featuring Sharpe Ratio, Sortino Ratio, Maximum Drawdown, Jensen's Alpha, Beta, and cost attribution. |
 | **⚙️ System Settings** | [`/settings.html`](frontend/settings.html) | Runtime configuration editor for gatekeeper slippage bounds, concentration limits, database migration status, price partition inspection, and session management. |
-| **🚀 Onboarding Wizard** | [`/onboarding.html`](frontend/onboarding.html) | 4-step guided first-run experience: Zerodha API credentials validation, database connection check, allocation profile selection, and mock portfolio import. |
+| **🚀 Onboarding Wizard** | [`/onboarding.html`](frontend/onboarding.html) | Guided first-run setup for the Kite connection, broker or CSV portfolio import, and target allocations. |
 
 ---
 
@@ -97,49 +81,25 @@ All trade recommendations and rebalancing proposals calculate complete statutory
 
 ---
 
-## 🚢 Deployment Guide
+## 🚢 Hosting and Local Live Use
 
-The app has a static **Netlify frontend** and a Python **Railway API**. Netlify serves the interface and proxies `/api/*` requests to Railway. The quote scheduler runs inside the single API process, so you do not need to create a separate worker service. This architecture is compatible with Netlify; Railway is a separate backend host and is not guaranteed to stay free or awake continuously. Check current [Railway plan limits](https://docs.railway.com/pricing/plans) before relying on always-on live quotes.
+GitHub Pages can publish the static files in `frontend/`, and the CI workflow deploys them after the main-branch tests and Docker build pass. Enable **Settings → Pages → Build and deployment → GitHub Actions** in the repository. On the free GitHub plan, Pages requires a public repository.
 
-### 1. Deploy the API to Railway
+Pages is a static file host. It cannot run the Flask API, perform Kite's server-side login exchange, connect privately to PostgreSQL, or keep a live quote process running. The Pages site is therefore a UI preview only; it cannot show synced holdings, complete Kite login, or update live data. GitHub Actions jobs are temporary build jobs, not an always-on API server. GitHub also says Pages is not intended for SaaS hosting or sensitive transactions. See [GitHub Pages limitations](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits).
 
-1. Push this repository to GitHub, create a Railway project, and deploy the repository as one service. Railway reads [`railway.json`](railway.json); generate a public HTTPS domain in the service settings.
-2. Set the service variables in Railway:
-   - `DATABASE_URL`: Supabase PostgreSQL connection string (server-side only)
-   - `KITE_API_KEY` and `KITE_API_SECRET`: Kite Connect app credentials
-   - `PORTFOLIOIQ_API_KEY`: generate a long random API key
-   - `ALLOWED_ORIGINS`: your exact Netlify site origin, such as `https://your-site.netlify.app`
-   - `FRONTEND_ORIGIN`: that same exact Netlify site origin; Kite returns here after sign-in
-   - `APP_ENV=production`
-   - `DRY_RUN_MODE=true`
-   - `RUN_INLINE_SCHEDULER=true`
-   - `POLLING_INTERVAL_SEC=15`
-3. In your Kite Connect app, set the redirect URL to `https://<your-railway-domain>/api/v1/broker/callback`. For local Docker use, set `KITE_REDIRECT_URL` in `.env` and the Kite app to `http://127.0.0.1:5000/api/v1/broker/callback`; set `FRONTEND_ORIGIN=http://localhost:8080`.
-4. Check the API is healthy at `https://<your-railway-domain>/api/v1/health`.
+For a free, usable personal setup, run the backend and frontend together with Docker on your own computer. This keeps broker credentials and portfolio data off the public site and does not require a paid worker. The computer and Docker services must be running for data refreshes.
 
-### 2. Deploy the frontend to Netlify
+### Local Docker setup for live Kite data
 
-1. In [Netlify](https://app.netlify.com), import the same GitHub repository.
-2. Set **Base directory** to the repository root, **Build command** to `bash scripts/netlify-build.sh`, and **Publish directory** to `frontend`.
-3. Set the Netlify environment variable `RAILWAY_API_ORIGIN` to the Railway public HTTPS origin only, for example `https://your-service.up.railway.app` (no `/api` suffix).
-4. Deploy or trigger a fresh deploy. The build creates a same-origin `/api/*` proxy, which avoids putting the API key or database credentials in browser code.
-5. Open the Netlify URL and verify the status page reports the API as healthy.
+1. Copy `.env.example` to `.env`, then set `KITE_API_KEY`, `KITE_API_SECRET`, and a long random `PORTFOLIOIQ_API_KEY`. Keep `DRY_RUN_MODE=true`.
+2. Start the app with `docker compose up --build` and open `http://localhost:8080`.
+3. In the Kite developer console, set the redirect URL to `http://127.0.0.1:5000/api/v1/broker/callback`. Keep `KITE_REDIRECT_URL` at that value and `FRONTEND_ORIGIN=http://localhost:8080` in `.env`.
+4. Open **Settings → Broker connection** and sign in to Kite. Kite requires a user login each trading day. A successful login syncs funds, holdings, and positions. While the local dashboard is open, quotes refresh automatically at the configured polling interval.
+5. Confirm `http://localhost:5000/api/v1/health` reports a healthy database. Do not put `.env`, Kite credentials, API keys, access tokens, or portfolio exports in GitHub Pages or the repository.
 
-### 3. First use and daily sign-in
+### Database safety
 
-Open **Settings → Broker connection** and connect Kite. Kite requires a person to approve a login each trading day; unattended token renewal is not supported. Once signed in, holdings and prices can sync while the API is running. Keep `DRY_RUN_MODE=true`: order placement remains simulated until a separate safety review.
-
-### Free-tier behavior
-
-There is no separate paid worker in this setup, but a continuously running API still consumes Railway service usage. Railway's included credit/limits can change and may not cover an always-on service. If the service sleeps or exhausts its free usage, scheduled quotes pause until it wakes or usage is available again. A free sleeping host therefore cannot promise uninterrupted real-time prices. Netlify hosts the static frontend; it does not run the Python API or scheduler.
-
-### Supabase database safety
-
-Keep `DATABASE_URL` in Railway only; never add it or a Supabase service-role key to Netlify or frontend files. Before storing real user data, verify that `anon` and `authenticated` have no unintended access to application tables and that row-level security policies match the app's authorization model. The API is designed to access PostgreSQL server-side. Apply schema updates with the repository migrations and verify their recorded versions before using the database.
-
-### Optional automated deploys
-
-GitHub Actions deployment is optional. Configure the relevant repository secrets only if you enable the deployment workflows: `RAILWAY_TOKEN` and `RAILWAY_APP_URL` for Railway, or `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`, and `RAILWAY_API_ORIGIN` for Netlify. The latter must be the Railway public HTTPS origin with no `/api` suffix; the workflow uses it to generate the same-origin API proxy before publishing.
+Keep `DATABASE_URL` and any Supabase service-role key in the backend's private environment only; never add them to frontend files or GitHub Pages. Before storing real user data, verify that database access policies match the app's authorization model. Apply schema updates with the repository migrations and verify their recorded versions before use.
 
 ---
 
@@ -232,11 +192,11 @@ pip-audit -r requirements.txt --ignore-vuln PYSEC-2020-25 --ignore-vuln CVE-2026
 | `KITE_API_SECRET` | String | *Required* | Zerodha Kite Connect developer API secret |
 | `PORTFOLIOIQ_API_KEY` | String | *Required* | Private authentication key passed in `X-API-Key` HTTP header |
 | `DRY_RUN_MODE` | Boolean | `true` | **Safety Core**: When `true`, all orders are simulated. Must remain `true` until certified. |
-| `ALLOWED_ORIGINS` | String | `*` | Comma-separated list of allowed CORS origins (e.g. Netlify URL) |
+| `ALLOWED_ORIGINS` | String | local development origins | Comma-separated list of allowed browser origins |
 | `FRONTEND_ORIGIN` | URL | `http://localhost:8080` | Frontend origin used after successful broker sign-in |
 | `APP_ENV` | String | `development` | Environment mode (`development` or `production`) |
 | `LOG_LEVEL` | String | `INFO` | Loguru logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `POLLING_INTERVAL_SEC` | Integer | `60` | Background market quote polling interval in seconds |
+| `POLLING_INTERVAL_SEC` | Integer | `15` | Minimum interval between Kite quote snapshot requests in seconds |
 | `SLIPPAGE_BOUND_PCT` | Float | `2.0` | Maximum allowable price drift percentage before blocking an order |
 | `CONCENTRATION_LIMIT_PCT`| Float | `15.0` | Maximum single-stock portfolio weight percentage limit |
 | `DUPLICATE_WINDOW_SEC` | Integer | `300` | Lookback window in seconds to block duplicate order submissions |

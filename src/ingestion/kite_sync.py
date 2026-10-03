@@ -113,11 +113,14 @@ def _ensure_instrument_exists(session, holding: dict) -> None:
     name = holding.get("name") or holding.get("company_name") or tradingsymbol
 
     from src.ingestion.instrument_mapper import tradingsymbol_to_yf_ticker
+
     yf_ticker = tradingsymbol_to_yf_ticker(tradingsymbol, exchange)
 
     # Check if (exchange, tradingsymbol) exists with different token
     existing_sym = session.execute(
-        text("SELECT instrument_token FROM instrument_master WHERE exchange = :exchange AND tradingsymbol = :symbol"),
+        text(
+            "SELECT instrument_token FROM instrument_master WHERE exchange = :exchange AND tradingsymbol = :symbol"
+        ),
         {"exchange": exchange, "symbol": tradingsymbol},
     ).fetchone()
 
@@ -259,13 +262,10 @@ def sync_holdings(user_id: str = "default", replace_imported: bool = False) -> i
         }
 
         local_holdings_by_symbol = {
-            r.tradingsymbol.upper(): local_holdings_by_token[r.instrument_token]
-            for r in local_rows
+            r.tradingsymbol.upper(): local_holdings_by_token[r.instrument_token] for r in local_rows
         }
         local_holdings_by_isin = {
-            r.isin: local_holdings_by_token[r.instrument_token]
-            for r in local_rows
-            if r.isin
+            r.isin: local_holdings_by_token[r.instrument_token] for r in local_rows if r.isin
         }
 
         processed_tokens = set()
@@ -698,6 +698,42 @@ def sync_positions(user_id: str = "default") -> int:
             if product not in {"CNC", "MIS", "NRML", "MTF"}:
                 product = "CNC"
 
+            # Replace a same-symbol manual/CSV position when the authenticated
+            # broker response supplies its official instrument token. Otherwise
+            # both token rows would remain active and inflate portfolio totals.
+            imported_position = session.execute(
+                text("""
+                    SELECT id, instrument_token
+                    FROM user_positions
+                    WHERE user_id = :user_id
+                      AND UPPER(tradingsymbol) = UPPER(:tradingsymbol)
+                      AND exchange = :exchange
+                      AND product = :product
+                      AND data_source IN ('CSV_IMPORT', 'MANUAL', 'legacy')
+                      AND instrument_token <> :instrument_token
+                    ORDER BY id
+                    LIMIT 1
+                """),
+                {
+                    "user_id": user_id,
+                    "tradingsymbol": tradingsymbol,
+                    "exchange": exchange,
+                    "product": product,
+                    "instrument_token": instrument_token,
+                },
+            ).fetchone()
+            if imported_position:
+                session.execute(
+                    text("DELETE FROM user_positions WHERE id = :id AND user_id = :user_id"),
+                    {"id": imported_position[0], "user_id": user_id},
+                )
+                logger.info(
+                    "Reconciling imported position {} ({}) with official Kite token {}",
+                    tradingsymbol,
+                    imported_position[1],
+                    instrument_token,
+                )
+
             quantity = p.get("quantity", 0)
             average_price = float(p.get("average_price", 0))
             last_price = float(p.get("last_price", 0))
@@ -816,7 +852,9 @@ def sync_positions(user_id: str = "default") -> int:
     return upserted
 
 
-def run_start_of_day_sync(user_id: str = "default", replace_imported: bool = False) -> dict[str, Any]:
+def run_start_of_day_sync(
+    user_id: str = "default", replace_imported: bool = False
+) -> dict[str, Any]:
     """
     Full start-of-day sync: holdings + positions + margins.
     Called manually or by APScheduler at 09:15 AM IST on market days.
@@ -830,7 +868,9 @@ def run_start_of_day_sync(user_id: str = "default", replace_imported: bool = Fal
 
     results: dict[str, Any] = {"ok": True}
     try:
-        results["holdings_upserted"] = sync_holdings(user_id=user_id, replace_imported=replace_imported)
+        results["holdings_upserted"] = sync_holdings(
+            user_id=user_id, replace_imported=replace_imported
+        )
     except Exception as exc:
         logger.error("Holdings sync failed: {}", exc)
         results["holdings_error"] = str(exc)
@@ -841,6 +881,7 @@ def run_start_of_day_sync(user_id: str = "default", replace_imported: bool = Fal
     except Exception as exc:
         logger.error("Positions sync failed: {}", exc)
         results["positions_error"] = str(exc)
+        results["ok"] = False
 
     try:
         margins = sync_margins(user_id=user_id)
@@ -849,6 +890,7 @@ def run_start_of_day_sync(user_id: str = "default", replace_imported: bool = Fal
     except Exception as exc:
         logger.error("Margins sync failed: {}", exc)
         results["margins_error"] = str(exc)
+        results["ok"] = False
 
     logger.info("Start-of-day sync complete: {}", results)
     return results

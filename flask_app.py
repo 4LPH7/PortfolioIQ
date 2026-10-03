@@ -30,7 +30,6 @@ from src.api.v1.blueprint import api_v1_bp
 from src.execution.safety_certification import verify_startup_safety
 
 DEFAULT_ALLOWED_ORIGINS = [
-    "https://portfolioiq-4lph7.netlify.app",
     "http://localhost:8080",
     "http://localhost:3000",
     "http://127.0.0.1:5000",
@@ -38,7 +37,7 @@ DEFAULT_ALLOWED_ORIGINS = [
 
 
 def _allowed_cors_origins() -> list[str]:
-    """Return the configured cross-origin allowlist; defaults to Netlify and localhost."""
+    """Return the configured cross-origin allowlist; defaults to local development."""
     raw = os.environ.get("ALLOWED_ORIGINS")
     if raw is None or not raw.strip():
         return list(DEFAULT_ALLOWED_ORIGINS)
@@ -146,14 +145,9 @@ if os.environ.get("RUN_INLINE_SCHEDULER", "").lower() == "true":
     _inline_scheduler = create_scheduler()
 
     def _poll_live_quotes() -> None:
-        from src.ingestion.kite_auth import get_stored_token
-        from src.ingestion.market_hours import is_market_open
+        from src.ingestion.kite_quote_poller import poll_kite_quotes_if_stale
 
-        if not is_market_open() or not get_stored_token():
-            return
-        from src.ingestion.kite_quote_poller import poll_kite_quotes
-
-        poll_kite_quotes()
+        poll_kite_quotes_if_stale()
 
     _inline_scheduler.add_job(
         _poll_live_quotes,
@@ -167,6 +161,7 @@ if os.environ.get("RUN_INLINE_SCHEDULER", "").lower() == "true":
         next_run_time=datetime.now(_IST),
     )
     _inline_scheduler.start()
+
     def _safe_shutdown():
         if _inline_scheduler and getattr(_inline_scheduler, "running", False):
             try:

@@ -232,8 +232,8 @@
         <div class="abs-stat-val" id="stat-cash">—</div>
       </div>
       <div class="abs-stat-box">
-        <div class="abs-stat-label">Mock Data Status</div>
-        <div class="abs-stat-val" style="color:var(--green);font-size:0.95rem;padding-top:0.3rem"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">check_circle</span> Real Only</div>
+        <div class="abs-stat-label">Data Sources</div>
+        <div class="abs-stat-val" style="font-size:0.95rem;padding-top:0.3rem">Kite + Your Imports</div>
       </div>
     </div>
 
@@ -397,7 +397,10 @@ async function doSync() {
     el.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--green);">check</span> ' + `Synced ${r.data?.holdings_upserted||0} holdings, ${r.data?.positions_upserted||0} positions · Cash ₹${Number(r.data?.available_cash||0).toLocaleString('en-IN')}`;
     loadAbstractStats();
   } else {
-    el.style.color = "var(--red)"; el.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--red);">close</span> ' + (r.error || "Sync failed");
+    const data = r.data || {};
+    const details = [data.holdings_error, data.positions_error, data.margins_error].filter(Boolean).join(" · ");
+    el.style.color = "var(--red)";
+    el.textContent = details || r.error || "Kite sync failed. Check the broker connection and try again.";
   }
 }
 
@@ -452,6 +455,12 @@ function setAbstractTab(tab) {
 /* ── Abstract CSV Import ─────────────────────────────────── */
 let currentParsedCsv = null;
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[char]);
+}
+
 async function onAbstractFile(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -481,13 +490,13 @@ function renderAbstractPreview(parsed) {
   if (parsed.kind === "ledger") {
     thead.innerHTML = "<tr><th>Date</th><th>Particulars</th><th>Kind</th><th>Debit</th><th>Credit</th><th>Balance</th></tr>";
     tbody.innerHTML = rows.slice(0, 15).map(r =>
-      `<tr><td>${r.posting_date||'—'}</td><td>${r.particulars||''}</td><td><span class="badge badge-hold">${r.entry_kind}</span></td>
-       <td style="color:#ff4d6d">${r.debit?'₹'+r.debit:''}</td><td style="color:#00ff88">${r.credit?'₹'+r.credit:''}</td><td>${r.net_balance?'₹'+r.net_balance:''}</td></tr>`
+      `<tr><td>${escapeHtml(r.posting_date)||'—'}</td><td>${escapeHtml(r.particulars)}</td><td><span class="badge badge-hold">${escapeHtml(r.entry_kind)}</span></td>
+       <td style="color:#ff4d6d">${r.debit?'₹'+escapeHtml(r.debit):''}</td><td style="color:#00ff88">${r.credit?'₹'+escapeHtml(r.credit):''}</td><td>${r.net_balance?'₹'+escapeHtml(r.net_balance):''}</td></tr>`
     ).join("");
   } else {
     thead.innerHTML = "<tr><th>Symbol</th><th>Qty</th><th>Avg Cost</th><th>LTP</th><th>Exchange</th><th>Product</th></tr>";
     tbody.innerHTML = rows.slice(0, 15).map(r =>
-      `<tr><td><strong>${r.symbol}</strong></td><td>${r.quantity}</td><td>₹${r.average_price}</td><td>${r.last_price?'₹'+r.last_price:'—'}</td><td>${r.exchange||'NSE'}</td><td>${r.product||'CNC'}</td></tr>`
+      `<tr><td><strong>${escapeHtml(r.symbol)}</strong></td><td>${escapeHtml(r.quantity)}</td><td>₹${escapeHtml(r.average_price)}</td><td>${r.last_price?'₹'+escapeHtml(r.last_price):'—'}</td><td>${escapeHtml(r.exchange||'NSE')}</td><td>${escapeHtml(r.product||'CNC')}</td></tr>`
     ).join("");
   }
   document.getElementById("abs-preview-wrap").style.display = "block";
@@ -505,11 +514,11 @@ async function commitAbstractCsv() {
     const formData = new FormData();
     if (input.files[0]) formData.append("file", input.files[0]);
     const res = await apiPostForm("/holdings/import-smart?commit=1", formData);
-    st.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--green);">check</span> ' + res.message;
+    st.textContent = `${res.message}${res.cash_flows_imported ? ` ${res.cash_flows_imported} cash flows added.` : ""}`;
     st.style.color = "var(--green)";
     loadAbstractStats();
   } catch(err) {
-    st.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--red);">close</span> ' + err.message;
+    st.textContent = err.message;
     st.style.color = "var(--red)";
   } finally {
     btn.disabled = false;
@@ -541,16 +550,22 @@ async function addManualRowAndCommit() {
   st.textContent = "Saving…";
   st.style.color = "var(--text-muted)";
   try {
-    const csvText = `Instrument,Qty.,Avg. cost,LTP,Exchange,Product\r\n${sym},${qty},${avg},${avg},${exch},${prod}\r\n`;
+    const securityHeaders = dest === "positions"
+      ? "Product,Instrument,Qty.,Avg.,LTP,Exchange"
+      : "Instrument,Qty.,Avg. cost,LTP,Exchange";
+    const securityRow = dest === "positions"
+      ? `${prod},${sym},${qty},${avg},${avg},${exch}`
+      : `${sym},${qty},${avg},${avg},${exch}`;
+    const csvText = `${securityHeaders}\r\n${securityRow}\r\n`;
     await apiPost("/holdings/import-smart?commit=1", { csv_text: csvText, filename: `manual_${dest}.csv` });
-    st.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--green);">check</span> ' + `Added ${sym} (${qty} shares)`;
+    st.textContent = `Added ${sym} (${qty} shares)`;
     st.style.color = "var(--green)";
     document.getElementById("m-sym").value = "";
     document.getElementById("m-qty").value = "";
     document.getElementById("m-avg").value = "";
     loadAbstractStats();
   } catch(err) {
-    st.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--red);">close</span> ' + err.message;
+    st.textContent = err.message;
     st.style.color = "var(--red)";
   }
 }
@@ -561,27 +576,39 @@ async function loadAbstractLedger() {
   tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Loading…</td></tr>';
   try {
     const res = await apiGet("/ledger?limit=25");
+    if (!res.ok) throw new Error(res.error || "Could not load ledger records.");
     const rows = res.data || [];
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No ledger records imported yet.</td></tr>';
       return;
     }
     tbody.innerHTML = rows.map(r =>
-      `<tr><td>${r.posting_date||'—'}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.particulars||''}">${r.particulars||''}</td>
-       <td><span class="badge badge-hold">${r.entry_kind}</span></td>
+      `<tr><td>${escapeHtml(r.posting_date)||'—'}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(r.particulars)}">${escapeHtml(r.particulars)}</td>
+       <td><span class="badge badge-hold">${escapeHtml(r.entry_kind)}</span></td>
        <td style="text-align:right;color:#ff4d6d">${r.debit ? '₹'+Number(r.debit).toLocaleString('en-IN') : ''}</td>
        <td style="text-align:right;color:#00ff88">${r.credit ? '₹'+Number(r.credit).toLocaleString('en-IN') : ''}</td>
        <td style="text-align:right">${r.net_balance != null ? '₹'+Number(r.net_balance).toLocaleString('en-IN') : ''}</td></tr>`
     ).join("");
   } catch(err) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Error loading ledger: ${err.message}</td></tr>`;
+    const cell = document.createElement("td");
+    cell.colSpan = 6;
+    cell.className = "text-center text-muted";
+    cell.textContent = `Error loading ledger: ${err.message}`;
+    const row = document.createElement("tr");
+    row.appendChild(cell);
+    tbody.replaceChildren(row);
   }
 }
 
 /* ── POST with FormData helper ───────────────────────────── */
 async function apiPostForm(path, formData) {
+  if (window.PORTFOLIOIQ_STATIC_PREVIEW) {
+    throw new Error("Data import is unavailable on this static preview. Run PortfolioIQ locally with Docker.");
+  }
+
   const base = (typeof getApiBase === 'function') ? getApiBase() : (window._apiBase || 'http://localhost:5000/api/v1');
-  const key  = localStorage.getItem('portfolioiq_api_key') || sessionStorage.getItem('portfolioiq_session_key') || 'dev-secret-key';
+  const key  = (typeof getApiKey === 'function' ? getApiKey() : sessionStorage.getItem('portfolioiq_session_key')) || '';
+  if (!key) throw new Error('Unlock your session before importing data.');
   const cleanPath = path.startsWith('/api/v1') ? path.replace('/api/v1', '') : path;
   const res = await fetch(base + cleanPath, { method: 'POST', headers: { 'X-API-Key': key }, body: formData });
   const data = await res.json();

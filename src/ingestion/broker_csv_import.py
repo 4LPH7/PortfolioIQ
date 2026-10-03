@@ -6,7 +6,7 @@ import csv
 import hashlib
 import io
 import re
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -45,13 +45,6 @@ def _parse_date(value: str | None, row_number: int) -> date | None:
     value = (value or "").strip()
     if not value:
         return None
-    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%d/%m/%y"):
-        try:
-            return date.fromisoformat(date.strptime(value, fmt).isoformat())  # type: ignore[attr-defined]
-        except (ValueError, AttributeError):
-            pass
-    from datetime import datetime
-
     for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%d/%m/%y"):
         try:
             return datetime.strptime(value, fmt).date()
@@ -106,6 +99,7 @@ def _parse_securities(
     qty_index = _find_index(headers, "qty", "quantity", "shares")
     avg_index = _find_index(headers, "avg", "avg. cost", "average price", "avg price", "buy price")
     ltp_index = _find_index(headers, "ltp", "last price", "current price")
+    pnl_index = _find_index(headers, "p&l", "pnl", "pl", "profit and loss")
     exchange_index = _find_index(headers, "exchange", "exch", "segment")
     product_index = _find_index(headers, "product")
     if qty_index is None or avg_index is None:
@@ -153,12 +147,18 @@ def _parse_securities(
             if ltp_index is not None and len(row) > ltp_index
             else Decimal("0")
         )
+        pnl = (
+            _decimal(row[pnl_index], "profit and loss", row_number, optional=True)
+            if pnl_index is not None and len(row) > pnl_index
+            else Decimal("0")
+        )
         parsed.append(
             {
                 "symbol": symbol,
                 "quantity": quantity,
                 "average_price": average_price,
                 "last_price": last_price,
+                "pnl": pnl,
                 "exchange": exchange,
                 "product": product,
                 "source_row": row_number,

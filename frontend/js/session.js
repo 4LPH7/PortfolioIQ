@@ -149,6 +149,14 @@
     const submitBtn = dialog.querySelector("#session-unlock-btn");
     const input = dialog.querySelector("#session-key-input");
 
+    if (window.PORTFOLIOIQ_STATIC_PREVIEW) {
+      if (errorEl) {
+        errorEl.textContent = "Session unlock is unavailable on this static preview. Run PortfolioIQ locally with Docker.";
+        errorEl.style.display = "block";
+      }
+      return;
+    }
+
     if (errorEl) {
       errorEl.style.display = "none";
       errorEl.textContent = "";

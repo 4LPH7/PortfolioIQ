@@ -1,280 +1,241 @@
-"""
-PortfolioIQ — Robust Multi-Source Quote Poller
-Daemon process that polls live prices from Zerodha Kite and Yahoo Finance fallbacks,
-ensuring real-time quotes update seamlessly without permission errors or rate limiting.
+"""PortfolioIQ — Kite Connect Quote Poller
+Daemon process that polls Kite Connect for live prices and updates the database.
 """
 
 from __future__ import annotations
 
 import time
-from decimal import Decimal
+from threading import Lock
 from typing import Any
 
-from kiteconnect.exceptions import GeneralException, NetworkException, PermissionException, TokenException
+from kiteconnect.exceptions import (
+    GeneralException,
+    NetworkException,
+    PermissionException,
+    TokenException,
+)
 from loguru import logger
 
 from src.config.settings import get_settings
 from src.db.connection import execute_sql
 from src.ingestion.kite_auth import get_authenticated_kite, invalidate_token
 from src.ingestion.market_hours import is_market_open, seconds_until_market_open
-from src.ingestion.ticker_map import get_yf_ticker
+
+_refresh_lock = Lock()
+
+
+def get_active_holding_symbols() -> dict[str, int]:
+    """
+    Query user_holdings and user_positions for instruments with active quantities.
+    Returns mapping { "exchange:tradingsymbol": instrument_token }
+    """
+    rows = execute_sql(
+        """
+        SELECT exchange, tradingsymbol, instrument_token
+        FROM user_holdings
+        WHERE (quantity + t1_quantity) > 0
+        UNION
+        SELECT exchange, tradingsymbol, instrument_token
+        FROM user_positions
+        WHERE quantity <> 0
+        """
+    )
+    return {f"{row['exchange']}:{row['tradingsymbol']}": row["instrument_token"] for row in rows}
 
 
 def get_active_holdings() -> list[dict[str, Any]]:
     """
-    Query user_holdings for instruments with active balance.
+    Query user_holdings and user_positions for instruments with active balance.
     Returns list of holding dictionaries.
     """
     return execute_sql(
         """
         SELECT instrument_token, tradingsymbol, exchange, quantity, t1_quantity,
-               average_price, COALESCE(data_source, 'KITE') AS data_source
+               average_price, COALESCE(data_source, 'KITE') AS data_source,
+               'holding'::text AS record_type
         FROM user_holdings
         WHERE (quantity + t1_quantity) > 0
+        UNION ALL
+        SELECT instrument_token, tradingsymbol, exchange, quantity, 0 AS t1_quantity,
+               average_price, data_source, 'position'::text AS record_type
+        FROM user_positions
+        WHERE quantity <> 0
         """
     )
 
 
-def fetch_quote_from_yahoo(tradingsymbol: str, exchange: str = "NSE") -> dict[str, Any] | None:
-    """Fetch live/latest quote from Yahoo Finance using direct chart API."""
-    from src.analytics.historical_cache import _fetch_from_yfinance
-
-    yf_ticker = get_yf_ticker(tradingsymbol, exchange)
-    try:
-        df = _fetch_from_yfinance(yf_ticker, period="5d")
-        if df is not None and not df.empty:
-            last_row = df.iloc[-1]
-            prev_close = float(df.iloc[-2]["Close"]) if len(df) >= 2 else float(last_row["Open"])
-            last_p = float(last_row["Close"])
-            open_p = float(last_row["Open"])
-            high_p = float(last_row["High"])
-            low_p = float(last_row["Low"])
-            volume = int(last_row.get("Volume", 0))
-            chg_abs = round(last_p - prev_close, 2)
-            chg_pct = round((chg_abs / prev_close) * 100, 4) if prev_close > 0 else 0.0
-
-            return {
-                "last_price": last_p,
-                "open_price": open_p,
-                "high_price": high_p,
-                "low_price": low_p,
-                "close_price": prev_close,
-                "volume": volume,
-                "change_absolute": chg_abs,
-                "change_percent": chg_pct,
-                "source": "yahoo",
-            }
-    except Exception as exc:
-        logger.debug("Failed Yahoo quote fetch for {}: {}", yf_ticker, exc)
-
-    return None
-
-
 def poll_kite_quotes() -> dict[str, Any]:
     """
-    Polls real-time quotes for all active holdings.
-    Gracefully uses Kite quote, Kite holdings, and Yahoo Finance fallbacks.
+    Polls Kite Connect for active holdings and updates live_prices and price_history.
     """
-    holdings = get_active_holdings()
-    if not holdings:
+    active_holdings = get_active_holding_symbols()
+    if not active_holdings:
         logger.debug("No active holdings found. Skipping quote polling.")
         return {"status": "no_holdings", "updated": 0}
 
-    quotes_by_token: dict[int, dict[str, Any]] = {}
-    kite = None
+    symbols = list(active_holdings.keys())
 
     try:
         kite = get_authenticated_kite()
-    except Exception as exc:
-        logger.debug("Kite auth unavailable for polling: {}", exc)
+        if not kite:
+            logger.error("Failed to get authenticated Kite instance for polling.")
+            return {"status": "auth_error", "updated": 0}
 
-    # 1. Try Kite Connect .quote() or .holdings()
-    if kite:
-        symbol_map = {f"{h['exchange']}:{h['tradingsymbol']}": h["instrument_token"] for h in holdings}
-        symbols = list(symbol_map.keys())
-
-        # Attempt A: Standard quote API
         try:
-            raw_quotes = kite.quote(symbols)
-            for sym_key, q in raw_quotes.items():
-                tok = symbol_map.get(sym_key)
-                if tok:
-                    ltp = float(q.get("last_price", 0))
-                    ohlc = q.get("ohlc", {})
-                    close_p = float(ohlc.get("close", ltp))
-                    quotes_by_token[tok] = {
-                        "last_price": ltp,
-                        "open_price": float(ohlc.get("open", ltp)),
-                        "high_price": float(ohlc.get("high", ltp)),
-                        "low_price": float(ohlc.get("low", ltp)),
-                        "close_price": close_p,
-                        "volume": int(q.get("volume", 0)),
-                        "change_absolute": round(ltp - close_p, 2),
-                        "change_percent": float(q.get("net_change", 0)),
-                        "source": "kite",
-                    }
+            quotes = kite.quote(symbols)
         except PermissionException:
-            logger.info("Kite live quote API lacks permission; falling back to Kite holdings API and Yahoo quotes.")
-        except TokenException as exc:
-            logger.warning("Kite token expired during polling: {}", exc)
-            invalidate_token()
-        except (NetworkException, GeneralException) as exc:
-            logger.warning("Kite API error during quote polling: {}", exc)
-
-        # Attempt B: Use Kite .holdings() for broker-verified real-time prices
-        if not quotes_by_token:
+            logger.info("Kite quote API lacks permission; trying broker holdings response.")
+            quotes = {}
             try:
-                raw_holdings = kite.holdings()
-                for rh in raw_holdings:
+                for rh in kite.holdings():
                     tok = rh.get("instrument_token")
-                    if tok:
-                        ltp = float(rh.get("last_price", 0))
-                        close_p = float(rh.get("close_price", ltp))
-                        quotes_by_token[tok] = {
-                            "last_price": ltp,
-                            "open_price": ltp,
-                            "high_price": ltp,
-                            "low_price": ltp,
-                            "close_price": close_p,
-                            "volume": 0,
-                            "change_absolute": float(rh.get("day_change", 0)),
-                            "change_percent": float(rh.get("day_change_percentage", 0)),
-                            "source": "kite",
-                        }
+                    sym = f"{rh.get('exchange', 'NSE')}:{rh.get('tradingsymbol')}"
+                    ltp = float(rh.get("last_price", 0))
+                    quotes[sym] = {
+                        "instrument_token": tok,
+                        "last_price": ltp,
+                        "ohlc": {"close": float(rh.get("close_price", ltp))},
+                        "net_change": float(rh.get("day_change_percentage", 0)),
+                    }
             except Exception as exc:
-                logger.debug("Kite holdings fallback failed: {}", exc)
+                logger.debug("Holdings fallback failed: {}", exc)
+    except TokenException as e:
+        logger.error(f"Kite token expired during polling: {e}")
+        invalidate_token()
+        return {"status": "token_expired"}
+    except (NetworkException, GeneralException) as e:
+        logger.warning(f"Kite API error during polling: {e}")
+        return {"status": "network_error"}
 
-    # 2. Fill missing holdings via fast Yahoo Finance quote engine
-    for h in holdings:
-        tok = h["instrument_token"]
-        if tok not in quotes_by_token or quotes_by_token[tok].get("last_price", 0) <= 0:
-            yq = fetch_quote_from_yahoo(h["tradingsymbol"], h.get("exchange", "NSE"))
-            if yq:
-                quotes_by_token[tok] = yq
-
-    # 3. Write into database
     updated_count = 0
-    for h in holdings:
-        tok = h["instrument_token"]
-        q = quotes_by_token.get(tok)
-        if q and q.get("last_price", 0) > 0:
-            last_p = q["last_price"]
-            open_p = q.get("open_price")
-            high_p = q.get("high_price")
-            low_p = q.get("low_price")
-            close_p = q.get("close_price")
-            volume = q.get("volume", 0)
-            chg_abs = q.get("change_absolute", 0.0)
-            chg_pct = q.get("change_percent", 0.0)
-            source = q.get("source", "kite")
+    missing_symbols = []
 
-            # Update live_prices
+    for symbol_key, instrument_token in active_holdings.items():
+        if symbol_key in quotes:
+            q = quotes[symbol_key]
             execute_sql(
                 """
                 INSERT INTO live_prices (
-                    instrument_token, last_price, open_price, high_price,
-                    low_price, close_price, volume, change_absolute,
-                    change_percent, source, is_stale, last_updated
+                    instrument_token, tradingsymbol, last_price, open_price, high_price,
+                    low_price, close_price, volume, change_absolute, change_percent,
+                    source, is_stale, last_updated
                 ) VALUES (
-                    :token, :last_price, :open_price, :high_price,
-                    :low_price, :close_price, :volume, :chg_abs,
-                    :chg_pct, :source, FALSE, NOW()
+                    :token, :symbol, :last_price, :open, :high, :low, :close, :volume,
+                    :change_abs, :change_pct, 'kite', FALSE, NOW()
                 )
                 ON CONFLICT (instrument_token) DO UPDATE SET
-                    last_price      = EXCLUDED.last_price,
-                    open_price      = COALESCE(EXCLUDED.open_price, live_prices.open_price),
-                    high_price      = COALESCE(EXCLUDED.high_price, live_prices.high_price),
-                    low_price       = COALESCE(EXCLUDED.low_price, live_prices.low_price),
-                    close_price     = COALESCE(EXCLUDED.close_price, live_prices.close_price),
-                    volume          = COALESCE(EXCLUDED.volume, live_prices.volume),
+                    last_price = EXCLUDED.last_price,
+                    open_price = EXCLUDED.open_price,
+                    high_price = EXCLUDED.high_price,
+                    low_price = EXCLUDED.low_price,
+                    close_price = EXCLUDED.close_price,
+                    volume = EXCLUDED.volume,
                     change_absolute = EXCLUDED.change_absolute,
-                    change_percent  = EXCLUDED.change_percent,
-                    source          = EXCLUDED.source,
-                    is_stale        = FALSE,
-                    last_updated    = NOW()
+                    change_percent = EXCLUDED.change_percent,
+                    source = EXCLUDED.source,
+                    is_stale = FALSE,
+                    last_updated = EXCLUDED.last_updated
+                WHERE live_prices.last_price IS DISTINCT FROM EXCLUDED.last_price
+                   OR live_prices.volume IS DISTINCT FROM EXCLUDED.volume
                 """,
                 {
-                    "token": tok,
-                    "last_price": last_p,
-                    "open_price": open_p,
-                    "high_price": high_p,
-                    "low_price": low_p,
-                    "close_price": close_p,
-                    "volume": volume,
-                    "chg_abs": chg_abs,
-                    "chg_pct": chg_pct,
-                    "source": source,
+                    "token": instrument_token,
+                    "symbol": symbol_key.split(":")[1] if ":" in symbol_key else symbol_key,
+                    "last_price": q.get("last_price", 0),
+                    "open": q.get("ohlc", {}).get("open", 0),
+                    "high": q.get("ohlc", {}).get("high", 0),
+                    "low": q.get("ohlc", {}).get("low", 0),
+                    "close": q.get("ohlc", {}).get("close", 0),
+                    "volume": q.get("volume", 0),
+                    "change_abs": q.get("last_price", 0) - q.get("ohlc", {}).get("close", 0)
+                    if q.get("ohlc", {}).get("close")
+                    else 0,
+                    "change_pct": q.get("net_change", 0) if "net_change" in q else 0,
                 },
             )
 
-            # Record price_history
+            # Record in price_history
             try:
                 execute_sql(
                     """
                     INSERT INTO price_history (
-                        instrument_token, last_price, open_price, high_price,
-                        low_price, close_price, volume, change_percent, source, recorded_at
+                        instrument_token, tradingsymbol, close_price, open_price,
+                        high_price, low_price, volume, change_percent, source, recorded_at
                     ) VALUES (
-                        :token, :last_price, :open_price, :high_price,
-                        :low_price, :close_price, :volume, :chg_pct, :source, NOW()
+                        :token, :symbol, :close, :open, :high, :low, :volume, :change_pct, 'kite', NOW()
                     )
                     """,
                     {
-                        "token": tok,
-                        "last_price": last_p,
-                        "open_price": open_p,
-                        "high_price": high_p,
-                        "low_price": low_p,
-                        "close_price": close_p,
-                        "volume": volume,
-                        "chg_pct": chg_pct,
-                        "source": source,
+                        "token": instrument_token,
+                        "symbol": symbol_key.split(":")[1] if ":" in symbol_key else symbol_key,
+                        "close": q.get("last_price", 0),
+                        "open": q.get("ohlc", {}).get("open", 0),
+                        "high": q.get("ohlc", {}).get("high", 0),
+                        "low": q.get("ohlc", {}).get("low", 0),
+                        "volume": q.get("volume", 0),
+                        "change_pct": q.get("net_change", 0) if "net_change" in q else 0,
                     },
                 )
             except Exception as exc:
                 logger.debug("price_history insert skipped: {}", exc)
-
-            # Update user_holdings current state
-            total_qty = h["quantity"] + h.get("t1_quantity", 0)
-            avg_p = float(h.get("average_price", 0))
-            pnl = round((last_p - avg_p) * total_qty, 2)
-            execute_sql(
-                """
-                UPDATE user_holdings
-                SET last_price = :last_price,
-                    close_price = COALESCE(:close_price, close_price),
-                    day_change = :chg_abs,
-                    day_change_pct = :chg_pct,
-                    pnl = :pnl,
-                    updated_at = NOW()
-                WHERE instrument_token = :token AND (quantity + t1_quantity) > 0
-                """,
-                {
-                    "token": tok,
-                    "last_price": last_p,
-                    "close_price": close_p,
-                    "chg_abs": chg_abs,
-                    "chg_pct": chg_pct,
-                    "pnl": pnl,
-                },
-            )
-
             updated_count += 1
         else:
-            # Mark missing quote as stale
+            missing_symbols.append(instrument_token)
+
+    if missing_symbols:
+        # Mark missing quotes as stale
+        for token in missing_symbols:
             execute_sql(
-                "UPDATE live_prices SET is_stale = TRUE WHERE instrument_token = :token",
-                {"token": tok},
+                """
+                UPDATE live_prices
+                SET is_stale = TRUE
+                WHERE instrument_token = :token
+                """,
+                {"token": token},
             )
 
-    return {"status": "ok", "updated": updated_count, "total": len(holdings)}
+    return {"status": "ok", "updated": updated_count, "total": len(symbols)}
+
+
+def poll_kite_quotes_if_stale() -> dict[str, Any]:
+    """Refresh quotes on demand, with one shared cadence for the API and scheduler."""
+    from src.ingestion.kite_auth import get_stored_token
+    from src.ingestion.market_hours import is_market_open
+
+    if not is_market_open():
+        return {"status": "market_closed", "updated": 0}
+    if not get_stored_token():
+        return {"status": "login_required", "updated": 0}
+
+    settings = get_settings()
+    with _refresh_lock:
+        due = execute_sql(
+            """
+            SELECT COUNT(*) AS due_count
+            FROM (
+                SELECT instrument_token FROM user_holdings
+                WHERE (quantity + t1_quantity) > 0
+                UNION
+                SELECT instrument_token FROM user_positions WHERE quantity <> 0
+            ) active
+            LEFT JOIN live_prices lp USING (instrument_token)
+            WHERE lp.last_updated IS NULL
+               OR lp.is_stale
+               OR lp.last_updated < NOW() - (:interval_seconds * INTERVAL '1 second')
+            """,
+            {"interval_seconds": settings.polling_interval_sec},
+        )
+        due_count = int(due[0]["due_count"]) if due else 0
+        if due_count == 0:
+            return {"status": "fresh", "updated": 0}
+        return poll_kite_quotes()
 
 
 def run_kite_polling_daemon():
-    """Main loop for polling quotes during market hours."""
+    """Main loop for polling Kite Connect quotes during market hours."""
     settings = get_settings()
     interval = settings.polling_interval_sec
-    logger.info("Starting Multi-Source Quote Polling Daemon (interval={}s)", interval)
+    logger.info("Starting Kite quote polling daemon (interval={}s)", interval)
 
     while True:
         if is_market_open():

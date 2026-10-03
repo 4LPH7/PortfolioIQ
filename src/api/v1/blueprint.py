@@ -41,7 +41,7 @@ api_v1_bp = Blueprint("api_v1", __name__)
 # ─────────────────────────────────────────────────────────────
 @api_v1_bp.route("/health")
 def health():
-    """Health check endpoint consumed by Render health checks."""
+    """Health check endpoint for local and hosted backend monitoring."""
     return jsonify({"status": "ok", "db": check_connection()})
 
 
@@ -99,7 +99,21 @@ def post_market_calendar(payload: CreateMarketCalendarDTO):
 def portfolio_summary():
     from src.analytics.valuator import get_valuation_summary
 
+    live_refresh = None
+    if request.args.get("refresh") == "1":
+        try:
+            from src.ingestion.kite_quote_poller import poll_kite_quotes_if_stale
+
+            live_refresh = poll_kite_quotes_if_stale()
+        except Exception as exc:
+            # Keep the dashboard available with its last known values when Kite
+            # is unavailable; the UI will still show their source/staleness.
+            logger.warning("On-demand Kite quote refresh failed: {}", exc)
+            live_refresh = {"status": "error"}
+
     data = get_valuation_summary()
+    if live_refresh is not None:
+        data["live_refresh"] = live_refresh
     return jsonify({"ok": True, "data": data})
 
 
@@ -207,21 +221,15 @@ def analyse_stock(symbol: str):
         data.pop("ohlcv", None)
     except Exception as exc:
         logger.warning("analyse_holding failed for {}: {}", symbol, exc)
-        data = {
-            "symbol": symbol,
-            "tradingsymbol": symbol,
-            "current_price": 0.0,
-            "avg_buy_price": avg_price,
-            "data_start": "",
-            "data_end": "",
-            "data_points": 0,
-            "rsi": None,
-            "macd": None,
-            "bollinger": None,
-            "linear_regression": None,
-            "monte_carlo": None,
-            "composite": None,
-        }
+        return jsonify(
+            {
+                "ok": False,
+                "error": {
+                    "code": "ANALYSIS_DATA_UNAVAILABLE",
+                    "message": "Real historical market data is unavailable. Connect Kite and retry.",
+                },
+            }
+        ), 503
 
     # 2. Run / merge walk-forward signal engine
     sig_dto = None
@@ -390,7 +398,9 @@ def manual_sync():
     except Exception as exc:
         logger.debug("Quote poller after sync: {}", exc)
 
-    return jsonify({"ok": True, "data": result})
+    return jsonify({"ok": bool(result.get("ok")), "data": result}), (
+        200 if result.get("ok") else 502
+    )
 
 
 @api_v1_bp.route("/holdings/purge-imported", methods=["POST"])
@@ -408,13 +418,15 @@ def purge_imported():
     except Exception as exc:
         logger.debug("Quote poller after purge: {}", exc)
 
-    return jsonify({
-        "ok": True,
-        "data": {
-            "purged_count": count,
-            "message": f"Successfully purged {count} imported records. Showing live broker portfolio only.",
-        },
-    })
+    return jsonify(
+        {
+            "ok": True,
+            "data": {
+                "purged_count": count,
+                "message": f"Successfully purged {count} imported records. Showing live broker portfolio only.",
+            },
+        }
+    )
 
 
 @api_v1_bp.route("/settings/db-stats")
@@ -1301,6 +1313,7 @@ def import_smart_csv():
     Auto-detect and import a Zerodha CSV export (holdings, positions, or ledger).
     Returns a preview payload before committing. Add ?commit=1 to write to DB.
     """
+    from datetime import date
     from decimal import Decimal
 
     from sqlalchemy import text as sa_text
@@ -1330,6 +1343,24 @@ def import_smart_csv():
     kind = parsed["kind"]
     rows = parsed["rows"]
 
+    # The standard Zerodha holdings export omits exchange. Resolve that case
+    # consistently with our price-symbol map (for example, GOLDCASE is BSE).
+    # Keep the resolved exchange in the preview so the user can verify it.
+    if kind in ("holdings", "positions"):
+        from src.ingestion.ticker_map import get_yf_ticker
+
+        for row in rows:
+            if not row.get("exchange"):
+                ticker = get_yf_ticker(row["symbol"])
+                row["exchange"] = "BSE" if ticker.endswith(".BO") else "NSE"
+
+    def json_safe(value):
+        if isinstance(value, Decimal):
+            return str(value)
+        if isinstance(value, date):
+            return value.isoformat()
+        return value
+
     if not commit:
         return jsonify(
             {
@@ -1339,13 +1370,15 @@ def import_smart_csv():
                 "filename": filename,
                 "row_count": len(rows),
                 "skipped_count": parsed.get("skipped_count", 0),
-                "rows": rows[:50],  # cap preview at 50 rows
+                "rows": [
+                    {key: json_safe(value) for key, value in row.items()} for row in rows[:50]
+                ],  # cap preview at 50 rows
             }
         ), 200
 
     # ── commit to DB ──────────────────────────────────────────
     imported = 0
-    errors_out: list[str] = []
+    cash_flows_imported = 0
 
     with get_db_session() as session:
         if kind in ("holdings", "positions"):
@@ -1428,7 +1461,7 @@ def import_smart_csv():
                             VALUES (
                                 :uid, :tok, :sym, :exch,
                                 :prod, :qty, :avg, :ltp,
-                                0, 0, 0,
+                                :pnl, 0, 0,
                                 'CSV_IMPORT', NOW(), NOW()
                             )
                             ON CONFLICT (user_id, instrument_token, product) DO UPDATE SET
@@ -1447,6 +1480,7 @@ def import_smart_csv():
                             "qty": qty,
                             "avg": avg,
                             "ltp": ltp,
+                            "pnl": float(r.get("pnl") or Decimal("0")),
                             "prod": product,
                         },
                     )
@@ -1454,42 +1488,79 @@ def import_smart_csv():
 
         elif kind == "ledger":
             for r in rows:
-                if r.get("entry_kind") == "BALANCE_SNAPSHOT":
-                    continue
-                try:
-                    session.execute(
-                        sa_text("""
-                            INSERT INTO broker_ledger_entries (
-                                user_id, import_hash, posting_date, particulars,
-                                cost_center, voucher_type, debit, credit,
-                                net_balance, entry_kind, source_file
-                            )
-                            VALUES (
-                                :uid, :hash, :dt, :particulars,
-                                :cc, :vt, :debit, :credit,
-                                :bal, :kind, :src
-                            )
-                            ON CONFLICT (user_id, import_hash) DO NOTHING
-                        """),
-                        {
-                            "uid": user_id,
-                            "hash": r["import_hash"],
-                            "dt": r["posting_date"],
-                            "particulars": r.get("particulars", ""),
-                            "cc": r.get("cost_center", ""),
-                            "vt": r.get("voucher_type", ""),
-                            "debit": float(r.get("debit") or 0),
-                            "credit": float(r.get("credit") or 0),
-                            "bal": float(r.get("net_balance") or 0)
-                            if r.get("net_balance") is not None
-                            else None,
-                            "kind": r.get("entry_kind", "OTHER"),
-                            "src": filename,
-                        },
-                    )
-                    imported += 1
-                except Exception as exc:
-                    errors_out.append(f"Row {r.get('source_row', '?')}: {exc}")
+                inserted = session.execute(
+                    sa_text("""
+                        INSERT INTO broker_ledger_entries (
+                            user_id, import_hash, posting_date, particulars,
+                            cost_center, voucher_type, debit, credit,
+                            net_balance, entry_kind, source_file
+                        )
+                        VALUES (
+                            :uid, :hash, :dt, :particulars,
+                            :cc, :vt, :debit, :credit,
+                            :bal, :kind, :src
+                        )
+                        ON CONFLICT (user_id, import_hash) DO NOTHING
+                    """),
+                    {
+                        "uid": user_id,
+                        "hash": r["import_hash"],
+                        "dt": r["posting_date"],
+                        "particulars": r.get("particulars", ""),
+                        "cc": r.get("cost_center", ""),
+                        "vt": r.get("voucher_type", ""),
+                        "debit": float(r.get("debit") or 0),
+                        "credit": float(r.get("credit") or 0),
+                        "bal": float(r.get("net_balance") or 0)
+                        if r.get("net_balance") is not None
+                        else None,
+                        "kind": r.get("entry_kind", "OTHER"),
+                        "src": filename,
+                    },
+                )
+                imported += max(inserted.rowcount or 0, 0)
+
+                # Statement snapshots and trade settlements are retained in
+                # the ledger, but only genuine external movements enter the
+                # performance cash-flow series.
+                flow_kind = r.get("entry_kind")
+                if flow_kind in {
+                    "DEPOSIT",
+                    "WITHDRAWAL",
+                    "DIVIDEND",
+                    "CHARGE",
+                    "INTEREST",
+                } and r.get("posting_date"):
+                    if flow_kind in {"DEPOSIT", "DIVIDEND", "INTEREST"}:
+                        amount = r.get("credit") or r.get("debit")
+                    else:
+                        amount = r.get("debit") or r.get("credit")
+                    if amount and amount > 0:
+                        flow = session.execute(
+                            sa_text("""
+                                INSERT INTO portfolio_cash_flows (
+                                    user_id, flow_date, flow_type, amount,
+                                    source, external_reference, notes
+                                )
+                                VALUES (
+                                    :uid, :flow_date, :flow_type, :amount,
+                                    'BROKER_LEDGER', :external_reference, :notes
+                                )
+                                ON CONFLICT (user_id, external_reference)
+                                WHERE source = 'BROKER_LEDGER'
+                                  AND external_reference IS NOT NULL
+                                DO NOTHING
+                            """),
+                            {
+                                "uid": user_id,
+                                "flow_date": r["posting_date"],
+                                "flow_type": flow_kind,
+                                "amount": amount,
+                                "external_reference": f"kite-ledger:{r['import_hash']}",
+                                "notes": r.get("particulars", ""),
+                            },
+                        )
+                        cash_flows_imported += max(flow.rowcount or 0, 0)
 
     return jsonify(
         {
@@ -1498,8 +1569,8 @@ def import_smart_csv():
             "kind": kind,
             "filename": filename,
             "imported_count": imported,
+            "cash_flows_imported": cash_flows_imported,
             "skipped_count": parsed.get("skipped_count", 0),
-            "errors": errors_out[:10],
             "message": f"Imported {imported} {kind} rows from {filename}.",
         }
     ), 200

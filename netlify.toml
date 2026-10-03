@@ -1,6 +1,0 @@
-[build]
-  publish = "frontend"
-  command = "bash scripts/netlify-build.sh"
-
-[build.environment]
-  NODE_VERSION = "18"

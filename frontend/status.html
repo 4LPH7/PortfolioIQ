@@ -53,7 +53,6 @@
     <span class="sep">/</span>
     <span class="crumb-current">System Status</span>
   </div>
-  <div id="ticker-area" class="ticker-strip" role="region" aria-label="Portfolio price ticker" tabindex="0"></div>
   <div class="topbar-right">
     <button type="button" class="topbar-bell-btn" id="notification-bell-btn" onclick="PortfolioIQAlerts.toggleDrawer()" title="View Notifications" aria-label="View notifications">
       <span class="material-symbols-outlined bell-icon">notifications</span>
@@ -258,7 +257,7 @@
     } finally {
       if (btnPing) {
         btnPing.disabled = false;
-        btnPing.textContent = "<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">bolt</span> Probe Latency";
+        btnPing.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">bolt</span> Probe Latency';
       }
       const lastPingEl = document.getElementById("last-ping-time");
       if (lastPingEl) {

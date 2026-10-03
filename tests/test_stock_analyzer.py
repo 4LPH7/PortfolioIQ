@@ -9,8 +9,9 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from flask.testing import FlaskClient
+
 import pytest
+from flask.testing import FlaskClient
 
 from flask_app import app
 from src.config.settings import get_settings
@@ -37,7 +38,9 @@ def test_analyzer_html_structure_and_methods():
     content = html_path.read_text(encoding="utf-8")
 
     # Verify no emojis
-    emojis = re.findall(r"[\U0001F300-\U0001F6FF\U0001F900-\U0001F9FF\u2600-\u26FF\u2700-\u27BF]", content)
+    emojis = re.findall(
+        r"[\U0001F300-\U0001F6FF\U0001F900-\U0001F9FF\u2600-\u26FF\u2700-\u27BF]", content
+    )
     assert not emojis, f"Found emojis in analyzer.html: {emojis}"
 
     # Verify Google Material Symbols stylesheet

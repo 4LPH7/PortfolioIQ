@@ -108,17 +108,25 @@ def _fetch_from_yahoo_chart_api(
                 volumes = quote.get("volume", [])
 
                 records = []
-                for ts, o, h, l, c, v in zip(timestamps, opens, highs, lows, closes, volumes):
-                    if c is not None and o is not None:
-                        dt = pd.to_datetime(ts, unit="s", utc=True).tz_convert("Asia/Kolkata").tz_localize(None)
-                        records.append({
-                            "Date": dt,
-                            "Open": float(o),
-                            "High": float(h if h is not None else o),
-                            "Low": float(l if l is not None else o),
-                            "Close": float(c),
-                            "Volume": int(v or 0),
-                        })
+                for ts, bar_open, bar_high, bar_low, bar_close, bar_vol in zip(
+                    timestamps, opens, highs, lows, closes, volumes, strict=False
+                ):
+                    if bar_close is not None and bar_open is not None:
+                        dt = (
+                            pd.to_datetime(ts, unit="s", utc=True)
+                            .tz_convert("Asia/Kolkata")
+                            .tz_localize(None)
+                        )
+                        records.append(
+                            {
+                                "Date": dt,
+                                "Open": float(bar_open),
+                                "High": float(bar_high if bar_high is not None else bar_open),
+                                "Low": float(bar_low if bar_low is not None else bar_open),
+                                "Close": float(bar_close),
+                                "Volume": int(bar_vol or 0),
+                            }
+                        )
                 if records:
                     df = pd.DataFrame(records).set_index("Date").sort_index()
                     logger.debug("Direct Yahoo chart fetched {} bars for {}", len(df), yf_ticker)

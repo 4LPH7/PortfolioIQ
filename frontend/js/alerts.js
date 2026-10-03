@@ -135,6 +135,8 @@
   }
 
   async function fetchAlerts() {
+    if (window.PORTFOLIOIQ_STATIC_PREVIEW) return;
+
     try {
       const base = window.getApiBase();
 

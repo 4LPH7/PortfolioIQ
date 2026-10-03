@@ -1,10 +1,10 @@
 """
-PortfolioIQ — Post-Deployment Smoke Test Runner
+PortfolioIQ — Backend Smoke Test Runner
 Probes live backend health and market endpoints with exponential retry backoff.
 Zero third-party dependencies (Python standard library only).
 
 Usage:
-    python scripts/smoke_test.py --base-url https://portfolioiq-production.up.railway.app
+    python scripts/smoke_test.py --base-url https://your-api-host.example
     python scripts/smoke_test.py --base-url http://localhost:5000 --timeout 30 --interval 2
 """
 
@@ -151,7 +151,7 @@ def main() -> None:
     parser.add_argument(
         "--base-url",
         required=True,
-        help="Target base URL, e.g. http://localhost:5000 or https://portfolioiq.railway.app",
+        help="Target backend base URL, e.g. http://localhost:5000 or https://your-api-host.example",
     )
     parser.add_argument(
         "--timeout",

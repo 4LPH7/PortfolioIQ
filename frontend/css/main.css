@@ -7,6 +7,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
 
 /* ── Google Material Symbols Standard Base ─────────────────── */
+.runtime-host-notice {
+  position: relative;
+  z-index: 10000;
+  padding: 0.75rem 1rem;
+  color: #241a00;
+  background: #ffe4a1;
+  border-bottom: 1px solid #d7a832;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.runtime-host-notice a {
+  color: #16243b;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
   font-weight: 300;
@@ -1105,9 +1123,6 @@ body.sidebar-retracted .sidebar-retract-btn:hover {
   .topbar {
     padding: 0 1rem !important;
   }
-  .ticker-strip {
-    display: none !important;
-  }
 }
 
 @media (min-width: 769px) {
@@ -1848,45 +1863,6 @@ body.sidebar-retracted .nav-item::after {
 .progress-fill.neg { background: linear-gradient(90deg, var(--red2), var(--red)); }
 
 /* ══════════════════════════════════════════════════════════════
-   PRICE TICKER STRIP
-   ══════════════════════════════════════════════════════════════ */
-.ticker-strip {
-  background: rgba(0,212,255,0.04);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 36px;
-  padding: 0.4rem 0.8rem;
-  display: flex;
-  gap: 1.25rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  font-size: 0.8rem;
-  font-family: 'JetBrains Mono', monospace;
-  align-items: center;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  overscroll-behavior-inline: contain;
-}
-.ticker-strip:empty { display: none; }
-.ticker-strip::-webkit-scrollbar { display: none; }
-.ticker-item {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 0.4rem;
-  white-space: nowrap;
-}
-.ticker-symbol { color: var(--text); font-weight: 700; font-size: 0.75rem; }
-.ticker-price  { color: var(--text-muted); }
-.ticker-chg    { font-size: 0.7rem; }
-.ticker-chg.pos { color: var(--green); }
-.ticker-chg.neg { color: var(--red); }
-
-/* ══════════════════════════════════════════════════════════════
    MISC UTILITIES
    ══════════════════════════════════════════════════════════════ */
 .text-accent  { color: var(--accent); }
@@ -2531,7 +2507,6 @@ dialog[open].session-dialog::backdrop {
   .drawer-backdrop,
   .topbar-bell-btn,
   .topbar-refresh,
-  .ticker-strip,
   .btn,
   .btn-action,
   .export-btn,

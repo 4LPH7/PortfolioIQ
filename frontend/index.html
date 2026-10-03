@@ -54,7 +54,6 @@
     <span class="sep">/</span>
     <span class="crumb-current">Dashboard</span>
   </div>
-  <div id="ticker-area" class="ticker-strip" role="region" aria-label="Portfolio price ticker" tabindex="0"></div>
   <div class="topbar-right">
     <button type="button" class="topbar-bell-btn" id="notification-bell-btn" onclick="PortfolioIQAlerts.toggleDrawer()" title="View Notifications" aria-label="View notifications">
       <span class="material-symbols-outlined bell-icon">notifications</span>
@@ -201,14 +200,27 @@ function animateValue(el, end, prefix="₹", dp=2, durationMs=900) {
   requestAnimationFrame(update);
 }
 
+function liveRefreshLabel(data) {
+  const counts = `${data.holdings_count || 0} holdings · ${data.live_prices || 0} live · ${data.stale_prices || 0} stale`;
+  switch (data.live_refresh?.status) {
+    case "error": return `Kite refresh failed · showing saved prices · ${counts}`;
+    case "login_required": return `Connect Kite to refresh prices · ${counts}`;
+    case "market_closed": return `Market closed · showing latest saved prices · ${counts}`;
+    case "empty": return "No portfolio data yet · connect Kite or import a statement";
+    default:
+      return `Updated ${new Date().toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", second: "2-digit"
+      })} IST · ${counts}`;
+  }
+}
+
 (async () => {
   try {
-    const r = await apiGet("/api/portfolio/summary");
+    const r = await apiGet("/api/portfolio/summary", { refresh: "1" });
     if (!r.ok) throw new Error(r.error);
     const d = r.data;
 
-    document.getElementById("last-refresh").textContent =
-      `Last synced: ${new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })} IST · ${d.holdings_count || 0} holdings`;
+    document.getElementById("last-refresh").textContent = liveRefreshLabel(d);
 
     // KPIs with animation
     setTimeout(() => animateValue(document.getElementById("aum"), d.total_aum), 100);
@@ -243,20 +255,6 @@ function animateValue(el, end, prefix="₹", dp=2, durationMs=900) {
       document.getElementById("holdings-wrap").innerHTML =
         `<div class="empty-state"><div class="empty-icon"><span class="material-symbols-outlined" style="font-size:48px;">inbox</span></div><div class="empty-title">No holdings found</div><div class="empty-desc">Run a Kite sync from the Settings page to import your portfolio.</div></div>`;
     } else {
-      // Ticker strip
-      const ticker = document.getElementById("ticker-area");
-      if (ticker) {
-        ticker.innerHTML = holdings.map(h => {
-          const cls = h.pnl_pct >= 0 ? "pos" : "neg";
-          const arrow = h.pnl_pct >= 0 ? "▲" : "▼";
-          return `<div class="ticker-item">
-            <span class="ticker-symbol">${h.symbol}</span>
-            <span class="ticker-price">${fmt(h.current_price)}</span>
-            <span class="ticker-chg ${cls}">${arrow} ${Math.abs(h.pnl_pct||0).toFixed(1)}%</span>
-          </div>`;
-        }).join("");
-      }
-
       const rows = holdings.map(h => {
         const pnlCls = h.pnl >= 0 ? "td-pos" : "td-neg";
         const arrow  = h.pnl >= 0 ? "▲" : "▼";
@@ -401,6 +399,89 @@ function animateValue(el, end, prefix="₹", dp=2, durationMs=900) {
     document.getElementById("holdings-wrap").innerHTML = errBox("Failed to load: " + err.message + ". Is the Flask API running? (python flask_app.py)");
   }
 })();
+
+// Keep the dashboard current while it is open. The API refreshes Kite snapshots
+// only when the configured quote interval has elapsed, so hidden tabs make no
+// requests and this does not require a separate always-on quote worker.
+let dashboardRefreshInFlight = false;
+function updateDashboardLiveData(d) {
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
+  setText("aum", fmt(d.total_aum || 0));
+  setText("pnl", fmt(Math.abs(d.total_pnl || 0)));
+  setText("day-chg", fmt(Math.abs(d.total_day_change || 0)));
+  setText("cash", fmt(d.available_cash || 0));
+  setText("networth", fmt(d.net_worth || 0));
+  setText("aum-sub", `${d.holdings_count || 0} holdings`);
+  setText("data-quality", `${d.live_prices || 0} live · ${d.stale_prices || 0} stale`);
+
+  const pnl = document.getElementById("pnl");
+  if (pnl) pnl.style.color = d.total_pnl < 0 ? "var(--red)" : "var(--green)";
+  const day = document.getElementById("day-chg");
+  if (day) day.style.color = d.total_day_change < 0 ? "var(--red)" : "var(--green)";
+  const pct = document.getElementById("pnl-pct");
+  if (pct) {
+    pct.textContent = (d.total_pnl_pct >= 0 ? "▲ +" : "▼ ") + Math.abs(d.total_pnl_pct || 0).toFixed(2) + "%";
+    pct.className = "kpi-delta " + (d.total_pnl_pct >= 0 ? "pos" : "neg");
+  }
+
+  const holdings = d.holdings || [];
+  const table = document.querySelector("#holdings-table tbody");
+  if (table) {
+    const bySymbol = new Map(holdings.map((h) => [`${h.symbol}|${h.exchange}`, h]));
+    for (const row of table.rows) {
+      const link = row.querySelector(".td-link");
+      if (!link) continue;
+      const symbol = link.textContent.trim();
+      const exchange = row.cells[1]?.textContent.trim();
+      const h = bySymbol.get(`${symbol}|${exchange}`) || holdings.find((item) => item.symbol === symbol);
+      if (!h) continue;
+      row.cells[2].textContent = h.qty;
+      row.cells[3].textContent = fmt(h.avg_price);
+      row.cells[4].textContent = fmt(h.current_price);
+      row.cells[5].textContent = fmt(h.invested);
+      row.cells[6].textContent = fmt(h.current_value);
+      row.cells[7].textContent = `${h.pnl >= 0 ? "▲" : "▼"} ${fmt(Math.abs(h.pnl))}`;
+      row.cells[7].className = `td-mono ${h.pnl >= 0 ? "td-pos" : "td-neg"}`;
+      const returnValue = row.cells[8].querySelector(".td-pos,.td-neg");
+      if (returnValue) {
+        returnValue.textContent = `${h.pnl_pct >= 0 ? "+" : ""}${(h.pnl_pct || 0).toFixed(2)}%`;
+        returnValue.className = h.pnl_pct >= 0 ? "td-pos" : "td-neg";
+      }
+      const bar = row.cells[8].querySelector(".progress-fill");
+      if (bar) bar.style.width = `${Math.min(Math.abs(h.pnl_pct || 0) / 20 * 100, 100)}%`;
+      row.cells[9].textContent = `${(h.weight_pct || 0).toFixed(1)}%`;
+    }
+  }
+
+  setText("last-refresh", liveRefreshLabel(d));
+}
+
+async function refreshDashboardLiveData() {
+  if (dashboardRefreshInFlight || document.hidden) return;
+  dashboardRefreshInFlight = true;
+  try {
+    const response = await apiGet("/api/portfolio/summary", { refresh: "1" });
+    if (response.ok && response.data) {
+      updateDashboardLiveData(response.data);
+    } else {
+      const subtitle = document.getElementById("last-refresh");
+      if (subtitle) subtitle.textContent = `Live refresh failed · ${response.error || "showing last saved prices"}`;
+    }
+  } catch (error) {
+    const subtitle = document.getElementById("last-refresh");
+    if (subtitle) subtitle.textContent = "Live data unavailable · showing last saved prices";
+  } finally {
+    dashboardRefreshInFlight = false;
+  }
+}
+
+setInterval(refreshDashboardLiveData, 15000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshDashboardLiveData();
+});
 
 async function purgeImportedHoldings() {
   if (!confirm("Are you sure you want to purge imported CSV data and keep only live Zerodha broker holdings?")) return;

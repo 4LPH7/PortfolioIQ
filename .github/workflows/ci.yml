@@ -1,4 +1,4 @@
-name: PortfolioIQ CI/CD
+name: PortfolioIQ CI
 
 on:
   push:
@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     name: Scan repository history for secrets
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v3
+      - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_COMMENTS: "false"
@@ -28,10 +28,10 @@ jobs:
     name: Lint code and audit dependencies
     needs: secret-scan
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -57,7 +57,7 @@ jobs:
     name: Validate Docker container build
     needs: secret-scan
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
       - name: Build Docker image
         run: docker build -t portfolioiq:ci .
@@ -81,10 +81,10 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -132,123 +132,33 @@ jobs:
       - name: Verify safety-critical test coverage
         run: python scripts/check_critical_coverage.py
 
-  deploy-backend:
+  deploy-pages:
     runs-on: ubuntu-latest
-    name: Deploy Backend API (Render / Railway)
+    name: Publish static GitHub Pages preview
     needs: [test, docker-build]
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload frontend files
+        uses: actions/upload-pages-artifact@v3
         with:
-          fetch-depth: 2
+          path: frontend
 
-      - name: Set up Python 3.12 for smoke test
-        uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-
-      - name: Determine deployment target
-        env:
-          RENDER_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-          RENDER_URL: ${{ secrets.RENDER_APP_URL }}
-          RAILWAY_TOK: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_URL: ${{ secrets.RAILWAY_APP_URL }}
-          GENERIC_URL: ${{ secrets.API_URL }}
-        run: |
-          if [ -n "$RENDER_HOOK" ]; then
-            echo "DEPLOY_TARGET=render" >> $GITHUB_ENV
-            echo "Deployment target: Render (Deploy Hook)"
-          elif [ -n "$RAILWAY_TOK" ]; then
-            echo "DEPLOY_TARGET=railway" >> $GITHUB_ENV
-            echo "Deployment target: Railway (CLI)"
-          else
-            echo "DEPLOY_TARGET=none" >> $GITHUB_ENV
-            echo "::warning::Neither RENDER_DEPLOY_HOOK_URL nor RAILWAY_TOKEN configured — skipping backend deployment"
-          fi
-
-          TARGET_URL="${RENDER_URL:-${RAILWAY_URL:-$GENERIC_URL}}"
-          if [ -n "$TARGET_URL" ]; then
-            echo "SMOKE_TEST_URL=$TARGET_URL" >> $GITHUB_ENV
-            echo "Smoke test target: $TARGET_URL"
-          else
-            echo "::warning::No API URL configured for smoke test (RENDER_APP_URL, RAILWAY_APP_URL, or API_URL)"
-          fi
-
-      - name: Deploy to Render via Deploy Hook
-        if: env.DEPLOY_TARGET == 'render'
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        run: |
-          echo "Triggering Render deployment via deploy hook..."
-          HTTP_STATUS=$(curl -s -o render_response.txt -w "%{http_code}" -X POST "$RENDER_DEPLOY_HOOK_URL")
-          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
-            echo "Render deployment triggered successfully! (HTTP $HTTP_STATUS)"
-            cat render_response.txt
-          else
-            echo "Render deploy hook returned unexpected status: HTTP $HTTP_STATUS"
-            cat render_response.txt || true
-            exit 1
-          fi
-
-      - name: Deploy to Railway via CLI
-        if: env.DEPLOY_TARGET == 'railway'
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          echo "Deploying to Railway..."
-          npm install -g @railway/cli
-          railway up --detach
-
-      - name: Run post-deployment smoke test
-        if: env.DEPLOY_TARGET != 'none' && env.SMOKE_TEST_URL != ''
-        id: smoke-test
-        run: |
-          python scripts/smoke_test.py --base-url "$SMOKE_TEST_URL" --timeout 120
-
-      - name: Rollback Railway deployment on smoke test failure
-        if: failure() && steps.smoke-test.outcome == 'failure' && env.DEPLOY_TARGET == 'railway'
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          echo "Smoke test failed! Rolling back Railway to previous commit (HEAD~1)..."
-          git checkout HEAD~1
-          railway up --detach
-          echo "Rollback triggered. Failing CI to alert the team."
-          exit 1
-
-  deploy-netlify:
-    runs-on: ubuntu-latest
-    name: Deploy Frontend to Netlify
-    needs: test
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Check Netlify secrets
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        run: |
-          if [ -z "$NETLIFY_AUTH_TOKEN" ] || [ -z "$NETLIFY_SITE_ID" ]; then
-            echo "::warning::Netlify secrets not configured — skipping frontend deployment"
-            echo "SKIP_NETLIFY=true" >> $GITHUB_ENV
-          fi
-
-      - name: Deploy to Netlify
-        if: env.SKIP_NETLIFY != 'true'
-        run: bash scripts/netlify-build.sh
-        env:
-          RAILWAY_API_ORIGIN: ${{ secrets.RAILWAY_API_ORIGIN }}
-
-      - name: Publish frontend to Netlify
-        if: env.SKIP_NETLIFY != 'true'
-        uses: nwtgck/actions-netlify@v3
-        with:
-          publish-dir: './frontend'
-          production-branch: main
-          production-deploy: true
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          deploy-message: "Deploy from GitHub Actions"
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

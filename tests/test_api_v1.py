@@ -68,7 +68,7 @@ def test_broker_callback_returns_to_configured_frontend(client: FlaskClient) -> 
         patch("src.ingestion.kite_auth.exchange_token"),
         patch(
             "src.api.v1.blueprint.get_settings",
-            return_value=SimpleNamespace(frontend_origin="https://custom-site.netlify.app/"),
+            return_value=SimpleNamespace(frontend_origin="https://example.github.io/PortfolioIQ/"),
         ),
     ):
         response = client.get(
@@ -78,7 +78,7 @@ def test_broker_callback_returns_to_configured_frontend(client: FlaskClient) -> 
 
     assert response.status_code == 302
     assert response.headers["Location"] == (
-        "https://custom-site.netlify.app/settings.html?broker=connected"
+        "https://example.github.io/PortfolioIQ/settings.html?broker=connected"
     )
 
 
