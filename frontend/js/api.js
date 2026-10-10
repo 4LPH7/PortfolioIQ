@@ -1,52 +1,18 @@
 /**
  * PortfolioIQ — API Client
- * Thin wrapper around fetch() that talks to the Flask backend.
- * A local Flask backend provides the private API. GitHub Pages only hosts the static UI.
+ * Thin wrapper around fetch() that talks to the local Flask backend.
  */
 
-const IS_GITHUB_PAGES_PREVIEW = window.location.hostname.endsWith(".github.io");
-window.PORTFOLIOIQ_STATIC_PREVIEW = IS_GITHUB_PAGES_PREVIEW;
-
 function getApiBase() {
-  if (IS_GITHUB_PAGES_PREVIEW) return "";
   if (window.location.protocol === "file:") {
     return "http://localhost:5000/api/v1";
   }
   return `${window.location.origin}/api/v1`;
 }
 
-function announceStaticHostingLimit() {
-  if (!window.location.hostname.endsWith(".github.io")) return;
-
-  const showNotice = () => {
-    const notice = document.createElement("aside");
-    notice.className = "runtime-host-notice";
-    notice.setAttribute("role", "status");
-    const heading = document.createElement("strong");
-    heading.textContent = "Static preview: ";
-    notice.append(heading, document.createTextNode(
-      "GitHub Pages does not run the PortfolioIQ API. Kite login, synced holdings, and live quotes require the local Docker app. "
-    ));
-    const setupLink = document.createElement("a");
-    setupLink.href = "https://github.com/4LPH7/PortfolioIQ#local-docker-setup-for-live-kite-data";
-    setupLink.textContent = "Run it locally";
-    notice.append(setupLink, document.createTextNode("."));
-    document.body.prepend(notice);
-  };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", showNotice, { once: true });
-  } else {
-    showNotice();
-  }
-}
-
-announceStaticHostingLimit();
-
 const API_BASE = getApiBase();
 
 function getApiKey() {
-  if (IS_GITHUB_PAGES_PREVIEW) return "";
   return (
     sessionStorage.getItem("portfolioiq_session_key") || ""
   );

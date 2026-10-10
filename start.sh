@@ -6,6 +6,14 @@ echo "  PortfolioIQ — One-Command Full Stack Launcher"
 echo "========================================================"
 echo ""
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+if [ ! -f .env ] && [ -f .env.example ]; then
+    cp .env.example .env
+    echo "[INFO] Initialized .env configuration from .env.example"
+fi
+
 if ! command -v docker &> /dev/null; then
     echo "[ERROR] Docker is not installed or not in PATH."
     exit 1

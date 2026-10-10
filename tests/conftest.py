@@ -47,6 +47,19 @@ def is_postgres_reachable(dsn: str, timeout: int = 1) -> bool:
 
 
 POSTGRES_AVAILABLE = is_postgres_reachable(TEST_DB_URL)
+if not POSTGRES_AVAILABLE:
+    if ":5433" in TEST_DB_URL:
+        alt_url = TEST_DB_URL.replace(":5433", ":5432")
+        if is_postgres_reachable(alt_url):
+            TEST_DB_URL = alt_url
+            os.environ["DATABASE_URL"] = alt_url
+            POSTGRES_AVAILABLE = True
+    elif ":5432" in TEST_DB_URL:
+        alt_url = TEST_DB_URL.replace(":5432", ":5433")
+        if is_postgres_reachable(alt_url):
+            TEST_DB_URL = alt_url
+            os.environ["DATABASE_URL"] = alt_url
+            POSTGRES_AVAILABLE = True
 
 
 def pytest_configure(config: pytest.Config) -> None:

@@ -1,14 +1,14 @@
 {
   "name": "portfolioiq",
   "version": "1.0.0",
-  "description": "PortfolioIQ — Quantitative portfolio analysis and rebalancing engine",
+  "description": "PortfolioIQ — Self-Hosted Quantitative Portfolio Analysis and Rebalancing Engine",
   "scripts": {
-    "start": "docker compose up --build",
+    "start": "python run.py",
+    "start:docker": "docker compose up --build",
     "start:detached": "docker compose up --build -d",
-    "start:local": "powershell -ExecutionPolicy Bypass -File ./start.ps1 -LocalDev",
-    "stop": "docker compose down",
+    "stop": "python run.py --stop",
     "logs": "docker compose logs -f"
   },
   "author": "",
-  "license": "ISC"
+  "license": "MIT"
 }

@@ -30,15 +30,20 @@ Write-Host "========================================================`n" -Foregro
 if ($LocalDev) {
     Write-Host "[Mode: Local Development without Docker]" -ForegroundColor Yellow
     $env:DATABASE_URL = "postgresql://portfolioiq_user:portfolioiq_pass_change_me@localhost:5432/portfolioiq"
-    if (-not $env:PORTFOLIOIQ_API_KEY) { $env:PORTFOLIOIQ_API_KEY = "dev-api-key" }
+    if (-not $env:PORTFOLIOIQ_API_KEY) { $env:PORTFOLIOIQ_API_KEY = "portfolioiq_default_local_key" }
     $env:RUN_INLINE_SCHEDULER = "true"
     
+    $pythonCmd = "python"
+    if (Test-Path "$ProjectRoot\.venv\env\Scripts\python.exe") {
+        $pythonCmd = "$ProjectRoot\.venv\env\Scripts\python.exe"
+    }
+
     Write-Host "Starting Flask backend on http://localhost:5000..." -ForegroundColor Green
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$ProjectRoot'; python flask_app.py"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$ProjectRoot'; & '$pythonCmd' flask_app.py"
     
     Start-Sleep -Seconds 2
     Write-Host "Starting HTTP server for frontend on http://localhost:8080..." -ForegroundColor Green
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$ProjectRoot\frontend'; python -m http.server 8080"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$ProjectRoot\frontend'; & '$pythonCmd' -m http.server 8080"
     
     Start-Sleep -Seconds 2
     if (-not $NoBrowser) {

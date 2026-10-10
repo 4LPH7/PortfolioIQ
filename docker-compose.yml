@@ -38,7 +38,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-portfolioiq_user}:${POSTGRES_PASSWORD:-portfolioiq_pass_change_me}@postgres:5432/${POSTGRES_DB:-portfolioiq}
-      PORTFOLIOIQ_API_KEY: "${PORTFOLIOIQ_API_KEY:?Set a random API key in .env}"
+      PORTFOLIOIQ_API_KEY: ${PORTFOLIOIQ_API_KEY:-portfolioiq_default_local_key}
       KITE_API_KEY: ${KITE_API_KEY:-}
       KITE_API_SECRET: ${KITE_API_SECRET:-}
       KITE_CLIENT_ID: ${KITE_CLIENT_ID:-WJU490}

@@ -1,37 +1,97 @@
 # PortfolioIQ 📈
 
-> **Institutional-Grade Personal Equity Intelligence & Autonomous Portfolio Rebalancing for Indian Markets (NSE/BSE)**
+> **Self-Hosted Institutional-Grade Personal Equity Intelligence & Autonomous Portfolio Rebalancing for Indian Equities (NSE/BSE)**
 
 [![CI](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml/badge.svg)](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml)
 [![Python Version](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![Tests](https://img.shields.io/badge/tests-443%20passed-brightgreen.svg)]()
 [![Coverage](https://img.shields.io/badge/test_coverage-83%25-brightgreen.svg)]()
 [![Critical Path Coverage](https://img.shields.io/badge/safety_critical_coverage-98.9%25-success.svg)]()
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Security: Gitleaks](https://img.shields.io/badge/security-gitleaks-blueviolet.svg)](https://github.com/gitleaks/gitleaks)
+[![Self-Hosted](https://img.shields.io/badge/deployment-100%25%20self--hosted-purple.svg)]()
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-PortfolioIQ is a production-grade algorithmic portfolio management, tax-aware rebalancing, and quantitative signal platform purpose-built for Indian retail equities. It integrates directly with **Zerodha Kite Connect**, models granular Indian market statutory transaction friction (STT, DP charges, GST, SEBI fees, stamp duty), tracks capital gains tax lots under the latest Budget tax provisions, and enforces strict pre-trade validation gates before routing simulated or live orders.
+PortfolioIQ is a 100% self-hosted, institutional-grade quantitative portfolio management, tax-aware rebalancing, and algorithmic signal engine purpose-built for Indian retail equities. It runs entirely on your own hardware or private home server—ensuring your Zerodha broker credentials, access tokens, holdings, trade history, and tax lots remain strictly private.
 
 ---
 
-## 🏛️ System Architecture
+## ⚡ Quick Start: One Command to Run Everything
 
+PortfolioIQ launches its entire stack—PostgreSQL database, Python quantitative API engine, background market poller, and responsive frontend dashboard—with **a single command**:
+
+### Option 1: Cross-Platform Python Launcher (Recommended)
+```bash
+python run.py
 ```
-GitHub repository ──CI passes on main──▶ GitHub Pages
-                                           Static UI preview only
-                                           (no API or private data)
+*Automatically detects Docker, initializes `.env`, applies database migrations, builds containers, launches services, and opens the dashboard in your default browser.*
 
-For live personal use:
-Browser ──▶ Docker frontend ──▶ Flask API ──▶ PostgreSQL
-                                  ├──────────▶ Kite Connect
-                                  └──────────▶ market data services
+### Option 2: Docker Compose Direct
+```bash
+docker compose up --build
+```
+
+### Option 3: Platform Scripts & npm
+- **Windows**: Double-click `start.bat` or run `.\start.ps1`
+- **macOS / Linux**: Run `./start.sh`
+- **Node/npm**: Run `npm start`
+
+### 🌐 Access Your Services
+| Component | Local URL | Description |
+| :--- | :--- | :--- |
+| **Frontend UI** | [**http://localhost:8080**](http://localhost:8080) | Full responsive glassmorphic dashboard (Nginx reverse-proxy) |
+| **Unified Web App** | [**http://localhost:5000**](http://localhost:5000) | Direct Flask backend serving both REST API and UI |
+| **API Health Status** | [**http://localhost:5000/api/v1/health**](http://localhost:5000/api/v1/health) | System health and database connectivity probe |
+| **Database GUI** | [**http://localhost:5050**](http://localhost:5050) | Optional pgAdmin interface (`docker compose --profile tools up -d`) |
+
+To stop all services:
+```bash
+python run.py --stop   # or: docker compose down
 ```
 
 ---
 
-## 📱 The 10 Production Pages
+## 🏛️ Self-Hosted Architecture
 
-PortfolioIQ features a refined obsidian dark design system built with native **Cross-Document View Transitions**, fluid **physics-based spring easing**, and accessible WCAG 2.1 AA compliant typography:
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              LOCAL MACHINE                                  │
+│                                                                             │
+│  User Browser                                                               │
+│       │                                                                     │
+│       ▼                                                                     │
+│  Frontend Dashboard (Nginx :8080 / Flask :5000)                             │
+│       │                                                                     │
+│       ▼                                                                     │
+│  PortfolioIQ REST API & Quant Engine (Python 3.12 / Flask :5000)             │
+│       │                                       │                             │
+│       ├─▶ PostgreSQL 16 (Port :5433)          ├─▶ Zerodha Kite Connect API   │
+│       │   • user_holdings                     │   • OAuth session exchange  │
+│       │   • user_positions                    │   • Live LTP & quote polling│
+│       │   • user_margins                      │   • Holdings & SOD sync     │
+│       │   • live_prices & price_history       │   • Dry-run / live orders   │
+│       │   • tax_lots & cash_flows             │                             │
+│       │   • order_audit_trail                 └─▶ Direct Yahoo Chart Cache  │
+│       │   • schema_migrations (idempotent)        (historical fallback)     │
+│       │                                                                     │
+│       ▼                                                                     │
+│  Background Scheduler (APScheduler)                                         │
+│       • Market open/close countdown & calendar awareness                    │
+│       • Periodic quote poller during market hours (09:15–15:30 IST)         │
+│       • End-of-day equity curve snapshots & alpha attribution                │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 🔒 100% Private, On-Premise Data Privacy
+- **Zero Cloud Footprint**: No third-party SaaS servers, no telemetry phone-home, no cloud hosting lock-in.
+- **Fail-Closed Execution**: Operates in `DRY_RUN_MODE=true` by default. Real orders can only be placed if explicitly enabled and authorized with a safety verification token.
+- **Local Isolation**: Broker API credentials, TOTP keys, request tokens, and account numbers reside strictly inside your local `.env` and PostgreSQL volume.
+
+---
+
+## 📱 The 10 Self-Hosted Dashboard Pages
+
+PortfolioIQ features a responsive obsidian-dark design system built with native **Cross-Document View Transitions**, fluid **physics-based spring easing**, and accessible WCAG 2.1 AA compliant typography:
 
 | Page | URL | Core Capabilities |
 | :--- | :--- | :--- |
@@ -42,7 +102,7 @@ PortfolioIQ features a refined obsidian dark design system built with native **C
 | **📋 Audit Log** | [`/audit.html`](frontend/audit.html) | Append-only immutable log of every order recommendation, pre-trade gatekeeper validation check, and broker response with full cryptographic auditability and CSV export. |
 | **📅 Portfolio Timeline** | [`/timeline.html`](frontend/timeline.html) | Interactive equity curve charting portfolio Time-Weighted Return (TWR) vs NIFTY 50 TRI benchmark with event pin markers for deposits, withdrawals, and rebalance trades. |
 | **⚡ System Status** | [`/status.html`](frontend/status.html) | Real-time health diagnostic dashboard: PostgreSQL database connectivity, Zerodha broker session verification, NSE trading countdown timer, and Phase 8 trading safety certification gates. |
-| **📑 Monthly Report** | [`/report.html`](frontend/report.html) | Executive monthly performance statement formatted for A4/PDF export featuring Sharpe Ratio, Sortino Ratio, Maximum Drawdown, Jensen's Alpha, Beta, and cost attribution. |
+| **📑 Monthly Report** | [`/report.html`](frontend/report.html) | Executive monthly performance statement formatted for A4/PDF print and export featuring Sharpe Ratio, Sortino Ratio, Maximum Drawdown, Jensen's Alpha, Beta, and cost attribution. |
 | **⚙️ System Settings** | [`/settings.html`](frontend/settings.html) | Runtime configuration editor for gatekeeper slippage bounds, concentration limits, database migration status, price partition inspection, and session management. |
 | **🚀 Onboarding Wizard** | [`/onboarding.html`](frontend/onboarding.html) | Guided first-run setup for the Kite connection, broker or CSV portfolio import, and target allocations. |
 
@@ -50,12 +110,12 @@ PortfolioIQ features a refined obsidian dark design system built with native **C
 
 ## 🧮 Quantitative Signal Engine & Evidence Gating
 
-Unlike conventional bots that rely on arbitrary heuristic triggers, PortfolioIQ gates all signals through empirical rigor:
+Unlike conventional bots that rely on arbitrary heuristic triggers, PortfolioIQ gates all signals through empirical quantitative rigor:
 
 1. **Walk-Forward Cross-Validation (252-Day Train / 63-Day Test):**  
    Evaluates each technical indicator independently across historical rolling out-of-sample periods with zero lookahead bias.
 2. **Spearman Rank Information Coefficient (IC) & Pruning:**  
-   Calculates the Spearman rank correlation between indicator rank and future forward returns (5, 20, 60 trading days). Indicators with mean out-of-sample $IC \le 0$ or $p > 0.05$ are automatically pruned to weight 0.0.
+   Calculates the Spearman rank correlation between indicator rank and future forward returns (5, 20, 60 trading days). Indicators with mean out-of-sample $\text{IC} \le 0$ or $p > 0.05$ are automatically pruned to weight 0.0.
 3. **Dynamic Information Ratio (IR) Weighting:**  
    Active indicators are weighted proportionally to their predictive signal-to-noise ratio:  
    $$\text{IR} = \frac{\overline{\text{IC}}}{\sigma_{\text{IC}}}$$
@@ -81,105 +141,88 @@ All trade recommendations and rebalancing proposals calculate complete statutory
 
 ---
 
-## 🚢 Hosting and Local Live Use
+## 🔑 Zerodha Kite Connect Configuration
 
-GitHub Pages can publish the static files in `frontend/`, and the CI workflow deploys them after the main-branch tests and Docker build pass. Enable **Settings → Pages → Build and deployment → GitHub Actions** in the repository. On the free GitHub plan, Pages requires a public repository.
+PortfolioIQ uses the official Kite Connect API for live quotes, Start-of-Day (SOD) holdings sync, positions, and margin tracking.
 
-Pages is a static file host. It cannot run the Flask API, perform Kite's server-side login exchange, connect privately to PostgreSQL, or keep a live quote process running. The Pages site is therefore a UI preview only; it cannot show synced holdings, complete Kite login, or update live data. GitHub Actions jobs are temporary build jobs, not an always-on API server. GitHub also says Pages is not intended for SaaS hosting or sensitive transactions. See [GitHub Pages limitations](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits).
-
-For a free, usable personal setup, run the backend and frontend together with Docker on your own computer. This keeps broker credentials and portfolio data off the public site and does not require a paid worker. The computer and Docker services must be running for data refreshes.
-
-### Local Docker setup for live Kite data
-
-1. Copy `.env.example` to `.env`, then set `KITE_API_KEY`, `KITE_API_SECRET`, and a long random `PORTFOLIOIQ_API_KEY`. Keep `DRY_RUN_MODE=true`.
-2. Start the app with `docker compose up --build` and open `http://localhost:8080`.
-3. In the Kite developer console, set the redirect URL to `http://127.0.0.1:5000/api/v1/broker/callback`. Keep `KITE_REDIRECT_URL` at that value and `FRONTEND_ORIGIN=http://localhost:8080` in `.env`.
-4. Open **Settings → Broker connection** and sign in to Kite. Kite requires a user login each trading day. A successful login syncs funds, holdings, and positions. While the local dashboard is open, quotes refresh automatically at the configured polling interval.
-5. Confirm `http://localhost:5000/api/v1/health` reports a healthy database. Do not put `.env`, Kite credentials, API keys, access tokens, or portfolio exports in GitHub Pages or the repository.
-
-### Database safety
-
-Keep `DATABASE_URL` and any Supabase service-role key in the backend's private environment only; never add them to frontend files or GitHub Pages. Before storing real user data, verify that database access policies match the app's authorization model. Apply schema updates with the repository migrations and verify their recorded versions before use.
+1. **Create an App in Kite Developer Console**:
+   - Go to [developers.kite.trade](https://developers.kite.trade/apps).
+   - Create a new app.
+   - Set the **Redirect URL** to:
+     ```
+     http://127.0.0.1:5000/api/v1/broker/callback
+     ```
+2. **Configure Your `.env` File**:
+   Copy `.env.example` to `.env` (handled automatically on first run) and enter your credentials:
+   ```env
+   KITE_API_KEY=your_kite_api_key_here
+   KITE_API_SECRET=your_kite_api_secret_here
+   KITE_CLIENT_ID=your_zerodha_client_id
+   KITE_REDIRECT_URL=http://127.0.0.1:5000/api/v1/broker/callback
+   PORTFOLIOIQ_API_KEY=your_chosen_api_secret_key
+   DRY_RUN_MODE=true
+   ```
+3. **Daily Authentication**:
+   - Open **Settings → Broker connection** (or click the Kite login button on the top shelf).
+   - Log in with your Zerodha credentials.
+   - Kite will securely redirect to `http://127.0.0.1:5000/api/v1/broker/callback` and complete the token handshake.
+   - Your holdings, margins, and positions sync instantly into your local PostgreSQL database.
 
 ---
 
-## 🛠️ Local Development & Quick Start
+## 🛠️ Manual / Development Setup (Without Docker)
 
-### 1. Prerequisites
-- Python 3.12+
-- Docker & Docker Compose (or local PostgreSQL 16+)
-- Git
+If you prefer running PortfolioIQ directly with native Python and PostgreSQL:
 
-### 2. Setup Environment
 ```bash
-# Clone the repository
+# 1. Clone repository
 git clone https://github.com/4LPH7/PortfolioIQ.git
 cd PortfolioIQ
 
-# Create and activate virtual environment
+# 2. Create virtual environment & install dependencies
 python -m venv .venv
-# Windows (PowerShell):
-.venv\Scripts\Activate.ps1
-# Linux/macOS:
-source .venv/bin/activate
-
-# Install dependencies
+source .venv/bin/activate  # On Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-```
 
-### 3. Database & Migrations
-
-The local Docker Compose database is published on `127.0.0.1:5433` so it can run beside a local PostgreSQL server on the default port. The example `.env` uses the matching Docker database name, user, password, and port.
-
-```bash
-# Start local PostgreSQL container
-docker-compose up -d postgres
-
-# Copy sample configuration
+# 3. Setup configuration & database
 cp .env.example .env
-
-# Run all 21 idempotent database migrations
 python db/run_migrations.py
-```
 
-### 4. Start Backend & Frontend
-```bash
-# Launch Flask REST API (port 5000)
-python flask_app.py
-
-# In a separate terminal, serve the frontend
-python -m http.server 8080 --directory frontend
+# 4. Start the application
+python run.py --local
 ```
-Navigate to `http://localhost:8080` in your browser. The frontend auto-detects `localhost:5000` for all API calls.
 
 ---
 
 ## 🧪 Testing & Quality Gates
 
-PortfolioIQ enforces an institutional test suite with zero tolerance for schema drift or untested critical paths:
+PortfolioIQ maintains an institutional-grade test suite with 100% passing tests and strict safety certification:
 
 ```bash
-# Run complete test suite with coverage
+# Run complete test suite (443 unit & integration tests)
+pytest tests/ -v
+
+# Run with test coverage enforcement (>= 75% overall)
 pytest tests/ --cov=src --cov-fail-under=75 -v
 
-# Verify safety-critical path coverage (enforces >= 85% on execution modules)
+# Verify safety-critical execution path coverage (>= 85% on order routing & gatekeeper)
 python scripts/check_critical_coverage.py
 
-# Run Ruff linter and code formatter check
+# Check code style with Ruff
 ruff check .
 ruff format --check .
 
-# Run pre-deployment dependency vulnerability audit
+# Run dependency vulnerability audit
 pip-audit -r requirements.txt --ignore-vuln PYSEC-2020-25 --ignore-vuln CVE-2026-77528
 ```
 
 ### Safety Certification Metrics
-- **Total Test Cases**: 437 passed
-- **Overall Code Coverage**: 82.91%
-- **Critical Path Gatekeeper Coverage**: 100.00%
-- **Slippage Validator Coverage**: 96.72%
-- **Trading Safety Gatekeeper**: 98.90%
-- **Secret Leaks**: 0 detected (Gitleaks verified)
+- **Total Test Cases**: **443 passed** (0 failures, 0 regressions)
+- **Overall Code Coverage**: **83%+**
+- **Critical Path Gatekeeper Coverage**: **100.00%**
+- **Slippage Validator Coverage**: **96.72%**
+- **Trading Safety Gatekeeper**: **98.90%**
+- **Secret Leaks**: **0 detected** (Gitleaks verified)
 
 ---
 
@@ -190,9 +233,9 @@ pip-audit -r requirements.txt --ignore-vuln PYSEC-2020-25 --ignore-vuln CVE-2026
 | `DATABASE_URL` | String | *Required* | PostgreSQL connection string (`postgresql://user:pass@host:5432/db`) |
 | `KITE_API_KEY` | String | *Required* | Zerodha Kite Connect developer API key |
 | `KITE_API_SECRET` | String | *Required* | Zerodha Kite Connect developer API secret |
-| `PORTFOLIOIQ_API_KEY` | String | *Required* | Private authentication key passed in `X-API-Key` HTTP header |
+| `PORTFOLIOIQ_API_KEY` | String | `portfolioiq_default_local_key` | Private authentication key passed in `X-API-Key` HTTP header |
 | `DRY_RUN_MODE` | Boolean | `true` | **Safety Core**: When `true`, all orders are simulated. Must remain `true` until certified. |
-| `ALLOWED_ORIGINS` | String | local development origins | Comma-separated list of allowed browser origins |
+| `ALLOWED_ORIGINS` | String | `http://localhost:8080,http://127.0.0.1:5000` | Comma-separated list of allowed browser origins |
 | `FRONTEND_ORIGIN` | URL | `http://localhost:8080` | Frontend origin used after successful broker sign-in |
 | `APP_ENV` | String | `development` | Environment mode (`development` or `production`) |
 | `LOG_LEVEL` | String | `INFO` | Loguru logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |

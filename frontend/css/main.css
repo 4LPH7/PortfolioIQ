@@ -7,24 +7,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
 
 /* ── Google Material Symbols Standard Base ─────────────────── */
-.runtime-host-notice {
-  position: relative;
-  z-index: 10000;
-  padding: 0.75rem 1rem;
-  color: #241a00;
-  background: #ffe4a1;
-  border-bottom: 1px solid #d7a832;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  text-align: center;
-}
-
-.runtime-host-notice a {
-  color: #16243b;
-  font-weight: 700;
-  text-decoration: underline;
-}
-
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
   font-weight: 300;

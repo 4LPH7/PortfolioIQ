@@ -5,6 +5,13 @@ echo   PortfolioIQ -- One-Command Full Stack Launcher
 echo ========================================================
 echo.
 
+if not exist "%~dp0.env" (
+    if exist "%~dp0.env.example" (
+        copy "%~dp0.env.example" "%~dp0.env" >nul
+        echo [INFO] Initialized .env configuration from .env.example
+    )
+)
+
 where docker >nul 2>nul
 if %errorlevel% neq 0 (
     echo [WARNING] Docker is not installed or not in PATH!
