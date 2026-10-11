@@ -20,31 +20,38 @@ PortfolioIQ is a 100% self-hosted, institutional-grade quantitative portfolio ma
 
 PortfolioIQ launches its entire stack—PostgreSQL database, Python quantitative API engine, background market poller, and responsive frontend dashboard—with **a single command**:
 
-### Option 1: Cross-Platform Python Launcher (Recommended)
+### 🚀 Primary Launcher (Cross-Platform)
 ```bash
 python run.py
 ```
-*Automatically detects Docker, initializes `.env`, applies database migrations, builds containers, launches services, and opens the dashboard in your default browser.*
+*Automatically detects Docker, initializes `.env`, checks for port availability, builds containers, starts all services, verifies backend health, and opens the dashboard in your default browser.*
 
-### Option 2: Docker Compose Direct
-```bash
-docker compose up --build
-```
+### 🛠️ One-Command Launcher CLI Options
+| Command | Mode | Description |
+| :--- | :--- | :--- |
+| `python run.py` | **Standard** | Builds & starts containers, opens browser, streams live container logs |
+| `python run.py -d` | **Background** | Starts all containers in detached mode and exits |
+| `python run.py --status` | **Health Probe** | Displays live container states and probes API & UI endpoints |
+| `python run.py --stop` | **Stop** | Gracefully terminates and removes all running containers |
+| `python run.py --local` | **Native Dev** | Runs migrations and unified Flask server natively without Docker |
+| `python run.py --no-browser` | **Headless** | Starts containers without launching a browser window |
 
-### Option 3: Platform Scripts & npm
+### 💻 Quick-Launch Shortcuts
 - **Windows**: Double-click `start.bat` or run `.\start.ps1`
 - **macOS / Linux**: Run `./start.sh`
-- **Node/npm**: Run `npm start`
+- **Node / npm**: Run `npm start` (or `npm run status`, `npm run stop`)
+- **Docker Compose Direct**: Run `docker compose up --build`
 
 ### 🌐 Access Your Services
 | Component | Local URL | Description |
 | :--- | :--- | :--- |
 | **Frontend UI** | [**http://localhost:8080**](http://localhost:8080) | Full responsive glassmorphic dashboard (Nginx reverse-proxy) |
-| **Unified Web App** | [**http://localhost:5000**](http://localhost:5000) | Direct Flask backend serving both REST API and UI |
+| **Unified Web App** | [**http://localhost:5000**](http://localhost:5000) | Direct Flask backend serving both REST API and static UI |
 | **API Health Status** | [**http://localhost:5000/api/v1/health**](http://localhost:5000/api/v1/health) | System health and database connectivity probe |
 | **Database GUI** | [**http://localhost:5050**](http://localhost:5050) | Optional pgAdmin interface (`docker compose --profile tools up -d`) |
+| **PostgreSQL Port** | `127.0.0.1:5434` (host) | Isolated local database (configurable via `POSTGRES_PORT` in `.env`) |
 
-To stop all services:
+To stop all services anytime:
 ```bash
 python run.py --stop   # or: docker compose down
 ```
@@ -65,7 +72,7 @@ python run.py --stop   # or: docker compose down
 │       ▼                                                                     │
 │  PortfolioIQ REST API & Quant Engine (Python 3.12 / Flask :5000)             │
 │       │                                       │                             │
-│       ├─▶ PostgreSQL 16 (Port :5433)          ├─▶ Zerodha Kite Connect API   │
+│       ├─▶ PostgreSQL 16 (Port :5434 / :5432)  ├─▶ Zerodha Kite Connect API   │
 │       │   • user_holdings                     │   • OAuth session exchange  │
 │       │   • user_positions                    │   • Live LTP & quote polling│
 │       │   • user_margins                      │   • Holdings & SOD sync     │
@@ -83,7 +90,7 @@ python run.py --stop   # or: docker compose down
 ```
 
 ### 🔒 100% Private, On-Premise Data Privacy
-- **Zero Cloud Footprint**: No third-party SaaS servers, no telemetry phone-home, no cloud hosting lock-in.
+- **Zero Cloud Footprint**: No third-party SaaS servers, no cloud hosting dependencies, no telemetry phone-home, no external deployments.
 - **Fail-Closed Execution**: Operates in `DRY_RUN_MODE=true` by default. Real orders can only be placed if explicitly enabled and authorized with a safety verification token.
 - **Local Isolation**: Broker API credentials, TOTP keys, request tokens, and account numbers reside strictly inside your local `.env` and PostgreSQL volume.
 

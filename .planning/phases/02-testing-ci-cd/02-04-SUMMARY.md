@@ -48,8 +48,7 @@ status: complete
   - `lint-and-audit` runs in parallel with Docker build, validating code formatting (`ruff format --check .`), code quality (`ruff check .`), and dependency CVE vulnerabilities (`pip-audit -r requirements.txt --desc`) with pip package caching.
   - `docker-build` verifies `docker build -t portfolioiq:ci .` ensuring container buildability without waiting for deployment stages.
   - `test` orchestrates `postgres:16-alpine` service container with standard credentials (`portfolioiq_user` / `portfolioiq_pass_change_me`) and pg_isready health checks, executes `db/run_migrations.py`, enforces >= 75% overall coverage via `pytest --cov-fail-under=75`, and validates >= 85% safety-critical coverage with `scripts/check_critical_coverage.py`.
-  - `deploy-railway` deploys to Railway on `main` push, probes `/api/v1/health` and `/api/v1/market/status` with `scripts/smoke_test.py`, and triggers automated rollback to `HEAD~1` if health checks fail.
-  - `deploy-netlify` publishes the static frontend to Netlify after tests pass.
+  - Note: External deployment jobs (`deploy-railway` and `deploy-netlify`) were subsequently decommissioned when PortfolioIQ transitioned to a 100% self-hosted on-premise tool with a one-command containerized launcher (`python run.py`).
 - **Documented Branch Protection Settings:**
   - Recommended branch protection rules for `main`:
     - Require status checks to pass before merging:

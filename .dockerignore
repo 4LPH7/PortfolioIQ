@@ -3,6 +3,9 @@
 .gitignore
 .github
 .planning
+.netlify
+frontend/.netlify
+
 
 # ── Python caches ────────────────────────────────────────────
 __pycache__

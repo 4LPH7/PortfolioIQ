@@ -53,3 +53,8 @@ htmlcov/
 .coverage
 .coverage.*
 coverage.json
+
+# Previous deployment artifacts (legacy)
+.netlify/
+frontend/.netlify/
+

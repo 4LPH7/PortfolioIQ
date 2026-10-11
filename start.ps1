@@ -1,15 +1,17 @@
 <#
 .SYNOPSIS
-    PortfolioIQ One-Command Launcher (Docker & Local)
+    PortfolioIQ One-Command Launcher (Cross-Platform / Windows PowerShell)
 .DESCRIPTION
-    Builds and starts all PortfolioIQ services:
-    - PostgreSQL Database (container: portfolioiq_postgres)
-    - Backend REST API & Engine (container: portfolioiq_backend on :5000)
-    - Frontend UI Web Server (container: portfolioiq_frontend on :8080)
+    Builds and starts all PortfolioIQ services in one command:
+    - PostgreSQL Database (container: portfolioiq_postgres on port 5434)
+    - Backend REST API & Quant Engine (container: portfolioiq_backend on port 5000)
+    - Frontend UI Web Server (container: portfolioiq_frontend on port 8080)
     Automatically opens the dashboard in your default browser.
 .EXAMPLE
     .\start.ps1           # Starts full stack in Docker and opens browser
     .\start.ps1 -Detach   # Starts in background
+    .\start.ps1 -Status   # Checks service health status
+    .\start.ps1 -Stop     # Stops all containers
     .\start.ps1 -LocalDev # Runs locally without Docker
 #>
 
@@ -17,91 +19,78 @@
 param(
     [switch]$NoBrowser,
     [switch]$Detach,
-    [switch]$LocalDev
+    [switch]$LocalDev,
+    [switch]$Status,
+    [switch]$Stop
 )
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = $PSScriptRoot
 
-Write-Host "`n========================================================" -ForegroundColor Cyan
-Write-Host "   PortfolioIQ — Full Stack Financial Dashboard" -ForegroundColor Cyan
-Write-Host "========================================================`n" -ForegroundColor Cyan
+# Locate best python executable
+$pythonCmd = $null
+$candidates = @(
+    "$ProjectRoot\.venv\env\Scripts\python.exe",
+    "$ProjectRoot\.venv\Scripts\python.exe",
+    (Get-Command python -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue),
+    (Get-Command py -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue)
+)
+foreach ($c in $candidates) {
+    if ($c -and (Test-Path $c)) {
+        $pythonCmd = $c
+        break
+    }
+}
 
-if ($LocalDev) {
-    Write-Host "[Mode: Local Development without Docker]" -ForegroundColor Yellow
-    $env:DATABASE_URL = "postgresql://portfolioiq_user:portfolioiq_pass_change_me@localhost:5432/portfolioiq"
-    if (-not $env:PORTFOLIOIQ_API_KEY) { $env:PORTFOLIOIQ_API_KEY = "portfolioiq_default_local_key" }
-    $env:RUN_INLINE_SCHEDULER = "true"
-    
-    $pythonCmd = "python"
-    if (Test-Path "$ProjectRoot\.venv\env\Scripts\python.exe") {
-        $pythonCmd = "$ProjectRoot\.venv\env\Scripts\python.exe"
+if ($pythonCmd) {
+    $argsList = @("$ProjectRoot\run.py")
+    if ($Detach) { $argsList += "-d" }
+    if ($LocalDev) { $argsList += "--local" }
+    if ($NoBrowser) { $argsList += "--no-browser" }
+    if ($Status) { $argsList += "--status" }
+    if ($Stop) { $argsList += "--stop" }
+
+    & $pythonCmd $argsList
+    exit $LASTEXITCODE
+}
+
+# Fallback directly to Docker Compose if Python is not present
+if (Get-Command docker -ErrorAction SilentlyContinue) {
+    Set-Location $ProjectRoot
+    if (-not (Test-Path "$ProjectRoot\.env") -and (Test-Path "$ProjectRoot\.env.example")) {
+        Copy-Item "$ProjectRoot\.env.example" "$ProjectRoot\.env"
+        Write-Host "Initialized .env configuration from .env.example" -ForegroundColor Yellow
     }
 
-    Write-Host "Starting Flask backend on http://localhost:5000..." -ForegroundColor Green
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$ProjectRoot'; & '$pythonCmd' flask_app.py"
-    
-    Start-Sleep -Seconds 2
-    Write-Host "Starting HTTP server for frontend on http://localhost:8080..." -ForegroundColor Green
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$ProjectRoot\frontend'; & '$pythonCmd' -m http.server 8080"
-    
-    Start-Sleep -Seconds 2
-    if (-not $NoBrowser) {
-        Start-Process "http://localhost:8080/index.html"
+    if ($Stop) {
+        docker compose down
+        exit $LASTEXITCODE
     }
-    Write-Host "`nPortfolioIQ is running!" -ForegroundColor Cyan
-    Write-Host "  Frontend: http://localhost:8080" -ForegroundColor White
-    Write-Host "  Backend:  http://localhost:5000/api/v1/health`n" -ForegroundColor White
-    return
-}
 
-# Verify Docker is available
-if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    Write-Warning "Docker command not found in PATH."
-    Write-Host "Falling back to local development mode (-LocalDev)..." -ForegroundColor Yellow
-    & "$PSScriptRoot\start.ps1" -LocalDev
-    return
-}
+    if ($Status) {
+        docker compose ps
+        exit $LASTEXITCODE
+    }
 
-Set-Location $ProjectRoot
-
-# Copy .env.example to .env if .env does not exist
-if (-not (Test-Path "$ProjectRoot\.env") -and (Test-Path "$ProjectRoot\.env.example")) {
-    Copy-Item "$ProjectRoot\.env.example" "$ProjectRoot\.env"
-    Write-Host "Initialized .env configuration from .env.example" -ForegroundColor Yellow
-}
-
-Write-Host "Building and launching containers via Docker Compose..." -ForegroundColor Green
-
-if ($Detach) {
+    Write-Host "Building and launching containers via Docker Compose..." -ForegroundColor Green
     docker compose up --build -d
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Docker Compose failed to start services."
     }
-    Start-Sleep -Seconds 4
-    Write-Host "`n========================================================" -ForegroundColor Green
-    Write-Host "   PortfolioIQ Containers are Running!" -ForegroundColor Green
-    Write-Host "   Frontend Dashboard: http://localhost:8080" -ForegroundColor Cyan
-    Write-Host "   Backend API:        http://localhost:5000" -ForegroundColor Cyan
-    Write-Host "   API Health:         http://localhost:5000/api/v1/health" -ForegroundColor Cyan
-    Write-Host "========================================================`n" -ForegroundColor Green
-    Write-Host "To view live logs: docker compose logs -f" -ForegroundColor White
-    Write-Host "To stop services:  docker compose down`n" -ForegroundColor White
+
+    Start-Sleep -Seconds 3
+    Write-Host "`nPortfolioIQ is running!" -ForegroundColor Green
+    Write-Host "  Frontend: http://localhost:8080" -ForegroundColor Cyan
+    Write-Host "  Backend:  http://localhost:5000/api/v1/health`n" -ForegroundColor Cyan
 
     if (-not $NoBrowser) {
         Start-Process "http://localhost:8080/index.html"
+    }
+
+    if (-not $Detach) {
+        Write-Host "Streaming live container logs (Ctrl+C to detach):`n" -ForegroundColor Yellow
+        docker compose logs -f
     }
 } else {
-    # Launch in background, then open browser and tail logs
-    docker compose up --build -d
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Docker Compose failed to start services."
-    }
-    Start-Sleep -Seconds 4
-    Write-Host "`nOpening browser at http://localhost:8080/index.html..." -ForegroundColor Cyan
-    if (-not $NoBrowser) {
-        Start-Process "http://localhost:8080/index.html"
-    }
-    Write-Host "`nStreaming container logs (Press Ctrl+C to detach):`n" -ForegroundColor Yellow
-    docker compose logs -f
+    Write-Error "Neither Python nor Docker was found in PATH."
 }

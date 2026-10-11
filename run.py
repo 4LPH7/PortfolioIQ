@@ -7,14 +7,17 @@ Usage:
     python run.py             # Build & start full stack in Docker, open dashboard
     python run.py -d          # Start in detached background mode
     python run.py --stop      # Stop all running containers
+    python run.py --status    # Check status of running services
     python run.py --local     # Run locally without Docker (Python + local Postgres)
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -28,7 +31,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 def print_banner():
     banner = """
 ======================================================================
-  PortfolioIQ — Self-Hosted Institutional Portfolio Intelligence
+  PortfolioIQ -- Self-Hosted Institutional Portfolio Intelligence
 ======================================================================
 """
     print(banner)
@@ -40,6 +43,42 @@ def ensure_env_file():
     if not env_file.exists() and env_example.exists():
         shutil.copy(env_example, env_file)
         print("[INFO] Initialized .env configuration from .env.example")
+
+
+def get_python_executable() -> str:
+    """Find the best Python interpreter (virtual environment if available)."""
+    candidates = [
+        ROOT_DIR / ".venv" / "env" / "Scripts" / "python.exe",
+        ROOT_DIR / ".venv" / "Scripts" / "python.exe",
+        ROOT_DIR / ".venv" / "bin" / "python",
+        ROOT_DIR / "venv" / "Scripts" / "python.exe",
+        ROOT_DIR / "venv" / "bin" / "python",
+    ]
+    for c in candidates:
+        if c.is_file():
+            return str(c)
+    return sys.executable
+
+
+def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
+    """Check if a TCP port is currently open and bound on localhost."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.5)
+        return s.connect_ex((host, port)) == 0
+
+
+def check_port_conflicts():
+    """Warn early if key application ports are occupied."""
+    ports_to_check = [(8080, "Frontend Dashboard"), (5000, "Backend REST API")]
+    conflicts = []
+    for port, label in ports_to_check:
+        if is_port_in_use(port):
+            conflicts.append((port, label))
+    if conflicts:
+        print("[WARNING] The following ports are already in use on your system:")
+        for port, label in conflicts:
+            print(f"  - Port {port} ({label})")
+        print("Existing containers or applications might need to be stopped if conflicts occur.\n")
 
 
 def is_docker_available() -> bool:
@@ -75,11 +114,10 @@ def wait_for_backend(url: str = "http://localhost:5000/api/v1/health", timeout: 
 
 def run_docker(detached: bool = False, open_browser: bool = True):
     print("Building and starting PortfolioIQ containers with Docker Compose...")
-    compose_cmd = ["docker", "compose", "up", "--build"]
-    if detached:
-        compose_cmd.append("-d")
+    check_port_conflicts()
 
     if detached:
+        compose_cmd = ["docker", "compose", "up", "--build", "-d"]
         ret = subprocess.run(compose_cmd, cwd=ROOT_DIR, check=False)
         if ret.returncode != 0:
             print("[ERROR] Docker Compose failed to start services.")
@@ -95,6 +133,7 @@ def run_docker(detached: bool = False, open_browser: bool = True):
         print("  Health Status:      http://localhost:5000/api/v1/health")
         print("======================================================================")
         print("\nView container logs: docker compose logs -f")
+        print("Check status:        python run.py --status")
         print("Stop services:       python run.py --stop  (or docker compose down)\n")
 
         if open_browser:
@@ -126,7 +165,8 @@ def run_docker(detached: bool = False, open_browser: bool = True):
             subprocess.run(["docker", "compose", "logs", "-f"], cwd=ROOT_DIR, check=False)
         except KeyboardInterrupt:
             print("\nDetached from container logs. Containers are still running in background.")
-            print("To stop services, run: python run.py --stop")
+            print("Check status: python run.py --status")
+            print("To stop services: python run.py --stop")
 
 
 def stop_docker():
@@ -135,13 +175,55 @@ def stop_docker():
     print("Containers stopped successfully.")
 
 
+def print_status():
+    print("Checking PortfolioIQ Service Status...\n")
+    if is_docker_available():
+        print("Docker Containers:")
+        subprocess.run(
+            ["docker", "compose", "ps", "--format", "table {{.Name}}\t{{.Status}}\t{{.Ports}}"],
+            cwd=ROOT_DIR,
+            check=False,
+        )
+        print()
+
+    # Health probe
+    print("Probing Local Endpoints:")
+    endpoints = [
+        ("Frontend Dashboard", "http://localhost:8080"),
+        ("Backend Health Probe", "http://localhost:5000/api/v1/health"),
+        ("Market Status Probe", "http://localhost:5000/api/v1/market/status"),
+    ]
+    for label, url in endpoints:
+        try:
+            req = urllib.request.Request(url, headers={"Accept": "application/json, text/html"})
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                code = resp.getcode()
+                body = resp.read().decode("utf-8", errors="replace")
+                detail = f"HTTP {code}"
+                if "application/json" in resp.headers.get("Content-Type", ""):
+                    try:
+                        parsed = json.loads(body)
+                        if "status" in parsed:
+                            detail += f" (status: {parsed['status']})"
+                        if "db" in parsed:
+                            detail += f" (db: {'OK' if parsed['db'] else 'offline'})"
+                    except Exception:
+                        pass
+                print(f"  [ONLINE]  {label:<24} -> {detail} ({url})")
+        except Exception as exc:
+            print(f"  [OFFLINE] {label:<24} -> {exc} ({url})")
+    print()
+
+
 def run_local(open_browser: bool = True):
     print("[Mode: Local Python Development without Docker]")
     ensure_env_file()
 
+    python_bin = get_python_executable()
+    print(f"Using Python: {python_bin}")
+
     # Run database migrations
     print("Applying database migrations...")
-    python_bin = sys.executable
     subprocess.run(
         [python_bin, str(ROOT_DIR / "db" / "run_migrations.py")], cwd=ROOT_DIR, check=False
     )
@@ -160,7 +242,7 @@ def main():
     print_banner()
 
     parser = argparse.ArgumentParser(
-        description="PortfolioIQ — One-Command Full-Stack Launcher",
+        description="PortfolioIQ -- One-Command Full-Stack Launcher",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -168,6 +250,12 @@ def main():
     )
     parser.add_argument(
         "--stop", "--down", dest="stop", action="store_true", help="Stop all running containers"
+    )
+    parser.add_argument(
+        "-s",
+        "--status",
+        action="store_true",
+        help="Check status of running containers and endpoints",
     )
     parser.add_argument(
         "--local", action="store_true", help="Run locally using Python and native Postgres"
@@ -184,6 +272,10 @@ def main():
 
     if args.stop:
         stop_docker()
+        return
+
+    if args.status:
+        print_status()
         return
 
     open_browser = not args.no_browser

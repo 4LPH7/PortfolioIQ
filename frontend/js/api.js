@@ -101,15 +101,7 @@ function resolveUrl(path) {
   return API_BASE + cleanPath;
 }
 
-function staticPreviewBackendError() {
-  return {
-    ok: false,
-    error: "This GitHub Pages preview has no API backend. Run the local Docker app for live data.",
-  };
-}
-
 async function apiGet(path, params = {}) {
-  if (IS_GITHUB_PAGES_PREVIEW) return staticPreviewBackendError();
   const url = new URL(resolveUrl(path));
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   const res = await fetch(url.toString(), {
@@ -130,7 +122,6 @@ async function apiGet(path, params = {}) {
 }
 
 async function apiPost(path, body = {}) {
-  if (IS_GITHUB_PAGES_PREVIEW) return staticPreviewBackendError();
   const res = await fetch(resolveUrl(path), {
     method: "POST",
     headers: {
@@ -151,7 +142,6 @@ async function apiPost(path, body = {}) {
 }
 
 async function apiPatch(path, body = {}) {
-  if (IS_GITHUB_PAGES_PREVIEW) return staticPreviewBackendError();
   const res = await fetch(resolveUrl(path), {
     method: "PATCH",
     headers: {

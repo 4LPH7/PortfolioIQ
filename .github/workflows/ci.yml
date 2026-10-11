@@ -131,3 +131,7 @@ jobs:
 
       - name: Verify safety-critical test coverage
         run: python scripts/check_critical_coverage.py
+
+      - name: Verify self-hosted launcher CLI
+        run: python run.py --help
+

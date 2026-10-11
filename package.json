@@ -5,7 +5,8 @@
   "scripts": {
     "start": "python run.py",
     "start:docker": "docker compose up --build",
-    "start:detached": "docker compose up --build -d",
+    "start:detached": "python run.py -d",
+    "status": "python run.py --status",
     "stop": "python run.py --stop",
     "logs": "docker compose logs -f"
   },

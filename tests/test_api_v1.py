@@ -61,14 +61,14 @@ def test_market_status_accessible_without_auth(client: FlaskClient) -> None:
 
 
 def test_broker_callback_returns_to_configured_frontend(client: FlaskClient) -> None:
-    """A successful Kite login returns to this deployment's configured UI."""
+    """A successful Kite login returns to the self-hosted configured UI."""
     from types import SimpleNamespace
 
     with (
         patch("src.ingestion.kite_auth.exchange_token"),
         patch(
             "src.api.v1.blueprint.get_settings",
-            return_value=SimpleNamespace(frontend_origin="https://example.github.io/PortfolioIQ/"),
+            return_value=SimpleNamespace(frontend_origin="http://localhost:8080"),
         ),
     ):
         response = client.get(
@@ -77,9 +77,7 @@ def test_broker_callback_returns_to_configured_frontend(client: FlaskClient) -> 
         )
 
     assert response.status_code == 302
-    assert response.headers["Location"] == (
-        "https://example.github.io/PortfolioIQ/settings.html?broker=connected"
-    )
+    assert response.headers["Location"] == ("http://localhost:8080/settings.html?broker=connected")
 
 
 def test_broker_callback_missing_token_has_actionable_response(client: FlaskClient) -> None:

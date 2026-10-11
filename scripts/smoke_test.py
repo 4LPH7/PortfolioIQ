@@ -92,7 +92,7 @@ def run_smoke_test(
     ]
 
     print("=" * 70)
-    print("PortfolioIQ Deployment Smoke Test")
+    print("PortfolioIQ Self-Hosted Health & Smoke Test")
     print(f"Target Base URL: {base_url}")
     print(f"Timeout: {timeout:.1f}s | Initial Interval: {initial_interval:.1f}s")
     print("=" * 70)
@@ -145,13 +145,11 @@ def run_smoke_test(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Verify backend deployment health via /api/v1/ endpoints."
-    )
+    parser = argparse.ArgumentParser(description="Verify backend health via /api/v1/ endpoints.")
     parser.add_argument(
         "--base-url",
         required=True,
-        help="Target backend base URL, e.g. http://localhost:5000 or https://your-api-host.example",
+        help="Target backend base URL, e.g. http://localhost:5000",
     )
     parser.add_argument(
         "--timeout",

@@ -1,43 +1,49 @@
 @echo off
+setlocal
 title PortfolioIQ Launcher
-echo ========================================================
-echo   PortfolioIQ -- One-Command Full Stack Launcher
-echo ========================================================
-echo.
 
-if not exist "%~dp0.env" (
-    if exist "%~dp0.env.example" (
-        copy "%~dp0.env.example" "%~dp0.env" >nul
-        echo [INFO] Initialized .env configuration from .env.example
-    )
-)
-
-where docker >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [WARNING] Docker is not installed or not in PATH!
-    echo Launching local development mode...
-    powershell -ExecutionPolicy Bypass -File "%~dp0start.ps1" -LocalDev
+where python >nul 2>nul
+if %errorlevel% equ 0 (
+    python "%~dp0run.py" %*
     exit /b %errorlevel%
 )
 
-echo Starting PostgreSQL, Backend API, and Frontend UI containers...
-docker compose up --build -d
-
+where py >nul 2>nul
 if %errorlevel% equ 0 (
-    echo.
-    echo ========================================================
-    echo   PortfolioIQ Containers are Running!
-    echo   Frontend Dashboard: http://localhost:8080
-    echo   Backend REST API:   http://localhost:5000
-    echo   Health Endpoint:    http://localhost:5000/api/v1/health
-    echo ========================================================
-    echo.
-    echo Opening dashboard in browser...
-    start http://localhost:8080/index.html
-    echo.
-    echo View logs with: docker compose logs -f
-    echo Stop with:      docker compose down
-) else (
-    echo [ERROR] Failed to start Docker containers.
+    py "%~dp0run.py" %*
+    exit /b %errorlevel%
 )
+
+:: Fallback if Python is not in PATH
+where docker >nul 2>nul
+if %errorlevel% equ 0 (
+    if not exist "%~dp0.env" (
+        if exist "%~dp0.env.example" (
+            copy "%~dp0.env.example" "%~dp0.env" >nul
+            echo [INFO] Initialized .env configuration from .env.example
+        )
+    )
+    echo Starting PortfolioIQ via Docker Compose...
+    docker compose up --build -d
+    if %errorlevel% equ 0 (
+        echo.
+        echo ========================================================
+        echo   PortfolioIQ Containers are Running!
+        echo   Frontend Dashboard: http://localhost:8080
+        echo   Backend REST API:   http://localhost:5000
+        echo   Health Endpoint:    http://localhost:5000/api/v1/health
+        echo ========================================================
+        echo.
+        start http://localhost:8080/index.html
+        docker compose logs -f
+        exit /b 0
+    ) else (
+        echo [ERROR] Failed to start Docker containers.
+        pause
+        exit /b 1
+    )
+)
+
+echo [ERROR] Neither Python nor Docker was found in your PATH.
 pause
+exit /b 1
