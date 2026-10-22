@@ -71,6 +71,10 @@ def _get_calendar_records(year: int) -> dict[datetime.date, dict[str, Any]]:
         for row in rows:
             records[row["holiday_date"]] = dict(row)
         logger.debug("Loaded {} calendar records for {} from DB", len(records), year)
+        if not records:
+            logger.warning(
+                "No NSE holiday calendar for {}: every weekday counts as a trading day", year
+            )
         return records
     except Exception as e:
         logger.warning(f"DB unavailable for calendar ({e}). Falling back to JSON.")

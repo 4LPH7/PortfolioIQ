@@ -35,10 +35,10 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: 'requirements.txt'
+          cache-dependency-path: 'requirements*.txt'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-dev.txt
 
       - name: Check code formatting with Ruff
         run: ruff format --check .
@@ -46,11 +46,14 @@ jobs:
       - name: Lint codebase with Ruff
         run: ruff check .
 
+      # CVE-2026-106454: twisted IMAP4 server ReDoS. twisted arrives via kiteconnect;
+      # PortfolioIQ never runs an IMAP server. No fixed twisted release yet; drop when one ships.
       - name: Audit dependencies for vulnerabilities
         run: |
           pip-audit -r requirements.txt --desc \
             --ignore-vuln PYSEC-2020-25 \
-            --ignore-vuln CVE-2026-77528
+            --ignore-vuln CVE-2026-77528 \
+            --ignore-vuln CVE-2026-106454
 
   docker-build:
     runs-on: ubuntu-latest
@@ -88,10 +91,10 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: 'requirements.txt'
+          cache-dependency-path: 'requirements*.txt'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-dev.txt
 
       - name: Wait for PostgreSQL connection
         run: |

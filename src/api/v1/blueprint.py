@@ -744,14 +744,20 @@ def get_alerts():
     except Exception:
         pass
 
+    kite_configured = bool(get_settings().kite_api_key.strip())
     if not token:
         alerts.append(
             {
                 "id": "sys_kite_token",
                 "type": "SYSTEM",
-                "severity": "CRITICAL",
-                "title": "Zerodha Token Expired",
-                "message": "Kite Connect session is inactive or token has expired.",
+                "severity": "CRITICAL" if kite_configured else "INFO",
+                "title": "Zerodha Token Expired" if kite_configured else "Zerodha Not Connected",
+                "message": (
+                    "Kite Connect session is inactive or token has expired."
+                    if kite_configured
+                    else "Optional: add KITE_API_KEY and KITE_API_SECRET to .env for live prices. "
+                    "CSV-imported holdings work without it."
+                ),
                 "action_label": "Re-authenticate",
                 "action_url": "/settings.html",
                 "timestamp": now.isoformat(),
@@ -1102,6 +1108,8 @@ def import_holdings_csv():
             col_map["exchange"] = idx
         elif norm in ["tradetype", "type", "transactiontype"] and "trade_type" not in col_map:
             col_map["trade_type"] = idx
+        elif norm in ["ltp", "lastprice", "cmp", "currentprice"] and "ltp" not in col_map:
+            col_map["ltp"] = idx
 
     for req in ["symbol", "quantity", "price"]:
         if req not in col_map:
@@ -1116,6 +1124,7 @@ def import_holdings_csv():
     price_idx = col_map["price"]
     exch_idx = col_map.get("exchange")
     trade_type_idx = col_map.get("trade_type")
+    ltp_idx = col_map.get("ltp")
 
     # 4. Parse rows into holdings
     parsed_holdings: dict[str, dict[str, Any]] = {}
@@ -1170,11 +1179,18 @@ def import_holdings_csv():
                 skipped_count += 1
                 errors.append(f"Row {line_num} ({raw_sym}): Quantity and price must be > 0")
                 continue
+            ltp = None
+            if ltp_idx is not None and len(r) > ltp_idx:
+                try:
+                    ltp = Decimal(r[ltp_idx].strip().replace(",", "").replace("₹", ""))
+                except decimal.InvalidOperation:
+                    ltp = None
             parsed_holdings[raw_sym] = {
                 "symbol": raw_sym,
                 "quantity": qty,
                 "total_cost": Decimal(qty) * price,
                 "exchange": exchange,
+                "ltp": ltp if ltp and ltp > 0 else None,
             }
 
     # 5. Filter valid holdings & Upsert into Database
@@ -1221,18 +1237,21 @@ def import_holdings_csv():
                         quantity, t1_quantity, opening_quantity, used_quantity,
                         authorised_quantity, collateral_quantity, average_price,
                         last_price, close_price, pnl, day_change, day_change_pct,
-                        product, has_discrepancy, last_synced_at
+                        product, has_discrepancy, last_synced_at, data_source
                     )
                     VALUES (
                         :user_id, :token, :sym, :exchange, NULL,
                         :qty, 0, :qty, 0,
                         :qty, 0, :avg_price,
-                        :avg_price, :avg_price, 0, 0, 0,
-                        'CNC', FALSE, NOW()
+                        :last_price, :last_price, 0, 0, 0,
+                        'CNC', FALSE, NOW(), 'CSV_IMPORT'
                     )
                     ON CONFLICT (user_id, instrument_token, product) DO UPDATE SET
                         quantity = EXCLUDED.quantity,
                         average_price = EXCLUDED.average_price,
+                        last_price = EXCLUDED.last_price,
+                        close_price = EXCLUDED.close_price,
+                        data_source = 'CSV_IMPORT',
                         opening_quantity = EXCLUDED.opening_quantity,
                         last_synced_at = NOW(),
                         updated_at = NOW()
@@ -1244,6 +1263,8 @@ def import_holdings_csv():
                     "exchange": exchange,
                     "qty": qty,
                     "avg_price": avg_price,
+                    # CSV's LTP when given; else cost basis (P&L 0 until a live quote arrives)
+                    "last_price": h.get("ltp") or avg_price,
                 },
             )
 
@@ -1433,6 +1454,7 @@ def import_smart_csv():
                                 quantity = EXCLUDED.quantity,
                                 average_price = EXCLUDED.average_price,
                                 last_price = EXCLUDED.last_price,
+                                close_price = EXCLUDED.close_price,
                                 opening_quantity = EXCLUDED.opening_quantity,
                                 last_synced_at = NOW(),
                                 data_source = 'CSV_IMPORT',

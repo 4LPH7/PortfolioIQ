@@ -1,0 +1,12 @@
+# Test, lint and audit tools (not shipped in the Docker image)
+-r requirements.txt
+
+# ── Testing ──────────────────────────────────────────────────
+pytest>=9.0.3
+pytest-mock==3.14.0
+freezegun==1.5.1
+pytest-cov>=6.0.0
+
+# ── Dev & Security tools ────────────────────────────────────
+ruff>=0.16.8
+pip-audit>=2.7.3

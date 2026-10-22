@@ -34,9 +34,8 @@ sys.exit(1)
 
 # Run migrations
 echo "[2/3] Applying schema migrations..."
-python db/run_migrations.py || {
-    echo "Warning: Migration runner exited with non-zero status. Proceeding with application startup..."
-}
+# Fail fast: serving portfolio data on a half-migrated schema is worse than not starting.
+python db/run_migrations.py
 
 # Ensure instrument seed status
 echo "[3/3] Checking instrument seeds..."

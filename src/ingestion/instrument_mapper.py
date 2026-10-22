@@ -17,7 +17,7 @@ from pathlib import Path
 from loguru import logger
 from sqlalchemy import text
 
-from src.db.connection import execute_sql, get_db_session
+from src.db.connection import get_db_session
 from src.ingestion.kite_auth import get_authenticated_kite
 
 # Path to the seed CSV mapping file
@@ -189,32 +189,6 @@ def sync_instrument_master_from_kite() -> int:
 
     logger.success("Instrument master sync complete. {} NSE equity instruments upserted.", upserted)
     return upserted
-
-
-def get_yf_tickers_for_holdings() -> dict[int, str]:
-    """
-    Return a mapping of instrument_token → yf_ticker for all
-    current holdings that have a YF ticker configured.
-
-    Used by the Yahoo Finance poller to know which symbols to poll.
-
-    Returns:
-        Dict mapping instrument_token (int) to yf_ticker (str)
-    """
-    rows = execute_sql(
-        """
-        SELECT im.instrument_token, im.yf_ticker
-        FROM user_holdings h
-        JOIN instrument_master im ON h.instrument_token = im.instrument_token
-        WHERE (h.quantity + h.t1_quantity) > 0
-          AND h.user_id = 'default'
-          AND im.yf_ticker IS NOT NULL
-          AND im.is_active = TRUE
-        """
-    )
-    mapping = {row["instrument_token"]: row["yf_ticker"] for row in rows}
-    logger.debug("Active holdings with YF tickers: {}", list(mapping.values()))
-    return mapping
 
 
 if __name__ == "__main__":

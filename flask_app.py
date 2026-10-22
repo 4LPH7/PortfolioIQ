@@ -207,4 +207,11 @@ def handle_unexpected_exception(err: Exception):
 
 if __name__ == "__main__":
     logger.info("PortfolioIQ Flask API starting on http://localhost:5000")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # Loopback only: the debugger allows code execution. No reloader: it would
+    # import this module twice and start a second inline scheduler.
+    app.run(
+        host="127.0.0.1",
+        port=5000,
+        debug=os.environ.get("FLASK_DEBUG") == "1",
+        use_reloader=False,
+    )

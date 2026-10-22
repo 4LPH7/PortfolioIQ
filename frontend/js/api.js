@@ -116,7 +116,7 @@ async function apiGet(path, params = {}) {
   }
   if (!res.ok) {
     const errorMsg = data.error?.message || (typeof data.error === "string" ? data.error : `HTTP ${res.status}`);
-    return { ok: false, error: errorMsg, ...data };
+    return { ...data, ok: false, error: errorMsg }; // spread first, or data.error (an object) wins
   }
   return data;
 }

@@ -4,8 +4,8 @@
 
 [![CI](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml/badge.svg)](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml)
 [![Python Version](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-443%20passed-brightgreen.svg)]()
-[![Coverage](https://img.shields.io/badge/test_coverage-83%25-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-446%20passed-brightgreen.svg)]()
+[![Coverage](https://img.shields.io/badge/test_coverage-79%25-brightgreen.svg)]()
 [![Critical Path Coverage](https://img.shields.io/badge/safety_critical_coverage-98.9%25-success.svg)]()
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Security: Gitleaks](https://img.shields.io/badge/security-gitleaks-blueviolet.svg)](https://github.com/gitleaks/gitleaks)
@@ -20,11 +20,18 @@ PortfolioIQ is a 100% self-hosted, institutional-grade quantitative portfolio ma
 
 PortfolioIQ launches its entire stack—PostgreSQL database, Python quantitative API engine, background market poller, and responsive frontend dashboard—with **a single command**:
 
+**You need:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (running) and Python 3.10+ for the launcher. Nothing else — Postgres, the API and the web server all run in containers.
+
 ### 🚀 Primary Launcher (Cross-Platform)
 ```bash
 python run.py
 ```
-*Automatically detects Docker, initializes `.env`, checks for port availability, builds containers, starts all services, verifies backend health, and opens the dashboard in your default browser.*
+*Creates `.env` on first run (with a random unlock key), builds the containers, applies database migrations, waits for the API to be healthy, prints your unlock key and opens the dashboard.*
+
+### 🔓 First run
+1. The dashboard asks for an **unlock key**. It's printed by `python run.py` and stored as `PORTFOLIOIQ_API_KEY` in `.env`.
+2. Import holdings from a broker CSV in **Onboarding** (works without a Zerodha account; an `LTP` column sets current prices and P&L), or connect Kite (see below) for live quotes.
+3. Orders are always simulated until you deliberately set `DRY_RUN_MODE=false` — see [`docs/GRADUATION_CHECKLIST.md`](docs/GRADUATION_CHECKLIST.md).
 
 ### 🛠️ One-Command Launcher CLI Options
 | Command | Mode | Description |
@@ -37,9 +44,8 @@ python run.py
 | `python run.py --no-browser` | **Headless** | Starts containers without launching a browser window |
 
 ### 💻 Quick-Launch Shortcuts
-- **Windows**: Double-click `start.bat` or run `.\start.ps1`
+- **Windows**: Double-click `start.bat`
 - **macOS / Linux**: Run `./start.sh`
-- **Node / npm**: Run `npm start` (or `npm run status`, `npm run stop`)
 - **Docker Compose Direct**: Run `docker compose up --build`
 
 ### 🌐 Access Your Services
@@ -48,13 +54,22 @@ python run.py
 | **Frontend UI** | [**http://localhost:8080**](http://localhost:8080) | Full responsive glassmorphic dashboard (Nginx reverse-proxy) |
 | **Unified Web App** | [**http://localhost:5000**](http://localhost:5000) | Direct Flask backend serving both REST API and static UI |
 | **API Health Status** | [**http://localhost:5000/api/v1/health**](http://localhost:5000/api/v1/health) | System health and database connectivity probe |
-| **Database GUI** | [**http://localhost:5050**](http://localhost:5050) | Optional pgAdmin interface (`docker compose --profile tools up -d`) |
+| **Database GUI** | [**http://localhost:5050**](http://localhost:5050) | Optional pgAdmin, localhost only (`docker compose --profile tools up -d`) |
 | **PostgreSQL Port** | `127.0.0.1:5434` (host) | Isolated local database (configurable via `POSTGRES_PORT` in `.env`) |
 
-To stop all services anytime:
+To stop all services anytime (your data stays in the `pgdata` Docker volume):
 ```bash
 python run.py --stop   # or: docker compose down
 ```
+
+### 🩺 Troubleshooting
+| Symptom | Fix |
+| :--- | :--- |
+| `Docker is installed but not running` | Start Docker Desktop, wait for it to say *running*, re-run `python run.py`. |
+| Port 5000 / 8080 already in use | Another app holds the port. Stop it, or change the host port in `docker-compose.yml`. |
+| Forgot the unlock key | It's `PORTFOLIOIQ_API_KEY` in `.env`, and `python run.py` prints it every time it starts. |
+| Backend restarts in a loop | A migration failed — `docker compose logs backend` shows which one. The app refuses to start on a half-migrated database. |
+| Market treated as open on a holiday | The NSE holiday calendar ships through **2026**; add the next year's dates as a new migration when NSE publishes them. |
 
 ---
 
@@ -164,9 +179,7 @@ PortfolioIQ uses the official Kite Connect API for live quotes, Start-of-Day (SO
    ```env
    KITE_API_KEY=your_kite_api_key_here
    KITE_API_SECRET=your_kite_api_secret_here
-   KITE_CLIENT_ID=your_zerodha_client_id
    KITE_REDIRECT_URL=http://127.0.0.1:5000/api/v1/broker/callback
-   PORTFOLIOIQ_API_KEY=your_chosen_api_secret_key
    DRY_RUN_MODE=true
    ```
 3. **Daily Authentication**:
@@ -189,7 +202,7 @@ cd PortfolioIQ
 # 2. Create virtual environment & install dependencies
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 # 3. Setup configuration & database
 cp .env.example .env
@@ -206,7 +219,7 @@ python run.py --local
 PortfolioIQ maintains an institutional-grade test suite with 100% passing tests and strict safety certification:
 
 ```bash
-# Run complete test suite (443 unit & integration tests)
+# Run complete test suite (446 unit & integration tests)
 pytest tests/ -v
 
 # Run with test coverage enforcement (>= 75% overall)
@@ -220,12 +233,13 @@ ruff check .
 ruff format --check .
 
 # Run dependency vulnerability audit
-pip-audit -r requirements.txt --ignore-vuln PYSEC-2020-25 --ignore-vuln CVE-2026-77528
+pip-audit -r requirements.txt --ignore-vuln PYSEC-2020-25 --ignore-vuln CVE-2026-77528 --ignore-vuln CVE-2026-106454
 ```
+*(CVE-2026-106454 is in twisted's IMAP server, pulled in by `kiteconnect`; PortfolioIQ never runs IMAP. Remove the ignore once twisted ships a fix.)*
 
 ### Safety Certification Metrics
-- **Total Test Cases**: **443 passed** (0 failures, 0 regressions)
-- **Overall Code Coverage**: **83%+**
+- **Total Test Cases**: **446 passed** (0 failures, 0 regressions)
+- **Overall Code Coverage**: **79%** (CI gate: 75%)
 - **Critical Path Gatekeeper Coverage**: **100.00%**
 - **Slippage Validator Coverage**: **96.72%**
 - **Trading Safety Gatekeeper**: **98.90%**
@@ -240,7 +254,7 @@ pip-audit -r requirements.txt --ignore-vuln PYSEC-2020-25 --ignore-vuln CVE-2026
 | `DATABASE_URL` | String | *Required* | PostgreSQL connection string (`postgresql://user:pass@host:5432/db`) |
 | `KITE_API_KEY` | String | *Required* | Zerodha Kite Connect developer API key |
 | `KITE_API_SECRET` | String | *Required* | Zerodha Kite Connect developer API secret |
-| `PORTFOLIOIQ_API_KEY` | String | `portfolioiq_default_local_key` | Private authentication key passed in `X-API-Key` HTTP header |
+| `PORTFOLIOIQ_API_KEY` | String | random, generated on first run | Dashboard unlock key, sent in the `X-API-Key` HTTP header |
 | `DRY_RUN_MODE` | Boolean | `true` | **Safety Core**: When `true`, all orders are simulated. Must remain `true` until certified. |
 | `ALLOWED_ORIGINS` | String | `http://localhost:8080,http://127.0.0.1:5000` | Comma-separated list of allowed browser origins |
 | `FRONTEND_ORIGIN` | URL | `http://localhost:8080` | Frontend origin used after successful broker sign-in |

@@ -41,7 +41,6 @@ services:
       PORTFOLIOIQ_API_KEY: ${PORTFOLIOIQ_API_KEY:-portfolioiq_default_local_key}
       KITE_API_KEY: ${KITE_API_KEY:-}
       KITE_API_SECRET: ${KITE_API_SECRET:-}
-      KITE_CLIENT_ID: ${KITE_CLIENT_ID:-WJU490}
       KITE_REDIRECT_URL: ${KITE_REDIRECT_URL:-http://127.0.0.1:5000/api/v1/broker/callback}
       DRY_RUN_MODE: ${DRY_RUN_MODE:-true}
       RUN_INLINE_SCHEDULER: ${RUN_INLINE_SCHEDULER:-true}
@@ -94,7 +93,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@portfolioiq.local
       PGADMIN_DEFAULT_PASSWORD: pgadmin_change_me
     ports:
-      - "5050:80"
+      - "127.0.0.1:5050:80"
     depends_on:
       postgres:
         condition: service_healthy

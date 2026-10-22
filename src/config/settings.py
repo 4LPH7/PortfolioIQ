@@ -34,7 +34,6 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------ #
     kite_api_key: str = Field(..., description="Kite Connect API key")
     kite_api_secret: str = Field(..., description="Kite Connect API secret")
-    kite_client_id: str = Field("WJU490", description="Zerodha client ID")
     kite_redirect_url: str = Field(
         "http://127.0.0.1:5000/api/v1/broker/callback",
         description="OAuth redirect URL (must match Kite app settings)",

@@ -107,6 +107,32 @@ class TestCSVImportEndpoint:
         assert infy["quantity"] == 10
         assert float(infy["average_price"]) == 1450.50
 
+        # LTP column becomes the last price, so P&L isn't stuck at zero
+        from sqlalchemy import text
+
+        from src.db.connection import get_db_session
+
+        def stored():
+            with get_db_session() as s:
+                return s.execute(
+                    text(
+                        "SELECT last_price, close_price, data_source FROM user_holdings "
+                        "WHERE user_id = 'test_onboarding_user' AND tradingsymbol = 'INFY'"
+                    )
+                ).one()
+
+        last, close, source = stored()
+        assert (float(last), float(close), source) == (1520.00, 1520.00, "CSV_IMPORT")
+
+        # Re-import refreshes the price instead of turning the old one into "yesterday's close"
+        client.post(
+            "/api/v1/holdings/import-csv?user_id=test_onboarding_user",
+            headers={"X-API-Key": api_key},
+            json={"csv_text": "Instrument,Qty.,Avg. cost,LTP\nINFY,10,1450.50,1600.00\n"},
+        )
+        last, close, _ = stored()
+        assert (float(last), float(close)) == (1600.00, 1600.00)
+
     def test_import_valid_tradebook(self, client: FlaskClient, api_key: str):
         csv_data = (
             "symbol,trade_date,exchange,segment,series,trade_type,quantity,price,order_id,trade_id\n"
