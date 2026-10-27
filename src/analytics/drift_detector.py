@@ -95,7 +95,7 @@ def _get_active_targets(user_id: str = "default") -> dict[str, dict]:
     targets = {}
     for row in rows:
         alloc_type = row["allocation_type"]
-        name = row.get("sector") or row.get("tradingsymbol") or "UNKNOWN"
+        name = "CASH" if alloc_type == "CASH" else row.get("sector") or row.get("tradingsymbol")
         key = (alloc_type, name)
         targets[key] = {
             "target_weight_pct": Decimal(str(row["target_weight_pct"])),
@@ -185,7 +185,7 @@ def detect_drift(
             signals.append(signal)
 
         # Also check per-holding targets
-        target_key = ("HOLDING", h.tradingsymbol)
+        target_key = ("STOCK", h.tradingsymbol)
         if target_key in targets:
             t = targets[target_key]
             target_wt = t["target_weight_pct"]

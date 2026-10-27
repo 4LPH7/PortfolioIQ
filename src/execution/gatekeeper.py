@@ -4,12 +4,17 @@ Pre-flight validation pipeline for rebalance orders.
 Every order MUST pass all validators before reaching the Order Router.
 
 Validation chain:
-    1. Margin Check — sufficient cash/collateral?
-    2. Slippage Check — price within tolerance of estimated price?
-    3. Concentration Check — order won't create a new concentration breach?
-    4. Duplicate Check — same order not placed within the cooldown window?
-    5. Market Hours Check — is the exchange open?
-    6. Dry Run Check — is dry_run_mode enabled in system_config?
+    1. Market Hours Check — is the exchange open?
+    2. Margin Check — sufficient cash/collateral?
+    3. Sellable Check — a SELL never exceeds what the broker says can be sold today
+    4. Price Band Check — price inside the scrip's live circuit limits
+    5. Slippage Check — price within tolerance of estimated price?
+    6. Concentration Check — order won't create a new concentration breach?
+    7. Duplicate Check — same order not placed within the cooldown window?
+    8. Dry Run Check — is dry_run_mode enabled in system_config?
+
+Sellable and price-band checks reject a live order whenever the broker data can't be confirmed;
+in dry run they pass with an "UNVERIFIED" note that is kept in order_validation_log.
 
 If ANY validator fails, the order is REJECTED and logged to
 order_validation_log for audit.
@@ -31,6 +36,8 @@ from src.db.repository import record_order_attempt, record_validation_check
 from src.execution.validators.concentration_check import validate_concentration
 from src.execution.validators.duplicate_check import validate_no_duplicate
 from src.execution.validators.margin_check import validate_margin
+from src.execution.validators.price_band_check import validate_price_band
+from src.execution.validators.sellable_check import validate_sellable
 from src.execution.validators.slippage_check import validate_slippage
 from src.ingestion.market_hours import is_market_open
 
@@ -49,6 +56,7 @@ class ValidationReport:
     result: ValidationResult
     checks_passed: list[str] = field(default_factory=list)
     checks_failed: list[str] = field(default_factory=list)
+    check_notes: dict[str, str] = field(default_factory=dict)  # message of a passed check
     failure_reason: str | None = None
     validated_at: datetime = field(default_factory=datetime.now)
     internal_order_id: str = field(default_factory=lambda: str(uuid4()))
@@ -87,6 +95,8 @@ def _log_validation(report: ValidationReport) -> None:
         "MARKET_HOURS": "MARKET_HOURS_CHECK",
         "MARKET_CLOSED": "MARKET_HOURS_CHECK",
         "MARGIN": "MARGIN_CHECK",
+        "SELLABLE": "SELLABLE_CHECK",
+        "PRICE_BAND": "PRICE_BAND_CHECK",
         "SLIPPAGE": "SLIPPAGE_CHECK",
         "CONCENTRATION": "CONCENTRATION_CHECK",
         "DUPLICATE": "DUPLICATE_CHECK",
@@ -118,7 +128,7 @@ def _log_validation(report: ValidationReport) -> None:
             message = (
                 report.failure_reason
                 if not passed and report.failure_reason
-                else f"{name.replace('_', ' ').title()} passed."
+                else report.check_notes.get(name) or f"{name.replace('_', ' ').title()} passed."
             )
             record_validation_check(
                 audit_id=report.audit_id,
@@ -166,7 +176,19 @@ def validate_order(order: RebalanceOrder, dry_run: bool = True) -> ValidationRep
             return report
     report.checks_passed.append("MARGIN")
 
-    # Gate 3: Slippage Check
+    # Gates 3-4: India order guards (sellable quantity, circuit limits)
+    for name, check in (("SELLABLE", validate_sellable), ("PRICE_BAND", validate_price_band)):
+        ok, msg = check(order, live=not dry_run)
+        if not ok:
+            report.checks_failed.append(name)
+            report.result = ValidationResult.REJECTED
+            report.failure_reason = msg
+            _log_validation(report)
+            return report
+        report.checks_passed.append(name)
+        report.check_notes[name] = msg
+
+    # Gate 5: Slippage Check
     slippage_ok, slippage_msg = validate_slippage(order)
     if not slippage_ok:
         report.checks_failed.append("SLIPPAGE")
@@ -176,7 +198,7 @@ def validate_order(order: RebalanceOrder, dry_run: bool = True) -> ValidationRep
         return report
     report.checks_passed.append("SLIPPAGE")
 
-    # Gate 4: Concentration Check (only for BUY orders)
+    # Gate 6: Concentration Check (only for BUY orders)
     if order.side == OrderSide.BUY:
         conc_ok, conc_msg = validate_concentration(order)
         if not conc_ok:
@@ -187,7 +209,7 @@ def validate_order(order: RebalanceOrder, dry_run: bool = True) -> ValidationRep
             return report
     report.checks_passed.append("CONCENTRATION")
 
-    # Gate 5: Duplicate Check
+    # Gate 7: Duplicate Check
     dup_ok, dup_msg = validate_no_duplicate(order)
     if not dup_ok:
         report.checks_failed.append("DUPLICATE")
@@ -197,7 +219,7 @@ def validate_order(order: RebalanceOrder, dry_run: bool = True) -> ValidationRep
         return report
     report.checks_passed.append("DUPLICATE")
 
-    # Gate 6: Dry Run Check
+    # Gate 8: Dry Run Check
     if dry_run:
         report.result = ValidationResult.SKIPPED_DRY_RUN
         report.failure_reason = "Dry run mode — order not placed"

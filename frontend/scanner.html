@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="view-transition" content="same-origin"/>
+  <title>PortfolioIQ — Market Scanner</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
+  <link rel="stylesheet" href="css/main.css"/>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+<nav class="sidebar" id="main-sidebar" aria-label="Main Navigation">
+  <div class="sidebar-header">
+    <div class="sidebar-header-row"><div class="sidebar-logo"><div class="sidebar-logo-icon"><img src="img/logo.png" alt="PortfolioIQ Logo" class="sidebar-logo-img"/></div><div><div class="sidebar-logo-text">PortfolioIQ</div><div class="sidebar-badge">v3.0 LIVE</div></div></div><button type="button" class="sidebar-retract-btn" id="sidebar-retract-btn" title="Toggle Sidebar Shelf" aria-label="Toggle sidebar shelf"><span class="material-symbols-outlined">chevron_left</span></button></div>
+  </div>
+  <div class="nav-label">Main</div>
+  <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="material-symbols-outlined nav-icon">dashboard</span> <span>Dashboard</span></a>
+  <a class="nav-item" href="analyzer.html" data-tooltip="Stock Analyzer"><span class="material-symbols-outlined nav-icon">analytics</span> <span>Stock Analyzer</span></a>
+  <a class="nav-item active" href="scanner.html" data-tooltip="Market Scanner"><span class="material-symbols-outlined nav-icon">query_stats</span> <span>Market Scanner</span></a>
+  <a class="nav-item" href="rebalance.html" data-tooltip="Rebalance"><span class="material-symbols-outlined nav-icon">balance</span> <span>Rebalance</span></a>
+  <a class="nav-item" href="tax.html" data-tooltip="Tax Guard"><span class="material-symbols-outlined nav-icon">shield</span> <span>Tax Guard</span></a>
+  <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="material-symbols-outlined nav-icon">receipt_long</span> <span>Audit Log</span></a>
+  <a class="nav-item" href="timeline.html" data-tooltip="Portfolio Timeline"><span class="material-symbols-outlined nav-icon">timeline</span> <span>Portfolio Timeline</span></a>
+  <a class="nav-item" href="report.html" data-tooltip="Monthly Statement"><span class="material-symbols-outlined nav-icon">description</span> <span>Monthly Statement</span></a>
+<a class="nav-item" href="settings.html" data-tooltip="Settings"><span class="material-symbols-outlined nav-icon">settings</span> <span>Settings</span></a>
+  <hr class="sidebar-divider"/>
+  <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status"><div class="status-dot"></div><span>Loading…</span></a>
+  <a href="status.html" id="db-status" class="status-pill status-warn" title="View Database Status"><div class="status-dot"></div><span>Checking…</span></a>
+</nav>
+<header class="topbar" role="banner">
+  <button type="button" class="sidebar-toggle-btn" id="sidebar-toggle-btn" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="main-sidebar">
+    <span class="material-symbols-outlined" aria-hidden="true">menu</span>
+  </button>
+  <div class="topbar-breadcrumb"><span>PortfolioIQ</span><span class="sep">/</span><span class="crumb-current">Market Scanner</span></div>
+  <div class="topbar-right">
+    <button type="button" class="topbar-bell-btn" id="notification-bell-btn" onclick="PortfolioIQAlerts.toggleDrawer()" title="View Notifications" aria-label="View notifications">
+      <span class="material-symbols-outlined bell-icon">notifications</span>
+      <span class="bell-badge" id="bell-badge" style="display:none;">0</span>
+    </button>
+    <div class="topbar-time" id="clock">—</div>
+  </div>
+</header>
+<main class="main fade-in" role="main">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Market <span>Scanner</span></h1>
+      <p class="page-subtitle">NIFTY 500 ranked on price signals that held up out of sample, after charges. A measured tilt, not a prediction.</p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" id="scan-run" onclick="runScan()"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">sync</span> Run scan now</button>
+    </div>
+  </div>
+
+  <div id="scan-status"></div>
+  <div id="evidence-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div><span>Loading the latest scan…</span></div></div></div>
+
+  <div class="section-row">
+    <h2 class="section-header" id="ranking-h">Ranking</h2>
+  </div>
+  <div class="card">
+    <div class="field-row">
+      <div class="form-group"><label class="form-label" for="f-search">Find a stock</label><input type="search" id="f-search" placeholder="Symbol or company"></div>
+      <div class="form-group"><label class="form-label" for="f-sector">Sector</label><select id="f-sector"><option value="">All sectors</option></select></div>
+      <div class="form-group"><label class="form-label" for="f-show">Show</label>
+        <select id="f-show"><option value="50">Top 50</option><option value="100">Top 100</option><option value="0">All</option></select></div>
+      <label class="check-row"><input type="checkbox" id="f-held"> Only my holdings</label>
+    </div>
+  </div>
+  <div id="ranking-area" class="mt-sm"></div>
+  <p class="text-xs text-dim mt-sm">Prices from Yahoo Finance, members from NSE's NIFTY 500 list. Fundamentals refresh on Saturdays and are shown for context only: free data has no history of them, so they can't be tested. Headlines are counted for your holdings and the top 20. Nothing here places an order.</p>
+</main>
+<div class="dry-run-notice"><div class="dry-run-dot"></div>DRY RUN — No real orders</div>
+<!-- ── Bottom Mobile Navigation ───────────────────────────── -->
+<nav class="bottom-nav" aria-label="Mobile Navigation">
+  <a class="bottom-nav-item" href="index.html">
+    <span class="material-symbols-outlined bottom-nav-icon">dashboard</span>
+    <span>Dashboard</span>
+  </a>
+  <a class="bottom-nav-item" href="analyzer.html">
+    <span class="material-symbols-outlined bottom-nav-icon">analytics</span>
+    <span>Analyzer</span>
+  </a>
+  <a class="bottom-nav-item" href="rebalance.html">
+    <span class="material-symbols-outlined bottom-nav-icon">balance</span>
+    <span>Rebalance</span>
+  </a>
+  <a class="bottom-nav-item" href="timeline.html">
+    <span class="material-symbols-outlined bottom-nav-icon">timeline</span>
+    <span>Timeline</span>
+  </a>
+<a class="bottom-nav-item" href="settings.html">
+    <span class="material-symbols-outlined bottom-nav-icon">settings</span>
+    <span>Settings</span>
+  </a>
+</nav>
+
+<script src="js/session.js"></script>
+<script src="js/export.js"></script>
+<script src="js/alerts.js"></script>
+<script src="js/api.js"></script>
+<script>
+setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " IST"; }, 1000);
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = (v, dp = 1, suffix = "") => v == null ? "—" : `${Number(v).toFixed(dp)}${suffix}`;
+const signed = (v, dp = 1) => v == null ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(dp)}%`;
+let scan = null, poll = null;
+
+async function loadScan() {
+  const res = await apiGet("/api/scanner");
+  const status = document.getElementById("scan-status");
+  if (!res.ok) { document.getElementById("evidence-area").innerHTML = errBox(esc(res.error || "Could not load the scanner")); return; }
+  const { latest, running, last_failure } = res.data;
+  document.getElementById("scan-run").disabled = !!running;
+  status.innerHTML = running
+    ? `<div class="alert alert-info"><div class="alert-body"><div class="alert-title">Scan running since ${new Date(running.started_at).toLocaleTimeString("en-IN", { timeStyle: "short" })}</div><div class="alert-text">The first scan downloads five years of prices for about 500 stocks and can take 10 to 20 minutes. Later scans only fetch the new days.</div></div></div>`
+    : (last_failure && (!latest || new Date(last_failure.finished_at) > new Date(latest.finished_at))
+      ? `<div class="alert alert-err"><div class="alert-body"><div class="alert-title">The last scan failed</div><div class="alert-text">${esc(last_failure.error)}</div></div></div>`
+      : "");
+  clearTimeout(poll);
+  if (running) poll = setTimeout(loadScan, 15000);
+  if (!latest) {
+    document.getElementById("evidence-area").innerHTML = `<div class="empty-state"><div class="empty-title">No scan yet</div><div class="empty-desc">The scanner runs every weekday at 6:45 PM IST. Run it now to rank the NIFTY 500 and test the signals.</div></div>`;
+    document.getElementById("ranking-area").innerHTML = "";
+    return;
+  }
+  scan = latest.result;
+  renderEvidence(scan, latest);
+  fillSectors(scan.ranking);
+  renderRanking();
+}
+
+async function runScan() {
+  const btn = document.getElementById("scan-run");
+  btn.disabled = true;
+  const res = await apiPost("/api/scanner/run", {});
+  if (!res.ok) showToast(res.error_message || "Could not start the scan", "error");
+  loadScan();
+}
+
+function verdict(s) {
+  const b = s.backtest;
+  if (s.status === "insufficient_data") {
+    return ["alert-warn", "Not enough history to test yet", "The signals need a year of prices and then a year of results before any of them can be judged."];
+  }
+  if (s.status === "edge") {
+    return ["alert-info", "The ranking has a tested edge",
+      `Over ${b.months} months from ${b.from} to ${b.to}, the top ${s.top_n} stocks, chosen each month with only the evidence available at the time, returned ${b.cagr_pct}% a year after charges, against ${b.universe_cagr_pct}% for an equal-weight hold of every stock. They beat it in ${Math.round(b.months_beat_universe * 100)}% of months.`];
+  }
+  const title = "No tested edge: treat the order below as a description of trends, not a buy list";
+  if (!b.active_months) return ["alert-warn", title, "No signal passed the evidence test in any month, so the model only ever held the whole index."];
+  const reasons = [
+    b.cagr_pct <= b.universe_cagr_pct ? `the top ${s.top_n} did not beat the index` : "",
+    b.months_beat_universe <= 0.5 ? `they were ahead in only ${Math.round(b.months_beat_universe * 100)}% of months` : "",
+    (b.composite_ic_t ?? 0) <= 2 ? `across all stocks the ranking barely lined up with the next month's returns (rank correlation ${num(b.composite_ic, 3)}, t = ${num(b.composite_ic_t, 1)}, where above 2 is needed)` : "",
+  ].filter(Boolean).join("; ");
+  return ["alert-warn", title,
+    `Out of sample over ${b.months} months, the top ${s.top_n} returned ${b.cagr_pct}% a year after charges against ${b.universe_cagr_pct}% for an equal-weight hold of every stock, ahead in ${Math.round(b.months_beat_universe * 100)}% of the ${b.active_months} months it picked stocks. That is not enough to count as an edge: ${reasons}. Over a record this short, a gap like that can be luck.`];
+}
+
+function renderEvidence(s, run) {
+  const b = s.backtest;
+  const [cls, title, body] = verdict(s);
+  const caveats = [
+    s.short_history ? `Only ${b.months} months could be tested, a short record in which luck plays a big part.` : "",
+    b.idle_months ? `In ${b.idle_months} of those months no signal had passed yet, so the model held the whole index (equal weight); it picked stocks in the other ${b.active_months}.` : "",
+    "It was tested on today's NIFTY 500 members; stocks that fell out of the index are missing, which flatters the past.",
+    `Costs assume ₹${s.position_inr.toLocaleString("en-IN")} per stock with delivery charges and ${s.slippage_bps} bps slippage.`,
+  ].filter(Boolean).map(t => `<li>${t}</li>`).join("");
+  const metric = (label, val, sub = "") => `<div class="metric-sm"><div class="metric-sm-label">${label}</div><div class="metric-sm-val">${val}</div>${sub ? `<div class="td-dim" style="font-size:12px;margin-top:2px">${sub}</div>` : ""}</div>`;
+  const metrics = b.months ? `
+    <div class="grid-4 mt-md" style="gap:0.75rem">
+      ${metric(`Top ${s.top_n}, a year`, num(b.cagr_pct, 1, "%"), "after charges")}
+      ${metric("Whole index, a year", num(b.universe_cagr_pct, 1, "%"), "equal weight")}
+      ${metric("Months ahead of the index", Math.round(b.months_beat_universe * 100) + "%", `average ${signed(b.avg_monthly_excess_pct, 2)} a month`)}
+      ${metric("Worst 12 months vs index", signed(b.worst_12m_excess_pct), `deepest fall ${num(b.max_drawdown_pct, 1, "%")}`)}
+      ${metric("Rank correlation", num(b.composite_ic, 3), `t = ${num(b.composite_ic_t, 1)} (above 2 is significant)`)}
+      ${metric("Turnover", Math.round(b.avg_turnover * 100) + "% a month", `costs ${num(b.cost_drag_pct_per_year, 1, "%")} a year`)}
+    </div>
+    <div id="scan-curve" class="chart-box mt-md" style="min-height:260px"></div>` : "";
+  const sigRows = Object.entries(s.signals).map(([k, v]) => `<tr>
+    <td class="td-main">${esc(v.label)}</td>
+    <td>${v.used ? '<span class="badge badge-buy">Used</span>' : '<span class="td-dim">Not used</span>'}</td>
+    <td class="td-mono">${v.used ? Math.round(v.weight * 100) + "%" : "—"}</td>
+    <td class="td-mono">${num(v.mean_ic, 3)}</td>
+    <td class="td-mono">${num(v.t_stat, 1)}</td>
+    <td class="td-mono">${v.hit_rate == null ? "—" : Math.round(v.hit_rate * 100) + "%"}</td></tr>`).join("");
+  document.getElementById("evidence-area").innerHTML = `
+    <div class="alert ${cls}"><div class="alert-body"><div class="alert-title">${title}</div><div class="alert-text">${body}</div></div></div>
+    <div class="card mt-md">
+      <div class="td-dim">Scan of ${run.priced} stocks with prices, data to ${esc(s.as_of)}, finished ${new Date(run.finished_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}.</div>
+      ${metrics}
+      <ul class="td-dim mt-sm" style="padding-left:1.1rem">${caveats}</ul>
+      <details class="mt-sm"><summary>Which signals count, and why</summary>
+        <p class="td-dim">A signal is used only if, month by month, stocks it ranked higher went on to do better: a positive average rank correlation (IC) with a t-statistic above 2. Weights follow each signal's consistency. The ranking below uses the full record; the backtest above only ever used what was known at the time.</p>
+        <div class="table-wrap"><table><thead><tr><th>Signal</th><th>Status</th><th>Weight</th><th>Avg IC</th><th>t</th><th>Months positive</th></tr></thead><tbody>${sigRows}</tbody></table></div>
+      </details>
+    </div>`;
+  if (b.months) {
+    const xs = b.curve.dates, port = b.curve.portfolio, univ = b.curve.universe;
+    Plotly.newPlot("scan-curve", [
+      { type: "scatter", x: xs, y: port, name: `Top ${s.top_n} (after charges)`, line: { color: CHART.hue, width: 2.5 } },
+      { type: "scatter", x: xs, y: univ, name: "Whole index, equal weight", line: { color: CHART.muted, width: 1.5, dash: "dot" } },
+    ], { ...PLOTLY_LAYOUT, height: 260, yaxis: { ...PLOTLY_LAYOUT.yaxis, title: { text: "Growth of ₹1", font: { size: 12 } } }, legend: { ...PLOTLY_LAYOUT.legend, orientation: "h", y: 1.12 } }, PLOTLY_CONFIG);
+  }
+}
+
+function fillSectors(rows) {
+  const sel = document.getElementById("f-sector"), keep = sel.value;
+  const sectors = [...new Set(rows.map(r => r.industry).filter(Boolean))].sort();
+  sel.innerHTML = `<option value="">All sectors</option>` + sectors.map(x => `<option ${x === keep ? "selected" : ""}>${esc(x)}</option>`).join("");
+}
+
+function renderRanking() {
+  if (!scan) return;
+  const q = document.getElementById("f-search").value.trim().toLowerCase();
+  const sector = document.getElementById("f-sector").value;
+  const show = parseInt(document.getElementById("f-show").value, 10);
+  const heldOnly = document.getElementById("f-held").checked;
+  let rows = scan.ranking.filter(r =>
+    (!q || r.symbol.toLowerCase().includes(q) || (r.company || "").toLowerCase().includes(q)) &&
+    (!sector || r.industry === sector) && (!heldOnly || r.held));
+  const total = rows.length;
+  if (show && !q && !heldOnly) rows = rows.slice(0, show);
+  const ranked = scan.ranking[0] && scan.ranking[0].rank != null;
+  const scoreHead = scan.status === "edge" ? "Score" : "Score (untested)";
+  const body = rows.map(r => {
+    const f = r.fundamentals || {};
+    return `<tr>
+      <td class="td-mono">${r.rank ?? "—"}</td>
+      <td class="td-main"><a class="td-link" href="analyzer.html?sym=${encodeURIComponent(r.symbol)}">${esc(r.symbol)}</a>${r.held ? ' <span class="badge badge-hold">Held</span>' : ""}<span class="sub">${esc([r.company, r.industry].filter(Boolean).join(" · "))}</span></td>
+      <td class="td-mono">${r.score == null ? "—" : Math.round(r.score)}</td>
+      <td class="td-mono">${signed(r.mom_12_1_pct)}</td>
+      <td class="td-mono">${signed(r.trend_200_pct)}</td>
+      <td class="td-mono">${signed(r.off_52w_high_pct)}</td>
+      <td class="td-mono">${num(r.vol_1y_pct, 0, "%")}</td>
+      <td class="td-mono">${num(f.pe_ttm, 1)}</td>
+      <td class="td-mono">${num(f.roe_pct, 0, "%")}</td>
+      <td class="td-mono">${r.headlines_7d || "—"}</td>
+      <td><button type="button" class="btn btn-xs" onclick="askCommittee('${encodeURIComponent(r.symbol)}')">Ask AI</button></td>
+    </tr>`;
+  }).join("");
+  document.getElementById("ranking-area").innerHTML = rows.length
+    ? `<div class="table-wrap"><table id="scanner-table"><thead><tr>
+        <th>#</th><th>Stock</th><th>${scoreHead}</th><th>12-1 month</th><th>vs 200-day</th><th>Off 52w high</th><th>Volatility</th><th>P/E</th><th>ROE</th><th>News 7d</th><th></th>
+      </tr></thead><tbody>${body}</tbody></table></div>
+      <p class="td-dim mt-sm">${rows.length} of ${total} shown${ranked ? "" : ". Nothing passed the evidence test, so stocks are listed by 12-1 month momentum for browsing only"}. Score is the percentile of the weighted signals (100 = strongest).</p>`
+    : `<div class="empty-state"><div class="empty-title">No stocks match</div></div>`;
+}
+
+async function askCommittee(encoded) {
+  const sym = decodeURIComponent(encoded);
+  if (!confirm(`Ask the AI research committee about ${sym}? It calls the Claude API and costs up to the cap set in Settings (default $1.00). You can follow it on the Analyzer page.`)) return;
+  const key = crypto.randomUUID ? crypto.randomUUID() : `k${Date.now()}${Math.random().toString(36).slice(2)}`;
+  const res = await apiPost("/api/research/runs", { symbol: sym, idempotency_key: key });
+  if (!res.ok) { showToast(res.error_message || "Could not start the committee", "error"); return; }
+  showToast(`Committee started for ${sym}. Opening the Analyzer…`, "success");
+  setTimeout(() => { location.href = `analyzer.html?sym=${encodeURIComponent(sym)}`; }, 900);
+}
+
+["f-search", "f-sector", "f-show", "f-held"].forEach(id => document.getElementById(id).addEventListener("input", renderRanking));
+loadScan();
+</script>
+</body>
+</html>

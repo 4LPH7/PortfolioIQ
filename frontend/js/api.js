@@ -52,9 +52,9 @@ function showToast(message, type = "info", duration = 4000) {
 
   const icons = {
     info: `<span class="material-symbols-outlined" style="font-size:18px;">info</span>`,
-    success: `<span class="material-symbols-outlined" style="font-size:18px;color:#00ff88;">check_circle</span>`,
-    warn: `<span class="material-symbols-outlined" style="font-size:18px;color:#ffd600;">warning</span>`,
-    error: `<span class="material-symbols-outlined" style="font-size:18px;color:#ff3366;">error</span>`,
+    success: `<span class="material-symbols-outlined" style="font-size:18px;">check_circle</span>`,
+    warn: `<span class="material-symbols-outlined" style="font-size:18px;">warning</span>`,
+    error: `<span class="material-symbols-outlined" style="font-size:18px;">error</span>`,
   };
   const icon = icons[type] || icons.info;
 
@@ -161,6 +161,21 @@ async function apiPatch(path, body = {}) {
   return data;
 }
 
+async function apiDelete(path) {
+  const res = await fetch(resolveUrl(path), {
+    method: "DELETE",
+    headers: { "X-API-Key": getApiKey(), "X-Request-ID": generateRequestId() },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    handleUnauthorized(data);
+  }
+  if (!res.ok && data.error && typeof data.error === "object") {
+    data.error_message = data.error.message;
+  }
+  return data;
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 
 function fmt(n, prefix = "₹", dp = 2) {
@@ -198,25 +213,25 @@ function signalBadge(signal) {
 function sigColor(signal) {
   const norm = (signal || "").replace(/_/g, " ").toUpperCase().trim();
   const map = {
-    "STRONG BUY":  "#00ff88",
-    "BUY":         "#00d4ff",
-    "HOLD":        "#ffd600",
-    "SELL":        "#ff6b35",
-    "STRONG SELL": "#ff3366",
+    "STRONG BUY":  "#2e7d32",
+    "BUY":         "#2e7d32",
+    "HOLD":        "#5f6368",
+    "SELL":        "#c4242a",
+    "STRONG SELL": "#c4242a",
   };
-  return map[norm] || "#ffd600";
+  return map[norm] || "#5f6368";
 }
 
 function sigIcon(signal) {
   const norm = (signal || "").replace(/_/g, " ").toUpperCase().trim();
   const map = {
-    "STRONG BUY": `<span class="material-symbols-outlined" style="font-size:16px;color:#00ff88;vertical-align:middle;">rocket_launch</span>`,
-    "BUY": `<span class="material-symbols-outlined" style="font-size:16px;color:#00d4ff;vertical-align:middle;">trending_up</span>`,
-    "HOLD": `<span class="material-symbols-outlined" style="font-size:16px;color:#ffd600;vertical-align:middle;">pause_circle</span>`,
-    "SELL": `<span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;vertical-align:middle;">trending_down</span>`,
-    "STRONG SELL": `<span class="material-symbols-outlined" style="font-size:16px;color:#ff3366;vertical-align:middle;">arrow_downward</span>`,
+    "STRONG BUY": `<span class="material-symbols-outlined" style="font-size:16px;color:#2e7d32;vertical-align:middle;">rocket_launch</span>`,
+    "BUY": `<span class="material-symbols-outlined" style="font-size:16px;color:#2e7d32;vertical-align:middle;">trending_up</span>`,
+    "HOLD": `<span class="material-symbols-outlined" style="font-size:16px;color:#5f6368;vertical-align:middle;">pause_circle</span>`,
+    "SELL": `<span class="material-symbols-outlined" style="font-size:16px;color:#c4242a;vertical-align:middle;">trending_down</span>`,
+    "STRONG SELL": `<span class="material-symbols-outlined" style="font-size:16px;color:#c4242a;vertical-align:middle;">arrow_downward</span>`,
   };
-  return map[norm] || `<span class="material-symbols-outlined" style="font-size:16px;color:#ffd600;vertical-align:middle;">pause_circle</span>`;
+  return map[norm] || `<span class="material-symbols-outlined" style="font-size:16px;color:#5f6368;vertical-align:middle;">pause_circle</span>`;
 }
 
 function loading(msg = "Loading…") {
@@ -224,7 +239,7 @@ function loading(msg = "Loading…") {
 }
 
 function errBox(msg) {
-  return `<div class="alert alert-err"><span class="alert-icon"><span class="material-symbols-outlined" style="color:#ff3366;">error</span></span><div class="alert-body"><div class="alert-title">Error</div><div class="alert-text">${msg}</div></div></div>`;
+  return `<div class="alert alert-err"><span class="alert-icon"><span class="material-symbols-outlined">error</span></span><div class="alert-body"><div class="alert-title">Error</div><div class="alert-text">${msg}</div></div></div>`;
 }
 
 // ── Sidebar status ─────────────────────────────────────────────
@@ -287,17 +302,19 @@ function initTabs(containerId) {
   if (buttons[0]) buttons[0].click();
 }
 
-// ── Plotly dark theme defaults ─────────────────────────────────
+// ── Plotly theme: ink on white, faint horizontal grid, no y-axis line ──
+
+const CHART = { ink: "#0a0a0a", muted: "#5f6368", grid: "#e5e5e5", hue: "#1d5fbf", pos: "#2e7d32", neg: "#c4242a", pale: "#c9ced6" };
 
 const PLOTLY_LAYOUT = {
   paper_bgcolor: "rgba(0,0,0,0)",
   plot_bgcolor: "rgba(0,0,0,0)",
-  font: { family: "Inter, sans-serif", color: "#ccd6f6", size: 12 },
-  xaxis: { gridcolor: "rgba(255,255,255,0.04)", zeroline: false, color: "#8892b0" },
-  yaxis: { gridcolor: "rgba(255,255,255,0.04)", zeroline: false, color: "#8892b0" },
-  margin: { l: 40, r: 20, t: 30, b: 40 },
-  legend: { bgcolor: "rgba(0,0,0,0)", font: { size: 11 } },
-  hoverlabel: { bgcolor: "#0d1117", bordercolor: "#00d4ff", font: { color: "#e6f1ff", size: 12 } },
+  font: { family: "Geist, Inter, system-ui, sans-serif", color: CHART.ink, size: 12 },
+  xaxis: { gridcolor: CHART.grid, zeroline: false, showline: false, color: CHART.muted, tickfont: { size: 12, color: CHART.muted } },
+  yaxis: { gridcolor: CHART.grid, zeroline: false, showline: false, color: CHART.muted, tickfont: { size: 12, color: CHART.muted } },
+  margin: { l: 48, r: 16, t: 16, b: 36 },
+  legend: { bgcolor: "rgba(0,0,0,0)", font: { size: 12, color: CHART.muted } },
+  hoverlabel: { bgcolor: "#141414", bordercolor: "#141414", font: { color: "#ffffff", size: 12, family: "Geist, Inter, sans-serif" } },
 };
 
 const PLOTLY_CONFIG = { responsive: true, displayModeBar: false };
@@ -401,58 +418,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// ── React Bits Pointer Effects Controller (Spotlight & BorderGlow) ───
-function initSpotlightController() {
-  if (typeof window === "undefined") return;
-
-  // Track cursor position for the whole-site atmospheric background spotlight
-  window.addEventListener("pointermove", (e) => {
-    document.body.style.setProperty("--mouse-x", `${e.clientX}px`);
-    document.body.style.setProperty("--mouse-y", `${e.clientY}px`);
-  }, { passive: true });
-
-  // Calculate edge proximity and cursor angle for React Bits BorderGlow
-  function updateBorderGlow(card, clientX, clientY) {
-    const rect = card.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    const cx = rect.width / 2;
-    const cy = rect.height / 2;
-    const dx = x - cx;
-    const dy = y - cy;
-
-    let kx = Infinity;
-    let ky = Infinity;
-    if (dx !== 0) kx = cx / Math.abs(dx);
-    if (dy !== 0) ky = cy / Math.abs(dy);
-    const edge = Math.min(Math.max(1 / Math.min(kx, ky), 0), 1);
-
-    let degrees = 0;
-    if (dx !== 0 || dy !== 0) {
-      const radians = Math.atan2(dy, dx);
-      degrees = radians * (180 / Math.PI) + 90;
-      if (degrees < 0) degrees += 360;
-    }
-
-    card.style.setProperty("--edge-proximity", `${(edge * 100).toFixed(3)}`);
-    card.style.setProperty("--cursor-angle", `${degrees.toFixed(3)}deg`);
-  }
-
-  // Track cursor relative to each card for SpotlightCard and BorderGlow
-  document.addEventListener("pointermove", (e) => {
-    const card = e.target.closest(".card-spotlight, .card, .kpi-card, .border-glow-card");
-    if (card) {
-      const rect = card.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      card.style.setProperty("--mouse-x", `${x}px`);
-      card.style.setProperty("--mouse-y", `${y}px`);
-      updateBorderGlow(card, e.clientX, e.clientY);
-    }
-  }, { passive: true });
-}
-
-// ── Global Liquid Glass Floating Tooltip Controller ───────────
+// ── Floating tooltip controller ───────────
 function initGlobalTooltipController() {
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
@@ -577,7 +543,6 @@ function initGlobalTooltipController() {
 }
 
 function initEffectsAndTooltips() {
-  initSpotlightController();
   initGlobalTooltipController();
 }
 

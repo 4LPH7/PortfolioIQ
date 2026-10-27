@@ -4,130 +4,33 @@
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <meta name="view-transition" content="same-origin"/>
   <title>PortfolioIQ — Settings</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
   <link rel="stylesheet" href="css/main.css"/>
   <style>
-    .abstract-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.5rem;
-      margin-top: 1.5rem;
-      box-shadow: var(--shadow-card);
-    }
-    .abstract-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      margin-bottom: 1rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid var(--border-s);
-    }
-    .abstract-title {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .abstract-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 0.75rem;
-      margin-bottom: 1.25rem;
-    }
-    .abs-stat-box {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 0.75rem 1rem;
-    }
-    .abs-stat-label {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      font-weight: 600;
-    }
-    .abs-stat-val {
-      font-size: 1.25rem;
-      font-weight: 800;
-      color: var(--text);
-      margin-top: 0.2rem;
-    }
-    .abs-dropzone {
-      border: 2px dashed var(--border);
-      border-radius: var(--radius-sm);
-      padding: 1.5rem;
-      text-align: center;
-      cursor: pointer;
-      transition: all var(--t-fast);
-      background: rgba(255, 255, 255, 0.015);
-      margin-bottom: 1rem;
-    }
-    .abs-dropzone:hover, .abs-dropzone.drag-over {
-      border-color: var(--accent);
-      background: rgba(14, 165, 233, 0.05);
-    }
+    /* Settings-only pieces; everything else comes from main.css */
+    .abstract-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--card-pad); margin-top: var(--gap); }
+    .abstract-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+    .abstract-title { display: flex; align-items: center; gap: 8px; font-size: var(--fs-section); font-weight: 600; color: var(--text); }
+    .abstract-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .abs-dropzone { border: 1px dashed var(--control); border-radius: var(--radius); padding: 24px; text-align: center; cursor: pointer; background: var(--raised); margin-bottom: 16px; transition: border-color var(--t-fast) ease; }
+    .abs-dropzone:hover, .abs-dropzone.drag-over { border-color: var(--text); }
     .abs-dropzone input[type=file] { display: none; }
-    .abs-preview-table-wrap {
-      max-height: 260px;
-      overflow-y: auto;
-      border-radius: var(--radius-xs);
-      border: 1px solid var(--border);
-      margin: 0.75rem 0;
-    }
-    .kind-pill {
-      font-size: 0.68rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      padding: 0.2rem 0.55rem;
-      border-radius: 12px;
-      letter-spacing: 0.04em;
-    }
-    .kind-pill.holdings { background: rgba(14, 165, 233, 0.15); color: #38bdf8; }
-    .kind-pill.positions { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-    .kind-pill.ledger { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-    .abs-tab-btn {
-      padding: 0.4rem 0.85rem;
-      font-size: 0.8rem;
-      font-weight: 600;
-      border-radius: var(--radius-xs);
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all var(--t-fast);
-    }
-    .abs-tab-btn.active {
-      background: var(--surface2);
-      border-color: var(--accent);
-      color: var(--text);
-    }
-    .manual-row-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 0.6rem;
-      margin-bottom: 0.75rem;
-    }
-    .manual-row-grid input, .manual-row-grid select {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-xs);
-      color: var(--text);
-      padding: 0.45rem 0.6rem;
-      font-size: 0.82rem;
-      font-family: inherit;
-      width: 100%;
-    }
-    .manual-row-grid input:focus, .manual-row-grid select:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
+    .abs-preview-table-wrap { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); margin: 12px 0; }
+    .kind-pill.holdings, .kind-pill.positions, .kind-pill.ledger { background: var(--pill-neutral-bg); color: var(--pill-neutral-ink); }
+    .manual-row-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .safeguards { display: grid; }
+    .guard-row { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 8px 24px; align-items: center; padding: 14px 0; }
+    .guard-row + .guard-row { border-top: 1px solid var(--rule); }
+    .guard-row label { font-weight: 500; }
+    .guard-row .hint { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; line-height: 18px; }
+    .guard-control { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+    .guard-control input[type="number"] { width: 96px; text-align: right; }
+    .guard-control select { width: 140px; }
+    .guard-state { min-width: 44px; font-size: 12px; color: var(--faint); text-align: right; }
+    .guard-state.err { color: var(--negative); }
+    @media (max-width: 640px) { .guard-row { grid-template-columns: minmax(0, 1fr); } .guard-control { justify-content: flex-start; } }
   </style>
 </head>
 <body>
@@ -147,6 +50,7 @@
   <div class="nav-label">Main</div>
   <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="material-symbols-outlined nav-icon">dashboard</span> <span>Dashboard</span></a>
   <a class="nav-item" href="analyzer.html" data-tooltip="Stock Analyzer"><span class="material-symbols-outlined nav-icon">analytics</span> <span>Stock Analyzer</span></a>
+  <a class="nav-item" href="scanner.html" data-tooltip="Market Scanner"><span class="material-symbols-outlined nav-icon">query_stats</span> <span>Market Scanner</span></a>
   <a class="nav-item" href="rebalance.html" data-tooltip="Rebalance"><span class="material-symbols-outlined nav-icon">balance</span> <span>Rebalance</span></a>
   <a class="nav-item" href="tax.html" data-tooltip="Tax Guard"><span class="material-symbols-outlined nav-icon">shield</span> <span>Tax Guard</span></a>
   <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="material-symbols-outlined nav-icon">receipt_long</span> <span>Audit Log</span></a>
@@ -187,7 +91,7 @@
       <div style="font-size:2.8rem;margin-bottom:0.8rem"><span class="material-symbols-outlined spin-icon" style="font-size:2.8rem;">sync</span></div>
       <div class="font-heavy" style="font-size:1.05rem;margin-bottom:0.3rem">Kite SOD &amp; Live Sync</div>
       <div class="text-sm text-muted mb-md">Pull live holdings, positions, and margins from Zerodha. Preserves imported data safely.</div>
-      <button class="btn btn-primary" style="width:100%" id="btn-sync-now" onclick="doSync()"><span class="btn-text">Sync with Zerodha Now</span></button>
+      <button class="btn" style="width:100%" id="btn-sync-now" onclick="doSync()"><span class="btn-text">Sync with Zerodha Now</span></button>
       <div style="display:flex;gap:0.5rem;margin-top:0.6rem;">
         <button class="btn btn-sm btn-ghost text-red" style="width:100%" id="btn-purge-imported" onclick="purgeImportedSettings()" title="Purge imported CSV records and keep only live Zerodha broker records">
           <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">delete_sweep</span> Purge Imported Data
@@ -311,6 +215,24 @@
       </div>
     </div>
   </div>
+
+  <section class="abstract-card" aria-labelledby="safeguards-h">
+    <div class="abstract-header">
+      <h2 class="abstract-title" id="safeguards-h">Trading safeguards</h2>
+      <span class="stamp">Each change saves on its own</span>
+    </div>
+    <p class="text-muted mb-md">Order guards check every order before it can reach Zerodha. Risk alerts only notify you; they never place or size an order.</p>
+    <div id="safeguards" class="safeguards"><div class="loading-wrap"><div class="spinner"></div><span>Loading settings…</span></div></div>
+  </section>
+
+  <section class="abstract-card" aria-labelledby="research-h">
+    <div class="abstract-header">
+      <h2 class="abstract-title" id="research-h">Research committee</h2>
+      <span class="stamp">Each change saves on its own</span>
+    </div>
+    <p class="text-muted mb-md">Limits for the Claude research committee on the Analyzer page. It needs ANTHROPIC_API_KEY in .env, and its output is advisory text only.</p>
+    <div id="research-settings" class="safeguards"><div class="loading-wrap"><div class="spinner"></div><span>Loading settings…</span></div></div>
+  </section>
 </main>
 
 <div class="dry-run-notice"><div class="dry-run-dot"></div>DRY RUN — No real orders</div>
@@ -491,7 +413,7 @@ function renderAbstractPreview(parsed) {
     thead.innerHTML = "<tr><th>Date</th><th>Particulars</th><th>Kind</th><th>Debit</th><th>Credit</th><th>Balance</th></tr>";
     tbody.innerHTML = rows.slice(0, 15).map(r =>
       `<tr><td>${escapeHtml(r.posting_date)||'—'}</td><td>${escapeHtml(r.particulars)}</td><td><span class="badge badge-hold">${escapeHtml(r.entry_kind)}</span></td>
-       <td style="color:#ff4d6d">${r.debit?'₹'+escapeHtml(r.debit):''}</td><td style="color:#00ff88">${r.credit?'₹'+escapeHtml(r.credit):''}</td><td>${r.net_balance?'₹'+escapeHtml(r.net_balance):''}</td></tr>`
+       <td>${r.debit?'₹'+escapeHtml(r.debit):''}</td><td style="color:#2e7d32">${r.credit?'₹'+escapeHtml(r.credit):''}</td><td>${r.net_balance?'₹'+escapeHtml(r.net_balance):''}</td></tr>`
     ).join("");
   } else {
     thead.innerHTML = "<tr><th>Symbol</th><th>Qty</th><th>Avg Cost</th><th>LTP</th><th>Exchange</th><th>Product</th></tr>";
@@ -585,8 +507,8 @@ async function loadAbstractLedger() {
     tbody.innerHTML = rows.map(r =>
       `<tr><td>${escapeHtml(r.posting_date)||'—'}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(r.particulars)}">${escapeHtml(r.particulars)}</td>
        <td><span class="badge badge-hold">${escapeHtml(r.entry_kind)}</span></td>
-       <td style="text-align:right;color:#ff4d6d">${r.debit ? '₹'+Number(r.debit).toLocaleString('en-IN') : ''}</td>
-       <td style="text-align:right;color:#00ff88">${r.credit ? '₹'+Number(r.credit).toLocaleString('en-IN') : ''}</td>
+       <td style="text-align:right">${r.debit ? '₹'+Number(r.debit).toLocaleString('en-IN') : ''}</td>
+       <td style="text-align:right;color:#2e7d32">${r.credit ? '₹'+Number(r.credit).toLocaleString('en-IN') : ''}</td>
        <td style="text-align:right">${r.net_balance != null ? '₹'+Number(r.net_balance).toLocaleString('en-IN') : ''}</td></tr>`
     ).join("");
   } catch(err) {
@@ -619,6 +541,73 @@ async function apiPostForm(path, formData) {
 // Initial load
 refreshBrokerStatus();
 loadAbstractStats();
+
+// ── Trading safeguards: each control saves itself through PATCH /settings/config ──
+const SAFEGUARDS = [
+  { key: "btst_enabled", label: "Sell shares bought yesterday (BTST)", kind: "toggle" },
+  { key: "edis_mode", label: "Demat sale authorisation", kind: "select",
+    options: [["ddpi", "DDPI (broker debits directly)"], ["tpin", "TPIN (authorise each day)"]] },
+  { key: "price_band_max_age_sec", label: "Maximum quote age for the circuit check", kind: "number", unit: "s" },
+  { key: "risk_max_holding_loss_pct", label: "Alert when a holding is below cost by", kind: "number", unit: "%" },
+  { key: "risk_trailing_stop_pct", label: "Alert when off the 60-day high by", kind: "number", unit: "%" },
+  { key: "risk_max_sector_pct", label: "Alert when one sector exceeds", kind: "number", unit: "%" },
+];
+const MODEL_OPTIONS = [["claude-opus-5-5", "Claude Opus 5.5"], ["claude-sonnet-5-5", "Claude Sonnet 5.5 (cheaper)"]];
+const RESEARCH_SETTINGS = [
+  { key: "research_model_quick", label: "Model for the analysts and debate", kind: "select", options: MODEL_OPTIONS },
+  { key: "research_model_deep", label: "Model for the final rating", kind: "select", options: MODEL_OPTIONS },
+  { key: "research_max_cost_usd_per_run", label: "Spending cap per run", kind: "number", unit: "USD" },
+  { key: "research_daily_run_limit", label: "Runs allowed per day", kind: "number", unit: "runs" },
+  { key: "research_run_timeout_min", label: "Give up on a run after", kind: "number", unit: "min" },
+];
+
+async function loadSafeguards(wrapId = "safeguards", controls = SAFEGUARDS) {
+  const wrap = document.getElementById(wrapId);
+  const res = await apiGet("/settings/config");
+  if (!res.ok) { wrap.innerHTML = errBox("Couldn't load settings: " + res.error); return; }
+  const byKey = Object.fromEntries((res.data || []).map((c) => [c.key, c]));
+  const rows = controls.filter((g) => byKey[g.key]);
+  if (!rows.length) {
+    wrap.innerHTML = `<p class="text-muted">These settings appear after the database is migrated (restart the stack).</p>`;
+    return;
+  }
+  wrap.innerHTML = rows.map((g) => {
+    const c = byKey[g.key];
+    const id = `cfg-${g.key}`;
+    let control;
+    if (g.kind === "toggle") {
+      control = `<input type="checkbox" class="switch" id="${id}" ${c.value === "true" ? "checked" : ""}>`;
+    } else if (g.kind === "select") {
+      control = `<select id="${id}">${g.options.map(([v, t]) => `<option value="${v}" ${c.value === v ? "selected" : ""}>${t}</option>`).join("")}</select>`;
+    } else {
+      control = `<input type="number" id="${id}" min="0" step="any" value="${c.value}"><span class="text-muted">${g.unit}</span>`;
+    }
+    return `<div class="guard-row">
+      <div><label for="${id}">${g.label}</label><span class="hint">${c.description || ""}</span></div>
+      <div class="guard-control">${control}<span class="guard-state" id="${id}-state" aria-live="polite"></span></div>
+    </div>`;
+  }).join("");
+  rows.forEach((g) => {
+    const el = document.getElementById(`cfg-${g.key}`);
+    el.addEventListener("change", () => saveSafeguard(g.key, g.kind === "toggle" ? String(el.checked) : el.value));
+  });
+}
+
+async function saveSafeguard(key, value) {
+  const state = document.getElementById(`cfg-${key}-state`);
+  state.className = "guard-state";
+  state.textContent = "Saving…";
+  const res = await apiPatch("/settings/config", { key, value });
+  if (res.ok) {
+    state.textContent = "Saved";
+  } else {
+    state.className = "guard-state err";
+    state.textContent = res.error_message || "Not saved";
+  }
+}
+
+loadSafeguards();
+loadSafeguards("research-settings", RESEARCH_SETTINGS);
 </script>
 </body>
 </html>

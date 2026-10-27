@@ -13,13 +13,25 @@ import pandas as pd
 import yfinance as yf
 from loguru import logger
 
-from src.db.repository import get_historical_bars, upsert_historical_bars
+from src.db.repository import (
+    delete_cached_bars,
+    get_historical_bars,
+    get_symbols_with_unadjusted_bars,
+    mark_bars_legacy_before,
+    mark_bars_legacy_on,
+    upsert_historical_bars,
+)
 from src.ingestion.market_hours import is_holiday, now_ist
 from src.ingestion.ticker_map import (
     DEFAULT_BENCHMARK_SYMBOL,
     get_yf_ticker,
 )
 from src.models.dtos import HistoricalBarDTO
+
+# Every cached row keeps the traded close in `close` and the split- and dividend-adjusted close in
+# `adj_close`, from the same source. Return maths reads the adjusted series; price displays read raw.
+PRICE_BASIS = "close+adj_close"
+EMPTY_COLUMNS = ["Open", "High", "Low", "Close", "Raw Close", "Volume"]
 
 
 def get_last_completed_trading_date(as_of: datetime | None = None) -> date:
@@ -42,9 +54,14 @@ def get_last_completed_trading_date(as_of: datetime | None = None) -> date:
 
 
 def _bars_to_dataframe(bars: list[HistoricalBarDTO]) -> pd.DataFrame:
-    """Convert HistoricalBarDTO list into a standard OHLCV DataFrame."""
+    """
+    Convert cached bars into an adjusted OHLCV DataFrame.
+
+    Open/High/Low/Close are scaled by adj_close / close, so returns include splits and dividends.
+    "Raw Close" keeps the traded price for comparisons with a purchase price or a live quote.
+    """
     if not bars:
-        return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
+        return pd.DataFrame(columns=EMPTY_COLUMNS)
 
     records = []
     for b in bars:
@@ -54,14 +71,55 @@ def _bars_to_dataframe(bars: list[HistoricalBarDTO]) -> pd.DataFrame:
                 "Open": float(b.open),
                 "High": float(b.high),
                 "Low": float(b.low),
-                "Close": float(b.close),
+                "Raw Close": float(b.close),
+                "Adj": float(b.adj_close) if b.adj_close is not None else float("nan"),
                 "Volume": int(b.volume),
             }
         )
     df = pd.DataFrame(records)
     df.set_index("Date", inplace=True)
     df.sort_index(ascending=True, inplace=True)
-    return df
+
+    # ponytail: rows cached before adj_close existed reuse the earliest later factor; a corporate
+    # action older than the refetched history isn't reflected. Rows with no factor at all keep 1.0.
+    factor = (df["Adj"] / df["Raw Close"]).bfill().fillna(1.0)
+    for col in ("Open", "High", "Low"):
+        df[col] = df[col] * factor
+    df["Close"] = df["Raw Close"] * factor
+    return df[EMPTY_COLUMNS]
+
+
+def raw_close(df: pd.DataFrame) -> pd.Series:
+    """The traded close: for current-price displays and comparisons with a purchase price."""
+    return df["Raw Close"] if "Raw Close" in df.columns else df["Close"]
+
+
+def _df_to_dtos(
+    tradingsymbol: str, df: pd.DataFrame, after: date | None = None
+) -> list[HistoricalBarDTO]:
+    """Rows from a fetched frame (traded "Close" plus optional "Adj Close") as cache DTOs."""
+    dtos = []
+    has_adj = "Adj Close" in df.columns
+    for dt, row in df.iterrows():
+        bar_d = dt.date() if isinstance(dt, datetime | pd.Timestamp) else dt
+        if after is not None and bar_d <= after:
+            continue
+        adj = row["Adj Close"] if has_adj else None
+        adj_ok = adj is not None and pd.notna(adj) and float(adj) > 0
+        dtos.append(
+            HistoricalBarDTO(
+                tradingsymbol=tradingsymbol,
+                bar_date=bar_d,
+                open=Decimal(str(round(float(row["Open"]), 2))),
+                high=Decimal(str(round(float(row["High"]), 2))),
+                low=Decimal(str(round(float(row["Low"]), 2))),
+                close=Decimal(str(round(float(row["Close"]), 2))),
+                volume=int(row.get("Volume", 0) or 0),
+                adj_close=Decimal(str(round(float(adj), 4))) if adj_ok else None,
+                price_basis=PRICE_BASIS if adj_ok else None,
+            )
+        )
+    return dtos
 
 
 def _fetch_from_yahoo_chart_api(
@@ -100,16 +158,21 @@ def _fetch_from_yahoo_chart_api(
             if result:
                 item = result[0]
                 timestamps = item.get("timestamp", [])
-                quote = item.get("indicators", {}).get("quote", [{}])[0]
+                indicators = item.get("indicators", {})
+                quote = indicators.get("quote", [{}])[0]
                 opens = quote.get("open", [])
                 highs = quote.get("high", [])
                 lows = quote.get("low", [])
                 closes = quote.get("close", [])
                 volumes = quote.get("volume", [])
+                # Split- and dividend-adjusted closes; missing for some instruments (indices)
+                adj_closes = (indicators.get("adjclose") or [{}])[0].get("adjclose") or [
+                    None
+                ] * len(timestamps)
 
                 records = []
-                for ts, bar_open, bar_high, bar_low, bar_close, bar_vol in zip(
-                    timestamps, opens, highs, lows, closes, volumes, strict=False
+                for ts, bar_open, bar_high, bar_low, bar_close, bar_vol, bar_adj in zip(
+                    timestamps, opens, highs, lows, closes, volumes, adj_closes, strict=False
                 ):
                     if bar_close is not None and bar_open is not None:
                         dt = (
@@ -124,6 +187,11 @@ def _fetch_from_yahoo_chart_api(
                                 "High": float(bar_high if bar_high is not None else bar_open),
                                 "Low": float(bar_low if bar_low is not None else bar_open),
                                 "Close": float(bar_close),
+                                # Missing stays missing: the row is then queued for backfill, never
+                                # labelled adjusted on a guess
+                                "Adj Close": float(bar_adj)
+                                if bar_adj is not None
+                                else float("nan"),
                                 "Volume": int(bar_vol or 0),
                             }
                         )
@@ -167,10 +235,12 @@ def _fetch_from_yfinance(
             "Querying yfinance package for {} (start={}, period={})", yf_ticker, start_date, period
         )
         ticker = yf.Ticker(yf_ticker)
+        # auto_adjust=False keeps the traded "Close" and adds "Adj Close", the same convention as
+        # the chart API path, so the cache never mixes adjusted and unadjusted closes.
         if start_date is not None:
-            df = ticker.history(start=start_date.strftime("%Y-%m-%d"), auto_adjust=True)
+            df = ticker.history(start=start_date.strftime("%Y-%m-%d"), auto_adjust=False)
         else:
-            df = ticker.history(period=period, auto_adjust=True)
+            df = ticker.history(period=period, auto_adjust=False)
 
         if df is None or df.empty:
             return None
@@ -201,7 +271,8 @@ def get_or_sync_historical_bars(
         force_sync: If True, bypass cache freshness check and fetch full history
 
     Returns:
-        pd.DataFrame with DatetimeIndex and columns ['Open', 'High', 'Low', 'Close', 'Volume']
+        pd.DataFrame with DatetimeIndex and adjusted ['Open', 'High', 'Low', 'Close'],
+        plus 'Raw Close' (traded) and 'Volume'
     """
     start_cutoff = date.today() - timedelta(days=lookback_days)
     db_bars = get_historical_bars(tradingsymbol, start_date=start_cutoff)
@@ -219,73 +290,50 @@ def get_or_sync_historical_bars(
             )
             return _bars_to_dataframe(db_bars)
 
-        # 2. Incremental fetch: Fetch only missing bars past max_cached_date
-        delta_start = max_cached_date + timedelta(days=1)
+        # 2. Incremental fetch from the last cached day, so that day can be compared
         yf_ticker = get_yf_ticker(tradingsymbol)
         logger.info(
             "Cache STALE for {}: fetching delta bars from {} to {}",
             tradingsymbol,
-            delta_start,
+            max_cached_date,
             last_trading_day,
         )
         try:
-            delta_df = _fetch_from_yfinance(yf_ticker, start_date=delta_start)
+            delta_df = _fetch_from_yfinance(yf_ticker, start_date=max_cached_date)
         except Exception as exc:
             logger.warning("Error fetching delta bars for {}: {}", tradingsymbol, exc)
             delta_df = None
 
         if delta_df is not None and not delta_df.empty:
-            delta_dtos = []
-            for dt, row in delta_df.iterrows():
-                bar_d = dt.date() if isinstance(dt, datetime | pd.Timestamp) else dt
-                if bar_d > max_cached_date:
-                    delta_dtos.append(
-                        HistoricalBarDTO(
-                            tradingsymbol=tradingsymbol,
-                            bar_date=bar_d,
-                            open=Decimal(str(round(float(row["Open"]), 2))),
-                            high=Decimal(str(round(float(row["High"]), 2))),
-                            low=Decimal(str(round(float(row["Low"]), 2))),
-                            close=Decimal(str(round(float(row["Close"]), 2))),
-                            volume=int(row.get("Volume", 0)),
-                        )
-                    )
+            if _adjustment_restated(db_bars, delta_df):
+                # A dividend or split since the last fetch restates every past adjusted close
+                logger.info("Corporate action detected for {}: refetching history", tradingsymbol)
+                return get_or_sync_historical_bars(tradingsymbol, lookback_days, force_sync=True)
+            delta_dtos = _df_to_dtos(tradingsymbol, delta_df, after=max_cached_date)
             if delta_dtos:
                 upsert_historical_bars(delta_dtos)
-                logger.debug(
-                    "Upserted {} delta bars for {}",
-                    len(delta_dtos),
-                    tradingsymbol,
-                )
+                logger.debug("Upserted {} delta bars for {}", len(delta_dtos), tradingsymbol)
                 db_bars = get_historical_bars(tradingsymbol, start_date=start_cutoff)
 
         return _bars_to_dataframe(db_bars)
 
-    # 3. Cold start or forced sync: Query full history from yfinance
+    # 3. Cold start or forced sync: full history (5y also feeds the optimiser's walk-forward check)
     yf_ticker = get_yf_ticker(tradingsymbol)
     logger.info("Cold start sync for {} ({})", tradingsymbol, yf_ticker)
     try:
-        full_df = _fetch_from_yfinance(yf_ticker, period="2y")
+        full_df = _fetch_from_yfinance(yf_ticker, period="5y")
     except Exception as exc:
         logger.warning("Error fetching full history for {}: {}", tradingsymbol, exc)
         full_df = None
 
     if full_df is not None and not full_df.empty:
-        all_dtos = []
-        for dt, row in full_df.iterrows():
-            bar_d = dt.date() if isinstance(dt, datetime | pd.Timestamp) else dt
-            all_dtos.append(
-                HistoricalBarDTO(
-                    tradingsymbol=tradingsymbol,
-                    bar_date=bar_d,
-                    open=Decimal(str(round(float(row["Open"]), 2))),
-                    high=Decimal(str(round(float(row["High"]), 2))),
-                    low=Decimal(str(round(float(row["Low"]), 2))),
-                    close=Decimal(str(round(float(row["Close"]), 2))),
-                    volume=int(row.get("Volume", 0)),
-                )
-            )
+        all_dtos = _df_to_dtos(tradingsymbol, full_df)
         upsert_historical_bars(all_dtos)
+        if all_dtos:
+            first = min(d.bar_date for d in all_dtos)
+            # Rows older than this fetch carry the previous adjustment basis
+            mark_bars_legacy_before(tradingsymbol, first)
+            _reconcile_missing_days(tradingsymbol, first, {d.bar_date for d in all_dtos})
         logger.info("Persisted {} bars for {}", len(all_dtos), tradingsymbol)
         db_bars = get_historical_bars(tradingsymbol, start_date=start_cutoff)
         return _bars_to_dataframe(db_bars)
@@ -296,7 +344,57 @@ def get_or_sync_historical_bars(
         return _bars_to_dataframe(db_bars)
 
     logger.error("No historical bars available for {}", tradingsymbol)
-    return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
+    return pd.DataFrame(columns=EMPTY_COLUMNS)
+
+
+def _reconcile_missing_days(tradingsymbol: str, first: date, fetched: set[date]) -> None:
+    """
+    Cached rows inside the refetched window that the source no longer returns.
+    On a weekend or exchange holiday no bar can exist (older builds wrote synthetic ones): delete.
+    On a trading day the source may just have a gap: keep the row, labelled legacy.
+    """
+    missing = [b.bar_date for b in get_historical_bars(tradingsymbol, start_date=first)]
+    missing = [d for d in missing if d not in fetched and d <= max(fetched)]
+    phantom = [d for d in missing if d.weekday() >= 5 or is_holiday(d)]
+    if phantom:
+        removed = delete_cached_bars(tradingsymbol, phantom)
+        logger.info("Removed {} non-trading-day bars for {}", removed, tradingsymbol)
+    gaps = [d for d in missing if d not in phantom]
+    if gaps:
+        mark_bars_legacy_on(tradingsymbol, gaps)
+
+
+def _adjustment_restated(db_bars: list[HistoricalBarDTO], fetched: pd.DataFrame) -> bool:
+    """True when the overlapping day's adj_close/close ratio moved: a new dividend or split."""
+    last = max(db_bars, key=lambda b: b.bar_date)
+    if last.adj_close is None or "Adj Close" not in fetched.columns:
+        return False
+    same_day = fetched[fetched.index.normalize() == pd.Timestamp(last.bar_date)]
+    if same_day.empty:
+        return False
+    row = same_day.iloc[0]
+    if pd.isna(row["Adj Close"]) or not row["Close"]:
+        return False
+    cached_ratio = float(last.adj_close) / float(last.close)
+    fetched_ratio = float(row["Adj Close"]) / float(row["Close"])
+    return abs(fetched_ratio - cached_ratio) > 1e-4
+
+
+def backfill_adjusted_prices(limit: int = 50) -> dict[str, int]:
+    """
+    Refetch symbols still holding rows cached before adjusted closes existed (migration 024).
+    A symbol that fails to fetch stays queued and is retried on the next run.
+    """
+    done, failed = 0, 0
+    for symbol in get_symbols_with_unadjusted_bars(limit=limit):
+        df = get_or_sync_historical_bars(symbol, force_sync=True)
+        if df.empty:
+            failed += 1
+        else:
+            done += 1
+    if done or failed:
+        logger.info("Adjusted-price backfill: {} refetched, {} failed", done, failed)
+    return {"refetched": done, "failed": failed}
 
 
 def get_benchmark_bars(

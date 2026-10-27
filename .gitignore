@@ -58,3 +58,6 @@ coverage.json
 .netlify/
 frontend/.netlify/
 
+
+# Design tooling working files
+.taste-skill/

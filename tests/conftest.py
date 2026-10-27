@@ -61,6 +61,43 @@ if not POSTGRES_AVAILABLE:
             break
 
 
+def _use_test_database(url: str) -> str:
+    """
+    Never run tests against the app's own database. The port fallback above can land on the
+    self-hosted stack's Postgres (5434), where session migrations and direct writes would hit
+    real portfolio data. Use a sibling "<name>_test" database on the same server instead,
+    created on first use. CI keeps its own throwaway database.
+    """
+    from sqlalchemy.engine import make_url
+
+    parsed = make_url(url)
+    if not parsed.database or parsed.database.endswith("_test"):
+        return url
+    test_name = f"{parsed.database}_test"
+    admin = psycopg2.connect(
+        host=parsed.host,
+        port=parsed.port,
+        user=parsed.username,
+        password=parsed.password,
+        dbname="postgres",
+        connect_timeout=3,
+    )
+    admin.autocommit = True
+    try:
+        with admin.cursor() as cur:
+            cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (test_name,))
+            if cur.fetchone() is None:
+                cur.execute(f'CREATE DATABASE "{test_name}"')
+    finally:
+        admin.close()
+    return parsed.set(database=test_name).render_as_string(hide_password=False)
+
+
+if POSTGRES_AVAILABLE and not IS_CI:
+    TEST_DB_URL = _use_test_database(TEST_DB_URL)
+    os.environ["DATABASE_URL"] = TEST_DB_URL
+
+
 def pytest_configure(config: pytest.Config) -> None:
     """Register custom markers."""
     config.addinivalue_line(

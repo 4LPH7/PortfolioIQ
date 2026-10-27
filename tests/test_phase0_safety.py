@@ -46,6 +46,8 @@ def test_gatekeeper_dry_run_environment_overrides_requested_live_mode(
     monkeypatch.setattr(gatekeeper, "validate_slippage", lambda _order: (True, "ok"))
     monkeypatch.setattr(gatekeeper, "validate_concentration", lambda _order: (True, "ok"))
     monkeypatch.setattr(gatekeeper, "validate_no_duplicate", lambda _order: (True, "ok"))
+    monkeypatch.setattr(gatekeeper, "validate_sellable", lambda _order, live: (True, "ok"))
+    monkeypatch.setattr(gatekeeper, "validate_price_band", lambda _order, live: (True, "ok"))
     monkeypatch.setattr(gatekeeper, "_log_validation", lambda _report: None)
 
     report = gatekeeper.validate_order(_order(), dry_run=False)
@@ -184,6 +186,8 @@ def test_gatekeeper_writes_canonical_order_and_validation_rows(
     monkeypatch.setattr(gatekeeper, "validate_slippage", lambda _order: (True, "ok"))
     monkeypatch.setattr(gatekeeper, "validate_concentration", lambda _order: (True, "ok"))
     monkeypatch.setattr(gatekeeper, "validate_no_duplicate", lambda _order: (True, "ok"))
+    monkeypatch.setattr(gatekeeper, "validate_sellable", lambda _order, live: (True, "ok"))
+    monkeypatch.setattr(gatekeeper, "validate_price_band", lambda _order, live: (True, "ok"))
 
     report = gatekeeper.validate_order(_order(), dry_run=False)
     order_rows = execute_sql(
@@ -204,5 +208,6 @@ def test_gatekeeper_writes_canonical_order_and_validation_rows(
             "price_at_signal": Decimal("100.00"),
         }
     ]
-    assert len(checks) == 5
+    # market hours, margin, sellable, price band, slippage, concentration, duplicate
+    assert len(checks) == 7
     assert all(row["passed"] for row in checks)

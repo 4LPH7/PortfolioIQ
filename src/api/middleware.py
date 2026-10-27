@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import contextvars
 import hmac
+import json
 from collections.abc import Callable
 from functools import wraps
 from typing import Any
@@ -117,7 +118,7 @@ def validate_json(schema_cls: type[BaseModel]) -> Callable[..., Any]:
                 return format_error_response(
                     code="VALIDATION_ERROR",
                     message="Request payload failed validation",
-                    details=err.errors(),
+                    details=json.loads(err.json(include_url=False)),  # ctx may hold exceptions
                     status_code=422,
                 )
             return f(validated, *args, **kwargs)

@@ -51,7 +51,7 @@ def test_transactional_rollback_discards_mutations(db_session) -> None:
     # Read original value or update temporarily
     original = [c for c in list_app_configs() if c.key == "dry_run_mode"]
     if original:
-        temp_val = "temp_test_value"
+        temp_val = "false" if original[0].value == "true" else "true"  # a valid boolean
         update_app_config("dry_run_mode", temp_val)
         updated = [c for c in list_app_configs() if c.key == "dry_run_mode"]
         assert updated[0].value == temp_val

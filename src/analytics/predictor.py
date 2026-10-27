@@ -593,7 +593,7 @@ def analyse_holding(
             f"{available} bars available; at least 35 are required."
         )
 
-    cur_price = float(df["Close"].iloc[-1])
+    cur_price = float((df["Raw Close"] if "Raw Close" in df.columns else df["Close"]).iloc[-1])
     result = StockAnalysis(
         symbol=symbol,
         yf_ticker=yf_ticker,

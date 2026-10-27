@@ -383,6 +383,15 @@ class TestDuplicateValidator:
 class TestGatekeeperPipeline:
     """Tests for src/execution/gatekeeper.py order validation pipeline."""
 
+    @pytest.fixture(autouse=True)
+    def _india_guards_pass(self):
+        """The sellable and price-band gates have their own tests (test_india_order_guards.py)."""
+        with (
+            patch("src.execution.gatekeeper.validate_sellable", return_value=(True, "OK")),
+            patch("src.execution.gatekeeper.validate_price_band", return_value=(True, "OK")),
+        ):
+            yield
+
     @patch("src.execution.gatekeeper.record_validation_check")
     @patch("src.execution.gatekeeper.record_order_attempt")
     def test_unknown_validation_check_name_raises(

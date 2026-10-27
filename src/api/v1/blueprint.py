@@ -28,8 +28,15 @@ from src.db.repository import (
 from src.models.dtos import (
     CreateCashFlowDTO,
     CreateMarketCalendarDTO,
+    CreateProfileDTO,
     CSVImportHoldingDTO,
     CSVImportResultDTO,
+    OddsRequestDTO,
+    OptimizeRequestDTO,
+    PriceAlertDTO,
+    PriceAlertUpdateDTO,
+    ProjectionRequestDTO,
+    ResearchRunRequestDTO,
     UpdateConfigDTO,
 )
 
@@ -299,6 +306,357 @@ def rebalance_orders():
     return jsonify({"ok": True, "data": data})
 
 
+@api_v1_bp.route("/rebalance/optimize", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+@validate_json(OptimizeRequestDTO)
+def post_rebalance_optimize(payload: OptimizeRequestDTO):
+    """Suggested target weights for the current holdings. A preview: nothing is saved."""
+    from src.analytics.drift_detector import _get_active_targets, _get_system_config_value
+    from src.analytics.historical_cache import get_or_sync_historical_bars
+    from src.analytics.optimizer import build_suggestion
+    from src.analytics.valuator import compute_portfolio_valuation
+
+    valuation = compute_portfolio_valuation(payload.user_id)
+    holdings = [
+        {
+            "symbol": h.tradingsymbol,
+            "instrument_token": h.instrument_token,
+            "weight_pct": float(h.weight_pct),
+        }
+        for h in valuation.holdings
+    ]
+    current = {
+        name: float(t["target_weight_pct"])
+        for (kind, name), t in _get_active_targets(payload.user_id).items()
+        if kind == "STOCK"
+    }
+    cap = payload.cap_pct
+    if cap is None:
+        cap = float(_get_system_config_value("concentration_limit_pct", "15.0"))
+    floor = payload.cash_floor_pct
+    if floor is None:
+        floor = float(get_settings().rebalancer_cash_buffer_pct) * 100
+    data = build_suggestion(
+        holdings,
+        payload.method,
+        lambda sym: get_or_sync_historical_bars(sym, lookback_days=1900),  # ~5y for walk-forward
+        cap_pct=cap,
+        cash_floor_pct=floor,
+        aum=float(valuation.total_aum) or 1_000_000.0,
+        current_targets_pct=current or None,
+        walk_forward=payload.walk_forward,
+    )
+    return jsonify({"ok": True, "data": data})
+
+
+@api_v1_bp.route("/rebalance/profiles", methods=["GET"])
+@require_api_key
+def get_rebalance_profiles():
+    from src.db.repository import list_allocation_profiles
+
+    user_id = request.args.get("user_id", "default")
+    return jsonify({"ok": True, "data": list_allocation_profiles(user_id)})
+
+
+@api_v1_bp.route("/rebalance/profiles", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+@validate_json(CreateProfileDTO)
+def post_rebalance_profile(payload: CreateProfileDTO):
+    """Save targets as an INACTIVE profile; drift and the rebalancer ignore it until activated."""
+    from src.db.repository import create_allocation_profile
+
+    try:
+        pid = create_allocation_profile(
+            payload.user_id,
+            payload.profile_name.strip(),
+            payload.description,
+            [(t.instrument_token, t.target_weight_pct) for t in payload.targets],
+        )
+    except ValueError as exc:
+        return format_error_response(code="PROFILE_REJECTED", message=str(exc), status_code=409)
+    return jsonify({"ok": True, "data": {"id": pid, "is_active": False}}), 201
+
+
+@api_v1_bp.route("/rebalance/profiles/<int:profile_id>/activate", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+def post_activate_profile(profile_id: int):
+    """The only path that makes a profile drive drift detection and the rebalancer."""
+    from src.db.repository import activate_allocation_profile
+
+    user_id = (request.get_json(silent=True) or {}).get("user_id", "default")
+    if not activate_allocation_profile(user_id, profile_id):
+        return format_error_response(code="NOT_FOUND", message="Profile not found", status_code=404)
+    return jsonify({"ok": True, "data": {"id": profile_id, "is_active": True}})
+
+
+# ─────────────────────────────────────────────────────────────
+# Stop and target odds (read-only: nothing is saved or ordered)
+# ─────────────────────────────────────────────────────────────
+@api_v1_bp.route("/analysis/odds", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+@validate_json(OddsRequestDTO)
+def post_trade_odds(payload: OddsRequestDTO):
+    from src.analytics.drift_detector import _get_system_config_value
+    from src.analytics.historical_cache import get_or_sync_historical_bars, raw_close
+    from src.analytics.trade_odds import compute_odds, size_position
+    from src.analytics.valuator import compute_portfolio_valuation
+
+    bars = get_or_sync_historical_bars(payload.symbol, lookback_days=1900)
+    if bars.empty:
+        return format_error_response(
+            code="ODDS_REJECTED", message=f"No price history for {payload.symbol}", status_code=422
+        )
+    entry = payload.entry or float(raw_close(bars).iloc[-1])
+    sizing = None
+    try:
+        if payload.max_loss_inr:
+            v = compute_portfolio_valuation(payload.user_id)
+            held = sum(
+                float(h.current_value) for h in v.holdings if h.tradingsymbol == payload.symbol
+            )
+            sizing = size_position(
+                entry,
+                payload.stop,
+                payload.target,
+                payload.max_loss_inr,
+                float(v.available_cash) if v.available_cash > 0 else None,
+                float(v.net_worth or v.total_aum),
+                held,
+                float(_get_system_config_value("concentration_limit_pct", "15.0")),
+            )
+        data = compute_odds(
+            bars,
+            payload.stop,
+            payload.target,
+            entry=entry,
+            horizon_days=payload.horizon_days,
+            lookback_years=payload.lookback_years,
+            replays=payload.replays,
+            seed=payload.seed,
+            position_qty=(sizing or {}).get("quantity") or None,
+        )
+    except ValueError as exc:
+        return format_error_response(code="ODDS_REJECTED", message=str(exc), status_code=422)
+    data["symbol"], data["sizing"] = payload.symbol, sizing
+    return jsonify({"ok": True, "data": data})
+
+
+# ─────────────────────────────────────────────────────────────
+# Market scanner (read-only research; it cannot place orders)
+# ─────────────────────────────────────────────────────────────
+@api_v1_bp.route("/scanner", methods=["GET"])
+@require_api_key
+def get_scanner():
+    from src.analytics.scanner import latest_scan
+
+    return jsonify({"ok": True, "data": latest_scan()})
+
+
+@api_v1_bp.route("/scanner/run", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+def post_scanner_run():
+    from src.analytics.scanner import start_in_background
+
+    run_id = start_in_background("manual")
+    if run_id is None:
+        return format_error_response(
+            code="SCAN_RUNNING", message="A scan is already running", status_code=409
+        )
+    return jsonify({"ok": True, "data": {"id": run_id, "status": "running"}}), 202
+
+
+# ─────────────────────────────────────────────────────────────
+# Portfolio projection (read-only)
+# ─────────────────────────────────────────────────────────────
+@api_v1_bp.route("/portfolio/projection", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+@validate_json(ProjectionRequestDTO)
+def post_portfolio_projection(payload: ProjectionRequestDTO):
+    from src.analytics.historical_cache import get_or_sync_historical_bars
+    from src.analytics.projection import daily_returns, project
+    from src.analytics.valuator import compute_portfolio_valuation
+
+    v = compute_portfolio_valuation(payload.user_id)
+    holdings = [
+        {"symbol": h.tradingsymbol, "value": float(h.current_value)}
+        for h in v.holdings
+        if h.current_value > 0
+    ]
+    if not holdings:
+        return format_error_response(
+            code="PROJECTION_REJECTED", message="There are no holdings to project", status_code=422
+        )
+    days = payload.lookback_years * 365 + 30
+    try:
+        rets = daily_returns(
+            holdings,
+            lambda sym: get_or_sync_historical_bars(sym, lookback_days=days),
+            payload.lookback_years,
+        )
+    except ValueError as exc:
+        return format_error_response(code="PROJECTION_REJECTED", message=str(exc), status_code=422)
+    cash = max(float(v.available_cash), 0.0)
+    invested = rets["covered_value"]
+    data = project(
+        rets["portfolio"],
+        rets["benchmark"],
+        invested + cash,
+        invested / (invested + cash),
+        payload.years,
+        payload.simulations,
+        payload.seed,
+    )
+    data.update(
+        history={"from": rets["from"], "to": rets["to"], "days": len(rets["portfolio"])},
+        symbols=rets["symbols"],
+        excluded=rets["excluded"],
+        excluded_value_inr=round(sum(h["value"] for h in holdings) - invested, 0),
+        cash_inr=round(cash, 0),
+    )
+    return jsonify({"ok": True, "data": data})
+
+
+# ─────────────────────────────────────────────────────────────
+# News on holdings (stored by a scheduled job; titles are untrusted text)
+# ─────────────────────────────────────────────────────────────
+@api_v1_bp.route("/news", methods=["GET"])
+@require_api_key
+def get_news():
+    from src.ingestion.news import recent_news
+
+    symbol = (request.args.get("symbol") or "").upper() or None
+    days = min(max(request.args.get("days", 7, type=int), 1), 30)
+    limit = min(max(request.args.get("limit", 30, type=int), 1), 100)
+    return jsonify({"ok": True, "data": recent_news(symbol, days, limit)})
+
+
+# ─────────────────────────────────────────────────────────────
+# Price alerts you set (information only; they never place orders)
+# ─────────────────────────────────────────────────────────────
+@api_v1_bp.route("/alerts/price", methods=["GET"])
+@require_api_key
+def get_price_alerts():
+    from src.analytics.price_alerts import describe, list_alerts
+    from src.ingestion.market_hours import is_market_open
+
+    rows = list_alerts(request.args.get("user_id", "default"))
+    for r in rows:
+        r["label"] = describe(r)
+    return jsonify({"ok": True, "data": {"alerts": rows, "market_open": is_market_open()}})
+
+
+@api_v1_bp.route("/alerts/price", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+@validate_json(PriceAlertDTO)
+def post_price_alert(payload: PriceAlertDTO):
+    from src.analytics.price_alerts import create_alert, describe
+
+    try:
+        row = create_alert(
+            payload.user_id,
+            payload.symbol,
+            payload.kind,
+            payload.price,
+            payload.pct,
+            payload.direction,
+            payload.note.strip() if payload.note else None,
+            payload.rearm,
+        )
+    except ValueError as exc:
+        return format_error_response(code="ALERT_REJECTED", message=str(exc), status_code=409)
+    return jsonify({"ok": True, "data": {**row, "label": describe(row)}}), 201
+
+
+@api_v1_bp.route("/alerts/price/<int:alert_id>", methods=["PATCH"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+@validate_json(PriceAlertUpdateDTO)
+def patch_price_alert(payload: PriceAlertUpdateDTO, alert_id: int):
+    from src.analytics.price_alerts import set_active
+
+    row = set_active(payload.user_id, alert_id, payload.active)
+    if row is None:
+        return format_error_response(code="NOT_FOUND", message="Alert not found", status_code=404)
+    return jsonify({"ok": True, "data": row})
+
+
+@api_v1_bp.route("/alerts/price/<int:alert_id>", methods=["DELETE"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+def delete_price_alert(alert_id: int):
+    from src.analytics.price_alerts import delete_alert
+
+    if not delete_alert(request.args.get("user_id", "default"), alert_id):
+        return format_error_response(code="NOT_FOUND", message="Alert not found", status_code=404)
+    return jsonify({"ok": True, "data": {"id": alert_id, "deleted": True}})
+
+
+# ─────────────────────────────────────────────────────────────
+# Research committee (advisory text only; no path to orders)
+# ─────────────────────────────────────────────────────────────
+@api_v1_bp.route("/research/runs", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+@validate_json(ResearchRunRequestDTO)
+def post_research_run(payload: ResearchRunRequestDTO):
+    from src.research import runs
+
+    if not runs.research_enabled():
+        return format_error_response(
+            code="RESEARCH_OFF",
+            message="Set ANTHROPIC_API_KEY in .env and restart to use the research committee.",
+            status_code=503,
+        )
+    try:
+        run, created = runs.enqueue_run(payload.user_id, payload.symbol, payload.idempotency_key)
+    except runs.QuotaError as exc:
+        return format_error_response(code="RESEARCH_QUOTA", message=str(exc), status_code=429)
+    if created:
+        runs.start_run(run["id"])
+    return jsonify({"ok": True, "data": run}), 202 if created else 200
+
+
+@api_v1_bp.route("/research/runs", methods=["GET"])
+@require_api_key
+def get_research_runs():
+    from src.research import runs
+
+    user_id = request.args.get("user_id", "default")
+    runs.sweep_abandoned(user_id)
+    data = {
+        "enabled": runs.research_enabled(),
+        "usage": runs.usage_today(user_id),
+        "runs": runs.list_runs(user_id, request.args.get("symbol") or None),
+    }
+    return jsonify({"ok": True, "data": data})
+
+
+@api_v1_bp.route("/research/runs/<int:run_id>", methods=["GET"])
+@require_api_key
+def get_research_run(run_id: int):
+    from src.research import runs
+
+    run = runs.get_run(request.args.get("user_id", "default"), run_id)
+    if run is None:
+        return format_error_response(code="NOT_FOUND", message="Run not found", status_code=404)
+    return jsonify({"ok": True, "data": run})
+
+
+@api_v1_bp.route("/research/scorecard", methods=["GET"])
+@require_api_key
+def get_research_scorecard():
+    from src.research.runs import scorecard
+
+    return jsonify({"ok": True, "data": scorecard(request.args.get("user_id", "default"))})
+
+
 # ─────────────────────────────────────────────────────────────
 # Tax Guard
 # ─────────────────────────────────────────────────────────────
@@ -374,6 +732,8 @@ def update_config(payload: UpdateConfigDTO):
             message=str(exc),
             status_code=404,
         )
+    except ValueError as exc:
+        return format_error_response(code="INVALID_VALUE", message=str(exc), status_code=400)
 
 
 @api_v1_bp.route("/settings/sync", methods=["POST"])
@@ -848,7 +1208,32 @@ def get_alerts():
     except Exception as exc:
         logger.warning(f"Error checking holdings or drift for alerts: {exc}")
 
-    # 4. Tax Harvesting Opportunities
+    # Price alerts the user set that rang in the last 24 hours
+    try:
+        from src.analytics.price_alerts import bell_items
+
+        alerts.extend(bell_items(user_id, now))
+    except Exception as exc:
+        logger.warning(f"Error loading price alerts for the bell: {exc}")
+
+    # 4. Risk guards: holding loss, trailing stop, sector exposure (alerts only)
+    try:
+        from src.analytics.historical_cache import get_or_sync_historical_bars
+        from src.analytics.risk_guards import evaluate_risk_guards, load_thresholds
+        from src.analytics.valuator import compute_portfolio_valuation
+
+        alerts.extend(
+            evaluate_risk_guards(
+                compute_portfolio_valuation(user_id),
+                load_thresholds(),
+                lambda sym: get_or_sync_historical_bars(sym, lookback_days=120),
+                now,
+            )
+        )
+    except Exception as exc:
+        logger.warning(f"Error evaluating risk guards for alerts: {exc}")
+
+    # 5. Tax Harvesting Opportunities
     try:
         from src.analytics.tax_guard import get_annual_tax_harvesting_summary
 

@@ -10,7 +10,7 @@ from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class BaseDTO(BaseModel):
@@ -102,6 +102,8 @@ class ValidationCheckDTO(BaseDTO):
         "MARKET_HOURS_CHECK",
         "QUANTITY_CHECK",
         "TAX_WARNING",
+        "SELLABLE_CHECK",  # migration 025
+        "PRICE_BAND_CHECK",
     ]
     passed: bool
     expected_value: str | None = None
@@ -133,6 +135,100 @@ class AppConfigDTO(BaseDTO):
 class UpdateConfigDTO(BaseModel):
     key: str
     value: str
+
+
+class OptimizeRequestDTO(BaseModel):
+    method: Literal["risk_parity", "min_variance", "hrp", "equal_weight"] = "risk_parity"
+    user_id: str = "default"
+    cap_pct: float | None = Field(None, gt=0, le=100)  # default: concentration_limit_pct
+    cash_floor_pct: float | None = Field(None, ge=0, lt=50)  # default: rebalancer cash buffer
+    walk_forward: bool = True
+
+
+class ProfileTargetDTO(BaseModel):
+    instrument_token: int
+    target_weight_pct: float = Field(ge=0, le=100)
+
+
+class CreateProfileDTO(BaseModel):
+    """A saved suggestion. It is created inactive; activation is a separate request."""
+
+    user_id: str = "default"
+    profile_name: str = Field(min_length=1, max_length=80)
+    description: str | None = Field(None, max_length=500)
+    targets: list[ProfileTargetDTO] = Field(min_length=1, max_length=200)
+
+    @model_validator(mode="after")
+    def _check_targets(self) -> CreateProfileDTO:
+        tokens = [t.instrument_token for t in self.targets]
+        if len(set(tokens)) != len(tokens):
+            raise ValueError("Each instrument may appear only once")
+        if sum(t.target_weight_pct for t in self.targets) > 100.001:
+            raise ValueError("Stock targets add up to more than 100%")
+        return self
+
+
+class OddsRequestDTO(BaseModel):
+    """A delivery buy with a stop and a target. Entry defaults to the last traded close."""
+
+    user_id: str = "default"
+    symbol: str = Field(pattern=r"^[A-Z0-9&_-]{1,30}$")
+    entry: float | None = Field(None, gt=0)
+    stop: float = Field(gt=0)
+    target: float = Field(gt=0)
+    horizon_days: int = Field(20, ge=5, le=250)
+    lookback_years: int = Field(2, ge=1, le=5)
+    replays: int = Field(10_000, ge=1_000, le=20_000)
+    seed: int = Field(19, ge=0)
+    max_loss_inr: float | None = Field(None, gt=0)
+
+    @model_validator(mode="after")
+    def _check_levels(self) -> OddsRequestDTO:
+        if self.stop >= self.target:
+            raise ValueError("The stop must be below the target")
+        if self.entry is not None and not self.stop < self.entry < self.target:
+            raise ValueError("The entry must sit between the stop and the target")
+        return self
+
+
+class PriceAlertDTO(BaseModel):
+    user_id: str = "default"
+    symbol: str = Field(pattern=r"^[A-Z0-9&_-]{1,30}$")
+    kind: Literal["above", "below", "pct_move"]
+    price: float | None = Field(None, gt=0)
+    pct: float | None = Field(None, gt=0, le=50)
+    direction: Literal["up", "down", "either"] = "either"
+    note: str | None = Field(None, max_length=120)
+    rearm: bool = False
+
+    @model_validator(mode="after")
+    def _check_value(self) -> PriceAlertDTO:
+        if self.kind == "pct_move" and self.pct is None:
+            raise ValueError("A percent-move alert needs pct")
+        if self.kind != "pct_move" and self.price is None:
+            raise ValueError("A price alert needs a price")
+        return self
+
+
+class PriceAlertUpdateDTO(BaseModel):
+    user_id: str = "default"
+    active: bool
+
+
+class ProjectionRequestDTO(BaseModel):
+    user_id: str = "default"
+    years: int = Field(5, ge=1, le=10)
+    simulations: int = Field(5_000, ge=1_000, le=20_000)
+    lookback_years: int = Field(5, ge=2, le=10)
+    seed: int = Field(19, ge=0)
+
+
+class ResearchRunRequestDTO(BaseModel):
+    """One committee run. A repeated idempotency_key returns the run it already created."""
+
+    user_id: str = "default"
+    symbol: str = Field(pattern=r"^[A-Z0-9&_-]{1,30}$")
+    idempotency_key: str = Field(min_length=8, max_length=80, pattern=r"^[A-Za-z0-9_-]+$")
 
 
 class MarketCalendarDTO(BaseDTO):
@@ -249,6 +345,14 @@ class CreateCashFlowDTO(BaseDTO):
     notes: str | None = None
 
 
+class MetricValueDTO(BaseDTO):
+    """A statistic with an honest status: a value only when the estimate can be trusted."""
+
+    value: float | None = None
+    status: Literal["ok", "insufficient_data", "zero_variance", "non_finite", "unstable"]
+    n_obs: int = 0
+
+
 class PerformanceMetricsDTO(BaseDTO):
     user_id: str = "default"
     twr_pct: float
@@ -263,8 +367,17 @@ class PerformanceMetricsDTO(BaseDTO):
     alpha_annual_pct: float | None = None
     r_squared: float | None = None
     tracking_error_pct: float | None = None
+    benchmark_twr_pct: float | None = None  # NIFTY 50 TRI compounded over the same days
     history_days: int
     is_warmup_period: bool = False
+
+    # Risk statistics after QuantConnect Lean's PortfolioStatistics (migration-free, computed)
+    probabilistic_sharpe: MetricValueDTO | None = None  # P(true Sharpe > 0), 0..1
+    var_95_pct: MetricValueDTO | None = None  # one-day historical VaR, a positive loss %
+    cvar_95_pct: MetricValueDTO | None = None
+    var_99_pct: MetricValueDTO | None = None
+    cvar_99_pct: MetricValueDTO | None = None
+    information_ratio: MetricValueDTO | None = None
 
     # Drag attribution
     gross_return_pct: float
@@ -439,6 +552,8 @@ class HistoricalBarDTO(BaseDTO):
     low: Decimal
     close: Decimal
     volume: int = 0
+    adj_close: Decimal | None = None  # split- and dividend-adjusted close (migration 024)
+    price_basis: str | None = None
     created_at: datetime | None = None
 
 
@@ -451,7 +566,7 @@ class AuthVerifyRequestDTO(BaseDTO):
 
 class AlertItemDTO(BaseDTO):
     id: str
-    type: Literal["DRIFT", "PRICE_STALE", "TAX", "SYSTEM"]
+    type: Literal["DRIFT", "PRICE_STALE", "TAX", "SYSTEM", "RISK"]
     severity: Literal["CRITICAL", "WARNING", "INFO"]
     title: str
     message: str

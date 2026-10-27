@@ -7,7 +7,8 @@
   <meta name="view-transition" content="same-origin"/>
   <title>PortfolioIQ — Monthly Statement</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
   <link rel="stylesheet" href="css/main.css"/>
   <style>
@@ -16,21 +17,11 @@
       margin: 0 auto;
     }
     .statement-header {
-      border-bottom: 2px solid var(--border);
-      padding-bottom: 1.5rem;
-      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+      margin-bottom: 20px;
     }
-    .disclaimer-box {
-      background: rgba(0, 0, 0, 0.25);
-      border: 1px solid var(--border);
-      border-left: 4px solid var(--accent);
-      border-radius: var(--radius-sm);
-      padding: 1rem 1.25rem;
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      line-height: 1.6;
-      margin-top: 2rem;
-    }
+    .disclaimer-box { margin-top: 32px; font-size: 13px; }
     @media print {
       @page {
         size: A4 portrait;
@@ -61,8 +52,7 @@
       .disclaimer-box {
         background: #f8fafc !important;
         border: 1px solid #e2e8f0 !important;
-        border-left: 3.5px solid #0284c7 !important;
-        color: #475569 !important;
+        color: #5f6368 !important;
         margin-top: 0.4rem !important;
         padding: 0.35rem 0.55rem !important;
         font-size: 0.6rem !important;
@@ -82,6 +72,7 @@
   <div class="nav-label">Main</div>
   <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="material-symbols-outlined nav-icon">dashboard</span> <span>Dashboard</span></a>
   <a class="nav-item" href="analyzer.html" data-tooltip="Stock Analyzer"><span class="material-symbols-outlined nav-icon">analytics</span> <span>Stock Analyzer</span></a>
+  <a class="nav-item" href="scanner.html" data-tooltip="Market Scanner"><span class="material-symbols-outlined nav-icon">query_stats</span> <span>Market Scanner</span></a>
   <a class="nav-item" href="rebalance.html" data-tooltip="Rebalance"><span class="material-symbols-outlined nav-icon">balance</span> <span>Rebalance</span></a>
   <a class="nav-item" href="tax.html" data-tooltip="Tax Guard"><span class="material-symbols-outlined nav-icon">shield</span> <span>Tax Guard</span></a>
   <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="material-symbols-outlined nav-icon">receipt_long</span> <span>Audit Log</span></a>
@@ -98,9 +89,7 @@
     <div class="status-dot"></div><span>Checking…</span>
   </a>
   <hr class="sidebar-divider"/>
-  <div class="dry-run-notice" style="position:static;margin:0.5rem 0;font-size:0.65rem;border-radius:8px;padding:0.4rem 0.7rem">
-    <div class="dry-run-dot"></div> DRY RUN ACTIVE
-  </div>
+  <div class="dry-run-notice"><div class="dry-run-dot"></div>Dry run: orders are simulated</div>
 </nav>
 
 <!-- ── Top Bar ─────────────────────────────────────────────── -->
@@ -225,6 +214,22 @@
               <td>Maximum Peak-to-Trough Drawdown</td>
               <td class="text-right font-mono td-neg" id="attr-drawdown">—</td>
             </tr>
+            <tr>
+              <td>Probabilistic Sharpe (chance the true Sharpe is above 0)</td>
+              <td class="text-right font-mono" id="attr-psr">—</td>
+            </tr>
+            <tr>
+              <td>1-day Value at Risk, 95% (expected shortfall)</td>
+              <td class="text-right font-mono" id="attr-var95">—</td>
+            </tr>
+            <tr>
+              <td>1-day Value at Risk, 99% (expected shortfall)</td>
+              <td class="text-right font-mono" id="attr-var99">—</td>
+            </tr>
+            <tr>
+              <td>Information Ratio (vs NIFTY 50)</td>
+              <td class="text-right font-mono" id="attr-ir">—</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -235,20 +240,16 @@
         <table class="data-table" style="font-size:0.8rem;">
           <tbody>
             <tr>
-              <td>Securities Transaction Tax (STT 0.1%)</td>
-              <td class="text-right font-mono" id="drag-stt">10.0 bps</td>
+              <td>Securities Transaction Tax</td>
+              <td class="text-right font-mono" id="drag-stt">—</td>
             </tr>
             <tr>
-              <td>Exchange Turnover &amp; SEBI Charges</td>
-              <td class="text-right font-mono" id="drag-fees">3.2 bps</td>
+              <td>Exchange, SEBI, GST and DP charges</td>
+              <td class="text-right font-mono" id="drag-fees">—</td>
             </tr>
             <tr>
-              <td>GST (18% on brokerage/turnover)</td>
-              <td class="text-right font-mono" id="drag-gst">2.4 bps</td>
-            </tr>
-            <tr>
-              <td>Depository DP Charges (₹15.34/sell)</td>
-              <td class="text-right font-mono" id="drag-dp">1.5 bps</td>
+              <td>Realised capital-gains tax</td>
+              <td class="text-right font-mono" id="drag-tax">—</td>
             </tr>
             <tr style="font-weight: 700;">
               <td>Total Drag Impact</td>
@@ -264,17 +265,17 @@
       <div class="card-title mb-sm"><span class="material-symbols-outlined" style="vertical-align:middle;margin-right:6px;">shield</span> FY 2026-27 Capital Gains Tax Ledger</div>
       <div class="grid-3 mb-sm" style="gap: 0.75rem;">
         <div class="kpi-card" style="padding: 0.6rem 0.8rem;">
-          <div class="kpi-label" style="font-size:0.65rem;">LTCG EXEMPTION (SEC 112A)</div>
+          <div class="kpi-label">LTCG exemption (Sec 112A)</div>
           <div class="font-bold font-mono text-green" style="font-size:1.1rem;" id="tax-exempt-limit">₹1,25,000</div>
           <div class="text-dim text-xs" id="tax-exempt-remain">Remaining: ₹1,25,000</div>
         </div>
         <div class="kpi-card" style="padding: 0.6rem 0.8rem;">
-          <div class="kpi-label" style="font-size:0.65rem;">REALIZED STCG (@ 20%)</div>
+          <div class="kpi-label">Realised STCG (at 20%)</div>
           <div class="font-bold font-mono" style="font-size:1.1rem;" id="tax-stcg-realized">₹0.00</div>
           <div class="text-dim text-xs" id="tax-stcg-tax">Est. Tax: ₹0.00</div>
         </div>
         <div class="kpi-card" style="padding: 0.6rem 0.8rem;">
-          <div class="kpi-label" style="font-size:0.65rem;">REALIZED LTCG (@ 12.5%)</div>
+          <div class="kpi-label">Realised LTCG (at 12.5%)</div>
           <div class="font-bold font-mono" style="font-size:1.1rem;" id="tax-ltcg-realized">₹0.00</div>
           <div class="text-dim text-xs" id="tax-ltcg-tax">Est. Tax: ₹0.00</div>
         </div>
@@ -384,64 +385,76 @@
     }
   }
 
+  // Every figure comes from the API. Missing ones show a dash, and a statistic that can't be
+  // trusted says why, instead of a made-up number.
+  const METRIC_STATUS = {
+    insufficient_data: "not enough history",
+    zero_variance: "no variation yet",
+    non_finite: "bad data",
+    unstable: "unstable estimate",
+  };
+
+  function setCell(id, text, cls) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    if (cls !== undefined) el.className = cls;
+  }
+
+  function statText(m, render) {
+    if (!m) return "—";
+    if (m.status !== "ok" || m.value == null) {
+      return `— (${METRIC_STATUS[m.status] || m.status}, ${m.n_obs} days)`;
+    }
+    return render(m.value) + (m.n_obs < 60 ? " · low confidence" : "");
+  }
+
   function renderPerformance(data) {
+    const num = (v) => (v == null ? null : Number(v));
+    const pctCell = (id, v, base) => {
+      if (v == null) return setCell(id, "—", `${base} text-dim`);
+      setCell(id, fmtPct(v), `${base} ${colorClass(v)}`);
+    };
+
     if (!data) {
-      // Fallback display
-      document.getElementById("stmt-twr").textContent = "+14.85%";
-      document.getElementById("stmt-xirr").textContent = "+16.20%";
-      document.getElementById("stmt-bench").textContent = "+11.40%";
-      document.getElementById("attr-alpha").textContent = "+3.45%";
-      document.getElementById("attr-beta").textContent = "0.88";
-      document.getElementById("attr-sharpe").textContent = "1.65";
-      document.getElementById("attr-sortino").textContent = "2.10";
-      document.getElementById("attr-drawdown").textContent = "-5.40%";
-      document.getElementById("drag-total").textContent = "17.1 bps";
+      ["stmt-twr", "stmt-xirr", "stmt-bench"].forEach((id) => setCell(id, "—", "kpi-value text-dim"));
+      ["attr-alpha", "attr-beta", "attr-sharpe", "attr-sortino", "attr-drawdown", "attr-psr",
+       "attr-var95", "attr-var99", "attr-ir", "drag-stt", "drag-fees", "drag-tax", "drag-total"]
+        .forEach((id) => setCell(id, "—"));
       return;
     }
 
-    const twr = parseFloat(data.twr_pct ?? 14.85);
-    const xirr = parseFloat(data.xirr_pct ?? 16.20);
-    const bench = parseFloat(data.benchmark_return_pct ?? 11.40);
-    const alpha = parseFloat(data.alpha_annual_pct ?? (twr - bench));
+    pctCell("stmt-twr", num(data.twr_pct), "kpi-value");
+    pctCell("stmt-xirr", num(data.xirr_pct), "kpi-value");
+    pctCell("stmt-bench", num(data.benchmark_twr_pct), "kpi-value");
+    pctCell("attr-alpha", num(data.alpha_annual_pct), "text-right font-mono font-bold");
 
-    const elTwr = document.getElementById("stmt-twr");
-    if (elTwr) {
-      elTwr.textContent = fmtPct(twr);
-      elTwr.className = `kpi-value ${colorClass(twr)}`;
-    }
+    setCell("attr-beta", data.beta != null ? Number(data.beta).toFixed(2) : "—");
+    setCell("attr-sharpe", data.sharpe_ratio != null ? Number(data.sharpe_ratio).toFixed(2) : "—");
+    setCell("attr-sortino", data.sortino_ratio != null ? Number(data.sortino_ratio).toFixed(2) : "—");
+    setCell(
+      "attr-drawdown",
+      data.max_drawdown_pct != null ? `−${Math.abs(Number(data.max_drawdown_pct)).toFixed(2)}%` : "—"
+    );
 
-    const elXirr = document.getElementById("stmt-xirr");
-    if (elXirr) {
-      elXirr.textContent = fmtPct(xirr);
-      elXirr.className = `kpi-value ${colorClass(xirr)}`;
-    }
+    setCell("attr-psr", statText(data.probabilistic_sharpe, (v) => `${(v * 100).toFixed(1)}%`));
+    const varText = (v, c) =>
+      v && v.status === "ok" && c && c.status === "ok"
+        ? statText(v, (x) => `${x.toFixed(2)}% (${c.value.toFixed(2)}%)`)
+        : statText(v, (x) => `${x.toFixed(2)}%`);
+    setCell("attr-var95", varText(data.var_95_pct, data.cvar_95_pct));
+    setCell("attr-var99", varText(data.var_99_pct, data.cvar_99_pct));
+    setCell("attr-ir", statText(data.information_ratio, (v) => v.toFixed(2)));
 
-    const elBench = document.getElementById("stmt-bench");
-    if (elBench) {
-      elBench.textContent = fmtPct(bench);
-      elBench.className = `kpi-value ${colorClass(bench)}`;
-    }
-
-    const elAlpha = document.getElementById("attr-alpha");
-    if (elAlpha) {
-      elAlpha.textContent = fmtPct(alpha);
-      elAlpha.className = `text-right font-mono font-bold ${colorClass(alpha)}`;
-    }
-
-    const elBeta = document.getElementById("attr-beta");
-    if (elBeta) elBeta.textContent = data.beta != null ? Number(data.beta).toFixed(2) : "0.88";
-
-    const elSharpe = document.getElementById("attr-sharpe");
-    if (elSharpe) elSharpe.textContent = data.sharpe_ratio != null ? Number(data.sharpe_ratio).toFixed(2) : "1.65";
-
-    const elSortino = document.getElementById("attr-sortino");
-    if (elSortino) elSortino.textContent = data.sortino_ratio != null ? Number(data.sortino_ratio).toFixed(2) : "2.10";
-
-    const elDd = document.getElementById("attr-drawdown");
-    if (elDd) elDd.textContent = data.max_drawdown_pct != null ? `-${Math.abs(Number(data.max_drawdown_pct)).toFixed(2)}%` : "-5.40%";
-
-    const elDrag = document.getElementById("drag-total");
-    if (elDrag) elDrag.textContent = `${data.total_drag_bps ?? "17.1"} bps`;
+    const bps = (v) => (v == null ? "—" : `${Number(v).toFixed(1)} bps`);
+    setCell("drag-stt", bps(data.stt_drag_bps));
+    setCell("drag-fees", bps(data.fee_drag_bps));
+    setCell("drag-tax", bps(data.tax_drag_bps));
+    const parts = [data.stt_drag_bps, data.fee_drag_bps, data.tax_drag_bps];
+    setCell(
+      "drag-total",
+      parts.every((v) => v == null) ? "—" : bps(parts.reduce((t, v) => t + Number(v || 0), 0))
+    );
   }
 
   function renderTaxLedger(tax) {

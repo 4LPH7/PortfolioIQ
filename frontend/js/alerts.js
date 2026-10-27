@@ -75,7 +75,7 @@
       drawer.innerHTML = `
         <div class="drawer-header">
           <div class="flex items-center gap-sm">
-            <span class="material-symbols-outlined" style="font-size:1.25rem;color:var(--accent)">notifications</span>
+            <span class="material-symbols-outlined" style="font-size:20px">notifications</span>
             <div class="font-bold text-md">Notifications</div>
             <span class="badge badge-hold" id="drawer-count-badge">0</span>
           </div>
@@ -92,7 +92,8 @@
         <div class="drawer-tabs">
           <button type="button" class="drawer-tab-btn active" data-filter="ALL" onclick="PortfolioIQAlerts.setFilter('ALL')">All</button>
           <button type="button" class="drawer-tab-btn" data-filter="DRIFT" onclick="PortfolioIQAlerts.setFilter('DRIFT')">Drift</button>
-          <button type="button" class="drawer-tab-btn" data-filter="PRICE_STALE" onclick="PortfolioIQAlerts.setFilter('PRICE_STALE')">Price</button>
+          <button type="button" class="drawer-tab-btn" data-filter="PRICE" onclick="PortfolioIQAlerts.setFilter('PRICE')">Price</button>
+          <button type="button" class="drawer-tab-btn" data-filter="RISK" onclick="PortfolioIQAlerts.setFilter('RISK')">Risk</button>
           <button type="button" class="drawer-tab-btn" data-filter="TAX" onclick="PortfolioIQAlerts.setFilter('TAX')">Tax</button>
           <button type="button" class="drawer-tab-btn" data-filter="SYSTEM" onclick="PortfolioIQAlerts.setFilter('SYSTEM')">System</button>
         </div>
@@ -205,13 +206,13 @@
     // Filter alerts for current tab
     const filtered = activeAlerts.filter((a) => {
       if (activeFilter === "ALL") return true;
-      return a.type === activeFilter;
+      return a.type === activeFilter || a.type.startsWith(activeFilter + "_");
     });
 
     if (filtered.length === 0) {
       listEl.innerHTML = `
         <div class="empty-state py-lg">
-          <div class="empty-icon"><span class="material-symbols-outlined" style="font-size:2.4rem;color:var(--accent)">verified</span></div>
+          <div class="empty-icon"><span class="material-symbols-outlined" >verified</span></div>
           <div class="empty-title">All clear!</div>
           <div class="empty-desc text-xs text-muted">No active ${activeFilter === "ALL" ? "" : activeFilter.toLowerCase()} alerts.</div>
         </div>
@@ -221,15 +222,17 @@
 
     const typeIcons = {
       DRIFT: '<span class="material-symbols-outlined">balance</span>',
+      PRICE: '<span class="material-symbols-outlined">notifications_active</span>',
       PRICE_STALE: '<span class="material-symbols-outlined">schedule</span>',
+      RISK: '<span class="material-symbols-outlined">trending_down</span>',
       TAX: '<span class="material-symbols-outlined">shield</span>',
       SYSTEM: '<span class="material-symbols-outlined">power</span>',
     };
 
     const severityBadges = {
-      CRITICAL: '<span class="badge badge-strong-sell">CRITICAL</span>',
-      WARNING: '<span class="badge badge-sell">WARNING</span>',
-      INFO: '<span class="badge badge-buy">INFO</span>',
+      CRITICAL: '<span class="badge badge-strong-sell">Critical</span>',
+      WARNING: '<span class="badge badge-warn">Warning</span>',
+      INFO: '<span class="badge badge-hold">Info</span>',
     };
 
     listEl.innerHTML = filtered.map((a) => {

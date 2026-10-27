@@ -43,6 +43,7 @@ services:
       KITE_API_SECRET: ${KITE_API_SECRET:-}
       KITE_REDIRECT_URL: ${KITE_REDIRECT_URL:-http://127.0.0.1:5000/api/v1/broker/callback}
       DRY_RUN_MODE: ${DRY_RUN_MODE:-true}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       RUN_INLINE_SCHEDULER: ${RUN_INLINE_SCHEDULER:-true}
       POLLING_INTERVAL_SEC: ${POLLING_INTERVAL_SEC:-15}
       ALLOWED_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080,http://localhost:5000,http://127.0.0.1:5000,http://localhost:3000"

@@ -84,7 +84,7 @@ def test_bars_to_dataframe_empty():
     df = _bars_to_dataframe([])
     assert isinstance(df, pd.DataFrame)
     assert df.empty
-    assert list(df.columns) == ["Open", "High", "Low", "Close", "Volume"]
+    assert list(df.columns) == ["Open", "High", "Low", "Close", "Raw Close", "Volume"]
 
 
 def test_bars_to_dataframe_populated():
@@ -265,8 +265,10 @@ def test_cold_start_sync():
 
     with (
         patch(
-            "src.analytics.historical_cache.get_historical_bars", side_effect=[[], persisted_bars]
+            "src.analytics.historical_cache.get_historical_bars",
+            side_effect=[[], persisted_bars, persisted_bars],
         ),
+        patch("src.analytics.historical_cache.mark_bars_legacy_before"),
         patch(
             "src.analytics.historical_cache._fetch_from_yfinance", return_value=mock_df
         ) as mock_yf,

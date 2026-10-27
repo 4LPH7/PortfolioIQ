@@ -118,7 +118,7 @@
         headerIndices.forEach((idx) => {
           const td = tds[idx];
           if (td) {
-            let val = td.innerText.replace(/[▲▼\r]/g, "").trim();
+            let val = (td.dataset.export ?? td.innerText).replace(/[▲▼\r]/g, "").trim();
             rowCells.push(val);
           } else {
             rowCells.push("");
@@ -127,7 +127,7 @@
       } else {
         tds.forEach((td) => {
           if (!td.classList.contains("no-export")) {
-            rowCells.push(td.innerText.replace(/[▲▼\r]/g, "").trim());
+            rowCells.push((td.dataset.export ?? td.innerText).replace(/[▲▼\r]/g, "").trim());
           }
         });
       }

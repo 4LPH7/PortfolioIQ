@@ -14,7 +14,12 @@ from typing import Any
 import numpy as np
 from scipy import optimize
 
-from src.models.dtos import PerformanceMetricsDTO, PortfolioCashFlowDTO, PortfolioDailySnapshotDTO
+from src.models.dtos import (
+    MetricValueDTO,
+    PerformanceMetricsDTO,
+    PortfolioCashFlowDTO,
+    PortfolioDailySnapshotDTO,
+)
 
 
 @dataclass
@@ -261,6 +266,85 @@ def calculate_beta_alpha(
     }
 
 
+MIN_OBS = 30  # same warm-up gate as Sharpe/Sortino
+MIN_OBS_TAIL_99 = 100  # below this the 1% tail is a single observation
+
+
+def _metric(value: float | None, status: str, n_obs: int) -> MetricValueDTO:
+    return MetricValueDTO(value=value, status=status, n_obs=n_obs)
+
+
+def _precheck(returns: np.ndarray, min_obs: int = MIN_OBS) -> MetricValueDTO | None:
+    """A degenerate-input status, or None when the series is usable."""
+    n = len(returns)
+    if n < min_obs:
+        return _metric(None, "insufficient_data", n)
+    if not np.all(np.isfinite(returns)):
+        return _metric(None, "non_finite", n)
+    if np.std(returns, ddof=1) < 1e-12:
+        return _metric(None, "zero_variance", n)
+    return None
+
+
+def calculate_probabilistic_sharpe(
+    daily_returns: np.ndarray, rf_annual: float = 0.065, benchmark_sharpe: float = 0.0
+) -> MetricValueDTO:
+    """
+    Probability that the true (per-period) Sharpe ratio exceeds `benchmark_sharpe`
+    (Bailey & López de Prado, 2012; as reported by QuantConnect Lean's PortfolioStatistics).
+
+    Uses sample skewness and non-excess (Pearson) kurtosis. When the variance term
+    1 − γ₃·SR + (γ₄ − 1)/4·SR² is not positive the estimate is reported as "unstable",
+    never clamped into a number.
+    """
+    from scipy import stats
+
+    r = np.asarray(daily_returns, dtype=np.float64)
+    bad = _precheck(r)
+    if bad is not None:
+        return bad
+    rf_daily = (1.0 + rf_annual) ** (1.0 / 252.0) - 1.0
+    sr = float(np.mean(r - rf_daily) / np.std(r, ddof=1))
+    skew = float(stats.skew(r, bias=False))
+    kurt = float(stats.kurtosis(r, fisher=False, bias=False))
+    variance_term = 1.0 - skew * sr + (kurt - 1.0) / 4.0 * sr**2
+    if not np.isfinite(variance_term) or variance_term <= 0:
+        return _metric(None, "unstable", len(r))
+    z = (sr - benchmark_sharpe) * np.sqrt(len(r) - 1) / np.sqrt(variance_term)
+    return _metric(round(float(stats.norm.cdf(z)), 4), "ok", len(r))
+
+
+def calculate_var_cvar(daily_returns: np.ndarray, level: float) -> tuple[MetricValueDTO, ...]:
+    """
+    One-day historical Value at Risk and Conditional VaR at `level` (0.95 or 0.99), as positive
+    loss percentages. 99% needs MIN_OBS_TAIL_99 observations.
+    """
+    r = np.asarray(daily_returns, dtype=np.float64)
+    bad = _precheck(r, MIN_OBS_TAIL_99 if level >= 0.99 else MIN_OBS)
+    if bad is not None:
+        return bad, bad
+    cutoff = float(np.quantile(r, 1.0 - level))
+    tail = r[r <= cutoff]
+    var = round(-cutoff * 100.0, 3)
+    cvar = round(-float(np.mean(tail)) * 100.0, 3)
+    return _metric(var, "ok", len(r)), _metric(cvar, "ok", len(r))
+
+
+def calculate_information_ratio(
+    portfolio_returns: np.ndarray, benchmark_returns: np.ndarray
+) -> MetricValueDTO:
+    """Annualised active return over tracking error, against the benchmark's daily returns."""
+    n = min(len(portfolio_returns), len(benchmark_returns))
+    active = np.asarray(portfolio_returns[:n], dtype=np.float64) - np.asarray(
+        benchmark_returns[:n], dtype=np.float64
+    )
+    bad = _precheck(active)
+    if bad is not None:
+        return bad
+    ir = float(np.mean(active) / np.std(active, ddof=1) * np.sqrt(252))
+    return _metric(round(ir, 3), "ok", n)
+
+
 def compute_portfolio_performance_summary(
     snapshots: list[PortfolioDailySnapshotDTO],
     cash_flows: list[PortfolioCashFlowDTO],
@@ -365,6 +449,15 @@ def compute_portfolio_performance_summary(
     gross_twr = twr_res["twr_pct"]
     net_twr = round(gross_twr - (total_drag_bps / 100.0), 2)
 
+    # 8. Benchmark return over the same snapshots, so the statement compares like with like
+    benchmark_twr = (
+        round(float((np.prod(1.0 + bm_returns) - 1.0) * 100.0), 2) if len(bm_returns) else None
+    )
+
+    # 8. Risk statistics (each carries its own status instead of a forced number)
+    var_95, cvar_95 = calculate_var_cvar(daily_returns, 0.95)
+    var_99, cvar_99 = calculate_var_cvar(daily_returns, 0.99)
+
     return PerformanceMetricsDTO(
         user_id=user_id,
         twr_pct=twr_res["twr_pct"],
@@ -379,8 +472,17 @@ def compute_portfolio_performance_summary(
         alpha_annual_pct=beta_alpha["alpha_annual_pct"],
         r_squared=beta_alpha["r_squared"],
         tracking_error_pct=beta_alpha["tracking_error_pct"],
+        benchmark_twr_pct=benchmark_twr,
         history_days=history_days,
         is_warmup_period=is_warmup,
+        probabilistic_sharpe=calculate_probabilistic_sharpe(daily_returns, rf_annual=rf_annual),
+        var_95_pct=var_95,
+        cvar_95_pct=cvar_95,
+        var_99_pct=var_99,
+        cvar_99_pct=cvar_99,
+        information_ratio=calculate_information_ratio(
+            daily_returns[:min_len], bm_returns[:min_len]
+        ),
         gross_return_pct=gross_twr,
         stt_drag_bps=round(total_stt_bps, 2),
         fee_drag_bps=round(total_fee_bps, 2),

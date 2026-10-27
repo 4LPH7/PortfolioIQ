@@ -33,5 +33,8 @@ pytz==2026.5
 requests>=2.33.0
 tenacity==9.2.1
 
+# ── Research committee (optional: needs ANTHROPIC_API_KEY) ──
+anthropic==2.3.0
+
 # ── Utilities ────────────────────────────────────────────────
 loguru==0.7.3

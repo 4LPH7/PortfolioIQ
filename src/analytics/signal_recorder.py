@@ -20,7 +20,7 @@ import pandas as pd
 from loguru import logger
 
 from src.analytics.calibrated_monte_carlo import run_calibrated_monte_carlo
-from src.analytics.historical_cache import get_or_sync_historical_bars
+from src.analytics.historical_cache import get_or_sync_historical_bars, raw_close
 from src.analytics.indicator_evaluator import (
     compute_all_factors,
     compute_forward_returns,
@@ -86,7 +86,7 @@ def compute_holding_signal(
             data_points=len(stock_df) if stock_df is not None else 0,
         )
 
-    current_price = float(stock_df["Close"].iloc[-1])
+    current_price = float(raw_close(stock_df).iloc[-1])  # traded price, compared with avg cost
 
     # 1. Independent indicator evaluation & dynamic IR weighting
     factors = compute_all_factors(stock_df)
@@ -229,8 +229,8 @@ def run_and_record_backtest(
         b_df = get_or_sync_historical_bars("NIFTY 50 TRI")
 
     run_dto = run_walk_forward_backtest(
-        stock_df=s_df,
-        bench_df=b_df,
+        df=s_df,
+        benchmark_df=b_df,
         train_window=train_window,
         test_window=test_window,
         tradingsymbol=symbol,
@@ -312,14 +312,33 @@ def record_eod_signals(
     return snapshots
 
 
+def forward_return(df: pd.DataFrame, start: date, horizon: int) -> float | None:
+    """
+    Return over `horizon` trading days from the first bar on or after `start`, both ends from
+    the adjusted series so a dividend inside the window counts as return, not a price drop.
+    None until the horizon has passed.
+    """
+    post = df[df.index >= pd.Timestamp(start)]
+    if len(post) < horizon + 1:
+        return None
+    base = float(post.iloc[0]["Close"])
+    return float(post.iloc[horizon]["Close"]) / base - 1.0 if base > 0 else None
+
+
 def mature_forward_returns(
     user_id: str = "default", as_of_date: date | None = None
 ) -> dict[str, int]:
     """
     Evaluates realized forward returns (5d, 20d, 60d) for pending signal snapshots.
     Updates database with realized stock return, benchmark return, and excess alpha.
+    Without benchmark bars nothing is settled: an alpha against a missing benchmark is not 0.
     """
     matured = {"5d": 0, "20d": 0, "60d": 0}
+    try:
+        bench_df = get_or_sync_historical_bars("NIFTY 50 TRI")
+    except Exception as exc:
+        logger.warning("Benchmark bars unavailable, forward returns deferred: {}", exc)
+        return matured
 
     for horizon in (5, 20, 60):
         h_key = f"{horizon}d"
@@ -329,54 +348,22 @@ def mature_forward_returns(
             logger.warning("Failed to query pending forward snapshots for {}: {}", h_key, exc)
             continue
 
-        user_pending = [s for s in pending if s.user_id == user_id]
-        if not user_pending:
-            continue
-
-        for snapshot in user_pending:
+        for snapshot in (s for s in pending if s.user_id == user_id):
             try:
-                stock_df = get_or_sync_historical_bars(snapshot.tradingsymbol)
-                if stock_df.empty or len(stock_df) < horizon + 1:
+                stock_return = forward_return(
+                    get_or_sync_historical_bars(snapshot.tradingsymbol),
+                    snapshot.snapshot_date,
+                    horizon,
+                )
+                bench_return = forward_return(bench_df, snapshot.snapshot_date, horizon)
+                if stock_return is None or bench_return is None:
                     continue
-
-                # Slice starting at or after snapshot_date
-                post_snap_stock = stock_df[stock_df.index >= pd.Timestamp(snapshot.snapshot_date)]
-                if len(post_snap_stock) < horizon + 1:
-                    continue
-
-                base_price = float(snapshot.current_price)
-                if base_price <= 0:
-                    continue
-
-                target_stock_bar = post_snap_stock.iloc[horizon]
-                realized_stock_price = float(target_stock_bar["Close"])
-                stock_return = (realized_stock_price - base_price) / base_price
-
-                # Benchmark forward return
-                bench_return = 0.0
-                try:
-                    bench_df = get_or_sync_historical_bars("NIFTY 50 TRI")
-                    post_snap_bench = bench_df[
-                        bench_df.index >= pd.Timestamp(snapshot.snapshot_date)
-                    ]
-                    if len(post_snap_bench) >= horizon + 1 and snapshot.benchmark_price:
-                        base_bench = float(snapshot.benchmark_price)
-                        realized_bench_price = float(post_snap_bench.iloc[horizon]["Close"])
-                        if base_bench > 0:
-                            bench_return = (realized_bench_price - base_bench) / base_bench
-                except Exception as b_exc:
-                    logger.debug(
-                        "Benchmark return calculation failed for {}: {}", snapshot.id, b_exc
-                    )
-
-                excess_return = stock_return - bench_return
-
                 update_signal_forward_returns(
                     snapshot_id=snapshot.id,
                     horizon=h_key,
                     stock_return=round(stock_return, 6),
                     bench_return=round(bench_return, 6),
-                    excess_return=round(excess_return, 6),
+                    excess_return=round(stock_return - bench_return, 6),
                 )
                 matured[h_key] += 1
             except Exception as exc:

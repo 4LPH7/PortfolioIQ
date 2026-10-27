@@ -7,7 +7,8 @@
   <meta name="view-transition" content="same-origin"/>
   <title>PortfolioIQ — Portfolio Timeline</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
   <link rel="stylesheet" href="css/main.css"/>
@@ -23,6 +24,7 @@
   <div class="nav-label">Main</div>
   <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="material-symbols-outlined nav-icon">dashboard</span> <span>Dashboard</span></a>
   <a class="nav-item" href="analyzer.html" data-tooltip="Stock Analyzer"><span class="material-symbols-outlined nav-icon">analytics</span> <span>Stock Analyzer</span></a>
+  <a class="nav-item" href="scanner.html" data-tooltip="Market Scanner"><span class="material-symbols-outlined nav-icon">query_stats</span> <span>Market Scanner</span></a>
   <a class="nav-item" href="rebalance.html" data-tooltip="Rebalance"><span class="material-symbols-outlined nav-icon">balance</span> <span>Rebalance</span></a>
   <a class="nav-item" href="tax.html" data-tooltip="Tax Guard"><span class="material-symbols-outlined nav-icon">shield</span> <span>Tax Guard</span></a>
   <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="material-symbols-outlined nav-icon">receipt_long</span> <span>Audit Log</span></a>
@@ -39,9 +41,7 @@
     <div class="status-dot"></div><span>Checking…</span>
   </a>
   <hr class="sidebar-divider"/>
-  <div class="dry-run-notice" style="position:static;margin:0.5rem 0;font-size:0.65rem;border-radius:8px;padding:0.4rem 0.7rem">
-    <div class="dry-run-dot"></div> DRY RUN ACTIVE
-  </div>
+  <div class="dry-run-notice"><div class="dry-run-dot"></div>Dry run: orders are simulated</div>
 </nav>
 
 <!-- ── Top Bar ─────────────────────────────────────────────── -->
@@ -124,14 +124,30 @@
         <span class="badge badge-hold" id="chart-points-badge">0 points</span>
       </div>
       <div class="text-xs text-muted flex items-center gap-sm">
-        <span><span class="status-dot" style="display:inline-block;background:#00ff88;box-shadow:0 0 6px #00ff88;margin-right:4px;"></span> Portfolio NAV</span>
-        <span><span class="status-dot" style="display:inline-block;background:#00d4ff;box-shadow:0 0 6px #00d4ff;margin-right:4px;"></span> NIFTY 50 TRI</span>
+        <span><span class="status-dot" style="display:inline-block;background:#1d5fbf;margin-right:4px;"></span> Portfolio NAV</span>
+        <span><span class="status-dot" style="display:inline-block;background:#8a8a8a;margin-right:4px;"></span> NIFTY 50 TRI</span>
         <span><span class="material-symbols-outlined" style="vertical-align:middle;font-size:16px;margin-right:4px;">push_pin</span> Event Markers</span>
       </div>
     </div>
-    <div id="equity-chart" style="width:100%;min-height:420px;">
+    <div id="equity-chart" style="width:100%;">
       <div class="text-center text-muted py-lg">Loading equity curve…</div>
     </div>
+  </div>
+
+  <!-- Projection -->
+  <div class="card" style="margin-bottom: 1.5rem;" id="projection-card">
+    <div class="card-header" style="margin-bottom: 0.5rem;">
+      <div class="card-title">Projection</div>
+    </div>
+    <p class="td-dim" style="margin-top:0">Where today's portfolio could be in a few years. Each of 5,000 replays strings together blocks of real past trading days for all your holdings at once, so the way they moved together carries over. NIFTY 50 TRI is replayed on the same days. A replay of the chosen history, not a forecast.</p>
+    <div class="field-row mt-sm">
+      <div class="form-group"><label class="form-label" for="proj-years">Years ahead</label>
+        <select id="proj-years"><option>1</option><option>3</option><option selected>5</option><option>10</option></select></div>
+      <div class="form-group"><label class="form-label" for="proj-history">Built from the last</label>
+        <select id="proj-history"><option value="3">3 years</option><option value="5" selected>5 years</option><option value="10">10 years</option></select></div>
+      <button type="button" class="btn" id="proj-run" onclick="runProjection()">Project</button>
+    </div>
+    <div id="projection-area"></div>
   </div>
 
   <!-- Event Log Table -->
@@ -378,7 +394,7 @@
     if (!snapshots || snapshots.length === 0) {
       chartEl.innerHTML = `
         <div class="empty-state py-lg">
-          <div class="empty-icon"><span class="material-symbols-outlined" style="font-size:48px;">timeline</span></div>
+          <div class="empty-icon"><span class="material-symbols-outlined">timeline</span></div>
           <div class="empty-title">No Historical Snapshots Recorded Yet</div>
           <div class="empty-desc">End-of-day equity snapshots are captured automatically each trading day at 16:00 IST. Once the first snapshot is logged, your normalized equity curve and benchmark comparison will plot here.</div>
         </div>
@@ -388,6 +404,16 @@
     }
 
     if (badgeEl) badgeEl.textContent = `${snapshots.length} point${snapshots.length === 1 ? "" : "s"}`;
+
+    // One snapshot is a baseline, not a curve: say so instead of a full grid around a lone dot
+    if (snapshots.length < 2) {
+      chartEl.innerHTML = `<div class="empty-state">
+          <div class="empty-title">The curve starts with the second snapshot</div>
+          <div class="empty-desc">The first end-of-day snapshot was recorded on ${snapshots[0].snapshot_date} at a unit NAV of 100. The next one is taken after today's close at 16:00 IST.</div>
+        </div>`;
+      return;
+    }
+    chartEl.innerHTML = ""; // clear the loading line before Plotly draws
 
     const baseNav = parseFloat(snapshots[0].unit_nav) || 100.0;
     const baseBench = parseFloat(snapshots[0].benchmark_value) || 1.0;
@@ -405,10 +431,10 @@
         name: "Portfolio Unit NAV",
         x: dates,
         y: navNorm,
-        line: { color: "#00ff88", width: 2.5 },
-        marker: { size: dates.length === 1 ? 10 : 4, color: "#00ff88" },
+        line: { color: "#1d5fbf", width: 2 },
+        marker: { size: dates.length === 1 ? 10 : 0, color: "#1d5fbf" },
         fill: "tozeroy",
-        fillcolor: "rgba(0,255,136,0.06)",
+        fillcolor: "rgba(29,95,191,0.06)",
         hovertemplate: "<b>Portfolio NAV</b>: %{y:.2f} (Base 100)<br>Date: %{x}<extra></extra>",
       },
       {
@@ -417,8 +443,8 @@
         name: snapshots[0].benchmark_name || "NIFTY 50 TRI",
         x: dates,
         y: benchNorm,
-        line: { color: "#00d4ff", width: 1.8, dash: "dot" },
-        marker: { size: dates.length === 1 ? 8 : 4, color: "#00d4ff" },
+        line: { color: "#8a8a8a", width: 1.5, dash: "dot" },
+        marker: { size: dates.length === 1 ? 8 : 0, color: "#8a8a8a" },
         hovertemplate: "<b>Benchmark</b>: %{y:.2f} (Base 100)<br>Date: %{x}<extra></extra>",
       },
     ];
@@ -446,7 +472,7 @@
 
         const isDeposit = f.flow_type === "DEPOSIT" || f.flow_type === "DIVIDEND";
         pinSymbols.push(isDeposit ? "triangle-up" : "triangle-down");
-        pinColors.push(isDeposit ? "#00ff88" : "#ff3366");
+        pinColors.push(isDeposit ? "#2e7d32" : "#c4242a");
         pinTexts.push(`${f.flow_type}: ₹${parseFloat(f.amount || 0).toLocaleString("en-IN")}`);
       }
     });
@@ -461,7 +487,7 @@
         pinDates.push(dt);
         pinNavs.push(yVal);
         pinSymbols.push("diamond");
-        pinColors.push("#ffd600");
+        pinColors.push("#0a0a0a");
         const side = o.transaction_type || o.order_side || "ORDER";
         pinTexts.push(`${side} ${o.quantity} ${o.tradingsymbol} (${o.status})`);
       }
@@ -604,6 +630,60 @@
     loadTimeline();
   }
 })();
+// ── Projection ──
+const escP = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const rupees = v => "₹" + Math.round(v).toLocaleString("en-IN");
+const share = v => v == null ? "—" : (v * 100).toFixed(0) + "%";
+
+async function runProjection() {
+  const area = document.getElementById("projection-area"), btn = document.getElementById("proj-run");
+  btn.disabled = true;
+  area.innerHTML = `<div class="loading-wrap"><div class="spinner"></div><span>Replaying your portfolio 5,000 times…</span></div>`;
+  try {
+    const res = await apiPost("/api/portfolio/projection", {
+      years: parseInt(document.getElementById("proj-years").value, 10),
+      lookback_years: parseInt(document.getElementById("proj-history").value, 10),
+    });
+    if (!res.ok) { area.innerHTML = errBox(escP(res.error_message || "Could not run the projection")); return; }
+    renderProjection(res.data);
+  } catch (err) {
+    area.innerHTML = errBox("Could not run the projection: " + escP(err.message));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderProjection(d) {
+  const v = d.end_value, c = d.cagr_pct, dd = d.max_drawdown_pct;
+  const metric = (label, val, sub) => `<div class="metric-sm"><div class="metric-sm-label">${label}</div><div class="metric-sm-val">${val}</div><div class="td-dim" style="font-size:12px;margin-top:2px">${sub}</div></div>`;
+  const excluded = d.excluded.length
+    ? ` Left out (${rupees(d.excluded_value_inr)}): ${d.excluded.map(e => `${escP(e.symbol)}, ${escP(e.reason)}`).join("; ")}.`
+    : "";
+  document.getElementById("projection-area").innerHTML = `
+    <div class="grid-3 mt-md" style="gap:0.75rem">
+      ${metric(`Median in ${d.years} ${d.years === 1 ? "year" : "years"}`, rupees(v.p50), `${c.p50}% a year`)}
+      ${metric("1 in 10 ended below", rupees(v.p10), `${c.p10}% a year`)}
+      ${metric("1 in 10 ended above", rupees(v.p90), `${c.p90}% a year`)}
+      ${metric("Ended below today", share(d.prob_end_below_start), `starting from ${rupees(d.start_value)}`)}
+      ${metric("Beat NIFTY 50 TRI", share(d.prob_beats_benchmark), d.prob_beats_benchmark == null ? "index history unavailable" : "same days replayed")}
+      ${metric("Worst fall along the way", `${dd.median}%`, `typical; 1 in 10 worse than ${dd.worst_10pct}%`)}
+    </div>
+    <div class="grid-2 mt-md" style="gap:1rem">
+      <div id="proj-fan" class="chart-box" style="min-height:280px"></div>
+      <div id="proj-hist" class="chart-box" style="min-height:280px"></div>
+    </div>
+    <p class="td-dim mt-sm">Built from ${escP(d.history.from)} to ${escP(d.history.to)} (${d.history.days} trading days, ${d.symbols.length} holdings), which grew ${d.history_cagr_pct}% a year; the replays only contain the markets of those years. Weights reset daily to today's mix, cash (${rupees(d.cash_inr)}) earns nothing, and there is no new money, charges or tax.${excluded} ${d.simulations.toLocaleString("en-IN")} replays, seed ${d.seed}, blocks of ${d.block_days} days.</p>`;
+  const yrs = [0, ...d.yearly.map(y => y.year)];
+  const col = k => [d.start_value, ...d.yearly.map(y => y[k])];
+  Plotly.newPlot("proj-fan", [
+    { type: "scatter", x: [...yrs, ...yrs.slice().reverse()], y: [...col("p90"), ...col("p10").reverse()], fill: "toself", fillcolor: "rgba(29,95,191,0.10)", mode: "lines", line: { width: 0 }, name: "10–90% of replays", hoverinfo: "skip" },
+    { type: "scatter", x: yrs, y: col("p50"), name: "Median", line: { color: CHART.hue, width: 2.5 } },
+  ], { ...PLOTLY_LAYOUT, height: 280, xaxis: { ...PLOTLY_LAYOUT.xaxis, title: { text: "Years from today", font: { size: 12 } }, dtick: 1 }, yaxis: { ...PLOTLY_LAYOUT.yaxis, tickprefix: "₹" }, showlegend: false }, PLOTLY_CONFIG);
+  const e = d.histogram.edges, mids = d.histogram.counts.map((_, i) => (e[i] + e[i + 1]) / 2);
+  Plotly.newPlot("proj-hist", [
+    { type: "bar", x: mids, y: d.histogram.counts, marker: { color: mids.map(m => m < d.start_value ? CHART.neg : CHART.pale) }, hovertemplate: "₹%{x:,.0f}: %{y} replays<extra></extra>" },
+  ], { ...PLOTLY_LAYOUT, height: 280, bargap: 0.05, xaxis: { ...PLOTLY_LAYOUT.xaxis, title: { text: `Value after ${d.years} ${d.years === 1 ? "year" : "years"} (red: below today)`, font: { size: 12 } }, tickprefix: "₹" } }, PLOTLY_CONFIG);
+}
 </script>
 </body>
 </html>

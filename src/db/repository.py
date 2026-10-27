@@ -7,6 +7,7 @@ Adheres to strict append-only constraints for audit tables.
 from __future__ import annotations
 
 import json
+import math
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -14,9 +15,10 @@ from uuid import UUID
 
 from loguru import logger
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.db.connection import get_db_session
+from src.db.connection import execute_sql, get_db_session
 from src.models.dtos import (
     AppConfigDTO,
     BacktestRunDTO,
@@ -265,13 +267,47 @@ def list_app_configs() -> list[AppConfigDTO]:
         return [AppConfigDTO.model_validate(dict(r)) for r in result.mappings().all()]
 
 
+RESEARCH_MODELS = {"claude-opus-5-5", "claude-sonnet-5-5"}
+CONFIG_CHOICES = {
+    "edis_mode": {"ddpi", "tpin"},
+    "research_model_quick": RESEARCH_MODELS,
+    "research_model_deep": RESEARCH_MODELS,
+}
+
+
+def _normalise_config_value(key: str, value_type: str, value: str) -> str:
+    """Validate a setting against its declared type; a bad value never reaches the guards."""
+    raw = str(value).strip()
+    if value_type == "boolean":
+        if raw.lower() not in ("true", "false"):
+            raise ValueError(f"{key} must be true or false")
+        return raw.lower()
+    if value_type in ("integer", "float"):
+        try:
+            number = int(raw) if value_type == "integer" else float(raw)
+        except ValueError:
+            raise ValueError(f"{key} must be a {value_type}") from None
+        if not math.isfinite(number) or number < 0:
+            raise ValueError(f"{key} must be a non-negative number")
+        return raw
+    choices = CONFIG_CHOICES.get(key)
+    if choices and raw.lower() not in choices:
+        raise ValueError(f"{key} must be one of: {', '.join(sorted(choices))}")
+    return raw.lower() if choices else raw
+
+
 def update_app_config(key: str, value: str) -> None:
-    """Update runtime configuration setting in system_config."""
-    query = text("UPDATE system_config SET value = :value, updated_at = NOW() WHERE key = :key")
+    """Update a runtime setting in system_config after checking it against its declared type."""
     with get_db_session() as session:
-        res = session.execute(query, {"key": key, "value": str(value)})
-        if res.rowcount == 0:
+        row = session.execute(
+            text("SELECT value_type FROM system_config WHERE key = :key"), {"key": key}
+        ).fetchone()
+        if row is None:
             raise KeyError(f"Configuration key '{key}' not found in system_config")
+        session.execute(
+            text("UPDATE system_config SET value = :value, updated_at = NOW() WHERE key = :key"),
+            {"key": key, "value": _normalise_config_value(key, row[0], value)},
+        )
 
 
 def get_audit_orders(
@@ -952,17 +988,21 @@ def upsert_historical_bars(bars: list[HistoricalBarDTO], session: Session | None
 
     query = text("""
         INSERT INTO historical_daily_bars (
-            tradingsymbol, bar_date, open, high, low, close, volume, created_at
+            tradingsymbol, bar_date, open, high, low, close, volume,
+            adj_close, price_basis, created_at
         )
         VALUES (
-            :tradingsymbol, :bar_date, :open, :high, :low, :close, :volume, NOW()
+            :tradingsymbol, :bar_date, :open, :high, :low, :close, :volume,
+            :adj_close, :price_basis, NOW()
         )
         ON CONFLICT (tradingsymbol, bar_date) DO UPDATE SET
             open = EXCLUDED.open,
             high = EXCLUDED.high,
             low = EXCLUDED.low,
             close = EXCLUDED.close,
-            volume = EXCLUDED.volume
+            volume = EXCLUDED.volume,
+            adj_close = COALESCE(EXCLUDED.adj_close, historical_daily_bars.adj_close),
+            price_basis = COALESCE(EXCLUDED.price_basis, historical_daily_bars.price_basis)
     """)
     param_list = [b.model_dump(exclude={"created_at"}) for b in bars]
 
@@ -974,6 +1014,68 @@ def upsert_historical_bars(bars: list[HistoricalBarDTO], session: Session | None
         return _execute(session)
     with get_db_session() as s:
         return _execute(s)
+
+
+def get_symbols_with_unadjusted_bars(limit: int = 50) -> list[str]:
+    """Symbols that still hold rows cached before adjusted closes existed (migration 024)."""
+    with get_db_session() as s:
+        rows = s.execute(
+            text("""
+                SELECT DISTINCT tradingsymbol FROM historical_daily_bars
+                WHERE price_basis IS NULL
+                ORDER BY tradingsymbol
+                LIMIT :limit
+            """),
+            {"limit": limit},
+        )
+        return [r[0] for r in rows]
+
+
+def mark_bars_legacy_before(tradingsymbol: str, before: date) -> int:
+    """
+    After a full refetch, rows older than the refetched history hold a stale adjustment basis.
+    Clear their factor and label them, so they inherit the earliest restated factor instead.
+    """
+    with get_db_session() as s:
+        result = s.execute(
+            text("""
+                UPDATE historical_daily_bars
+                SET adj_close = NULL, price_basis = 'legacy_unadjusted'
+                WHERE tradingsymbol = :sym AND bar_date < :before
+                  AND (price_basis IS DISTINCT FROM 'legacy_unadjusted' OR adj_close IS NOT NULL)
+            """),
+            {"sym": tradingsymbol, "before": before},
+        )
+        return result.rowcount or 0
+
+
+def mark_bars_legacy_on(tradingsymbol: str, bar_dates: list[date]) -> int:
+    """Label specific rows the source no longer returns, so the backfill stops re-queuing them."""
+    with get_db_session() as s:
+        result = s.execute(
+            text("""
+                UPDATE historical_daily_bars
+                SET adj_close = NULL, price_basis = 'legacy_unadjusted'
+                WHERE tradingsymbol = :sym AND bar_date = ANY(:dates)
+            """),
+            {"sym": tradingsymbol, "dates": list(bar_dates)},
+        )
+        return result.rowcount or 0
+
+
+def delete_cached_bars(tradingsymbol: str, bar_dates: list[date]) -> int:
+    """Remove specific cached bars (the price cache is derived data, refetchable from source)."""
+    if not bar_dates:
+        return 0
+    with get_db_session() as s:
+        result = s.execute(
+            text("""
+                DELETE FROM historical_daily_bars
+                WHERE tradingsymbol = :sym AND bar_date = ANY(:dates)
+            """),
+            {"sym": tradingsymbol, "dates": list(bar_dates)},
+        )
+        return result.rowcount or 0
 
 
 def get_historical_bars(
@@ -1009,3 +1111,112 @@ def get_historical_bars(
         return _execute(session)
     with get_db_session() as s:
         return _execute(s)
+
+
+# ─────────────────────────────────────────────────────────────
+# Allocation profiles (saved optimiser suggestions)
+# ─────────────────────────────────────────────────────────────
+def _drift_threshold(target_pct: float) -> float:
+    # ponytail: band = 25% of the target (1–50 pp); per-row tuning if users ask for it
+    return min(50.0, max(1.0, round(target_pct * 0.25, 2)))
+
+
+def create_allocation_profile(
+    user_id: str,
+    profile_name: str,
+    description: str | None,
+    targets: list[tuple[int, float]],
+) -> int:
+    """Insert an INACTIVE profile with one STOCK row per target and a CASH row for the rest."""
+    cash = max(0.0, round(100.0 - sum(w for _, w in targets), 3))
+    rows = [{"type": "STOCK", "token": tok, "w": round(w, 3)} for tok, w in targets]
+    rows.append({"type": "CASH", "token": None, "w": cash})
+    try:
+        with get_db_session() as session:
+            pid = session.execute(
+                text(
+                    """INSERT INTO allocation_profiles (user_id, profile_name, description, is_active)
+                       VALUES (:uid, :name, :desc, FALSE) RETURNING id"""
+                ),
+                {"uid": user_id, "name": profile_name, "desc": description},
+            ).scalar_one()
+            session.execute(
+                text(
+                    """INSERT INTO target_allocations
+                         (profile_id, allocation_type, instrument_token, target_weight_pct,
+                          drift_threshold_pct)
+                       VALUES (:pid, :type, :token, :w, :thr)"""
+                ),
+                [{**r, "pid": pid, "thr": _drift_threshold(r["w"])} for r in rows],
+            )
+    except IntegrityError as exc:
+        constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+        if constraint == "uq_profile_user_name":
+            raise ValueError(f"A profile named '{profile_name}' already exists") from exc
+        raise ValueError("A target refers to an instrument PortfolioIQ does not know") from exc
+    return int(pid)
+
+
+def list_allocation_profiles(user_id: str = "default") -> list[dict[str, Any]]:
+    rows = execute_sql(
+        """SELECT ap.id, ap.profile_name, ap.description, ap.is_active, ap.created_at,
+                  ta.allocation_type, ta.sector, im.tradingsymbol, ta.target_weight_pct,
+                  ta.drift_threshold_pct
+           FROM allocation_profiles ap
+           LEFT JOIN target_allocations ta ON ta.profile_id = ap.id
+           LEFT JOIN instrument_master im ON im.instrument_token = ta.instrument_token
+           WHERE ap.user_id = :uid
+           ORDER BY ap.is_active DESC, ap.created_at DESC, ta.target_weight_pct DESC""",
+        {"uid": user_id},
+    )
+    profiles: dict[int, dict[str, Any]] = {}
+    for r in rows:
+        p = profiles.setdefault(
+            r["id"],
+            {
+                "id": r["id"],
+                "profile_name": r["profile_name"],
+                "description": r["description"],
+                "is_active": r["is_active"],
+                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+                "targets": [],
+            },
+        )
+        if r["allocation_type"]:
+            p["targets"].append(
+                {
+                    "type": r["allocation_type"],
+                    "name": "CASH"
+                    if r["allocation_type"] == "CASH"
+                    else r["sector"] or r["tradingsymbol"],
+                    "target_weight_pct": float(r["target_weight_pct"]),
+                    "drift_threshold_pct": float(r["drift_threshold_pct"]),
+                }
+            )
+    return list(profiles.values())
+
+
+def activate_allocation_profile(user_id: str, profile_id: int) -> bool:
+    """Make one profile the active target set. Deactivate-then-activate in one transaction."""
+    with get_db_session() as session:
+        exists = session.execute(
+            text("SELECT 1 FROM allocation_profiles WHERE id = :pid AND user_id = :uid FOR UPDATE"),
+            {"pid": profile_id, "uid": user_id},
+        ).fetchone()
+        if exists is None:
+            return False
+        session.execute(
+            text(
+                """UPDATE allocation_profiles SET is_active = FALSE, updated_at = NOW()
+                   WHERE user_id = :uid AND is_active AND id <> :pid"""
+            ),
+            {"pid": profile_id, "uid": user_id},
+        )
+        session.execute(
+            text(
+                """UPDATE allocation_profiles SET is_active = TRUE, updated_at = NOW()
+                   WHERE id = :pid"""
+            ),
+            {"pid": profile_id},
+        )
+    return True

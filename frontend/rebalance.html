@@ -4,7 +4,8 @@
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <meta name="view-transition" content="same-origin"/>
   <title>PortfolioIQ — Rebalance Engine</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
   <link rel="stylesheet" href="css/main.css"/>
 </head>
@@ -16,6 +17,7 @@
   <div class="nav-label">Main</div>
   <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="material-symbols-outlined nav-icon">dashboard</span> <span>Dashboard</span></a>
   <a class="nav-item" href="analyzer.html" data-tooltip="Stock Analyzer"><span class="material-symbols-outlined nav-icon">analytics</span> <span>Stock Analyzer</span></a>
+  <a class="nav-item" href="scanner.html" data-tooltip="Market Scanner"><span class="material-symbols-outlined nav-icon">query_stats</span> <span>Market Scanner</span></a>
   <a class="nav-item active" href="rebalance.html" data-tooltip="Rebalance"><span class="material-symbols-outlined nav-icon">balance</span> <span>Rebalance</span></a>
   <a class="nav-item" href="tax.html" data-tooltip="Tax Guard"><span class="material-symbols-outlined nav-icon">shield</span> <span>Tax Guard</span></a>
   <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="material-symbols-outlined nav-icon">receipt_long</span> <span>Audit Log</span></a>
@@ -70,6 +72,25 @@
     <button type="button" class="btn btn-xs btn-ghost" data-export="rebalance-orders-table" title="Export CSV"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">download</span> Export CSV</button>
   </div>
   <div id="orders-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div></div></div></div>
+
+  <div class="section-header">Suggested targets</div>
+  <div class="card" id="suggest-card">
+    <div class="suggest-controls">
+      <label class="form-label" for="opt-method">Method</label>
+      <select id="opt-method">
+        <option value="risk_parity">Risk parity: equal risk from each holding</option>
+        <option value="min_variance">Minimum variance: lowest expected volatility</option>
+        <option value="hrp">Hierarchical risk parity: groups similar stocks first</option>
+        <option value="equal_weight">Equal weight</option>
+      </select>
+      <button type="button" class="btn" id="opt-run" onclick="runSuggest()">Suggest targets</button>
+    </div>
+    <p class="td-dim mt-sm">Uses the last year of dividend-adjusted prices and your concentration limit. Nothing changes until you save and then activate a profile.</p>
+    <div id="suggest-area"></div>
+  </div>
+
+  <div class="section-header">Saved profiles</div>
+  <div id="profiles-area"><div class="card"><div class="loading-wrap"><div class="spinner"></div></div></div></div>
 
   <div class="alert alert-info mt-md">
     <span class="alert-icon"><span class="material-symbols-outlined">shield</span></span>
@@ -133,7 +154,8 @@ async function loadPage() {
 
     // Drift table
     const signals = drift.signals || [];
-    const sevColors = { HIGH:"var(--red)", MEDIUM:"var(--orange)", LOW:"var(--yellow)" };
+    const sevPill = { HIGH: "badge-strong-sell", MEDIUM: "badge-warn", LOW: "badge-hold" };
+    const sevColors = { HIGH: "var(--red)", MEDIUM: "var(--warning)", LOW: "var(--muted)" };
     if (signals.length) {
       const rows = signals.map(s => {
         const dc = parseFloat(s.drift_pct) >= 0 ? "td-pos" : "td-neg";
@@ -146,12 +168,12 @@ async function loadPage() {
           <td class="${dc} td-mono">${parseFloat(s.drift_pct||0)>=0?"+":""}${parseFloat(s.drift_pct||0).toFixed(2)}%</td>
           <td>
             <div style="min-width:100px">
-              <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:2px">
+              <div style="height:4px;background:var(--rule);border-radius:2px">
                 <div style="height:100%;width:${Math.min(pct/10*100,100)}%;border-radius:2px;background:${sc}"></div>
               </div>
             </div>
           </td>
-          <td><span style="background:${sc}22;color:${sc};border:1px solid ${sc}44;border-radius:20px;padding:0.2rem 0.65rem;font-size:0.68rem;font-weight:700;letter-spacing:0.05em">${s.severity}</span></td>
+          <td><span class="badge ${sevPill[s.severity] || "badge-hold"}">${(s.severity || "").charAt(0) + (s.severity || "").slice(1).toLowerCase()}</span></td>
           <td>${s.actionable?'<span class="badge badge-failed">Actionable</span>':'<span class="badge badge-hold">Within Threshold</span>'}</td>
         </tr>`;
       }).join("");
@@ -159,7 +181,7 @@ async function loadPage() {
         <th>Name</th><th>Current</th><th>Target</th><th>Drift</th><th>Magnitude</th><th>Severity</th><th>Status</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;
     } else {
-      document.getElementById("drift-area").innerHTML = `<div class="empty-state"><div class="empty-icon"><span class="material-symbols-outlined" style="color:var(--green);font-size:48px;">check_circle</span></div><div class="empty-title">No drift signals</div><div class="empty-desc">Set up target allocations in the DB to enable drift detection.</div></div>`;
+      document.getElementById("drift-area").innerHTML = `<div class="empty-state"><div class="empty-icon"><span class="material-symbols-outlined" style="color:var(--green);font-size:48px;">check_circle</span></div><div class="empty-title">No drift signals</div><div class="empty-desc">Save and activate a profile under Suggested targets to track drift.</div></div>`;
     }
 
     // Orders table
@@ -167,11 +189,11 @@ async function loadPage() {
     if (orders.length) {
       const rows = orders.map(o => {
         const sc = o.side === "SELL" ? "var(--red)" : "var(--green)";
-        const tw = o.has_tax_warning ? '<span class="badge badge-dry-run" style="font-size:0.6rem"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:middle;margin-right:2px;">warning</span> TAX</span> ' : "";
+        const tw = o.has_tax_warning ? '<span class="badge badge-dry-run"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:middle;margin-right:2px;">warning</span> TAX</span> ' : "";
         return `<tr>
-          <td><span style="color:${sc};font-weight:800;font-size:1rem">${o.side}</span></td>
+          <td><span class="badge ${o.side === "SELL" ? "badge-hold" : "badge-buy"}">${o.side === "SELL" ? "Sell" : "Buy"}</span></td>
           <td class="td-main">${o.symbol} ${tw}</td>
-          <td><span class="badge badge-hold" style="font-size:0.6rem">${o.exchange}</span></td>
+          <td><span class="badge badge-hold">${o.exchange}</span></td>
           <td class="td-mono">${o.quantity}</td>
           <td class="td-mono">${fmt(o.price)}</td>
           <td class="td-mono font-bold">${fmt(o.value)}</td>
@@ -187,7 +209,144 @@ async function loadPage() {
   } catch(err) {
     document.getElementById("drift-area").innerHTML = errBox("Load failed: " + err.message);
   }
+  loadProfiles();
 }
+
+// ── Suggested targets ──────────────────────────────────────
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pct = (v, dp = 2) => v == null ? "—" : `${parseFloat(v).toFixed(dp)}%`;
+const METHOD_NAMES = { risk_parity: "Risk parity", min_variance: "Minimum variance", hrp: "Hierarchical risk parity", equal_weight: "Equal weight", current_targets: "Your active targets" };
+let lastSuggestion = null;
+
+function feasibilityText(s) {
+  const n = s.weights.filter(w => !w.kept).length;
+  if (s.feasibility === "infeasible_full_investment") {
+    return `${n} holdings × ${s.cap_pct}% cap can hold at most ${(n * s.cap_pct).toFixed(1)}%. ${pct(s.forced_cash_pct)} stays in cash until you add holdings or raise the cap.`;
+  }
+  if (s.feasibility === "clamped") {
+    return `${s.clamps.length} holding${s.clamps.length !== 1 ? "s" : ""} capped at ${s.cap_pct}%. The trimmed ${pct(s.forced_cash_pct)} stays in cash; it is not spread over the others.`;
+  }
+  return `Every target fits under the ${s.cap_pct}% cap.`;
+}
+
+function renderSuggestion(s) {
+  const area = document.getElementById("suggest-area");
+  const excluded = (s.excluded || []).map(e => `${esc(e.symbol)}: ${esc(e.reason)}`).join(" · ");
+  if (s.status !== "ok") {
+    area.innerHTML = `<div class="empty-state"><div class="empty-title">${esc(s.message)}</div>${excluded ? `<div class="empty-desc">${excluded}</div>` : ""}</div>`;
+    return;
+  }
+  const rows = s.weights.map(w => {
+    const change = w.suggested_pct - w.current_pct;
+    return `<tr>
+      <td class="td-main">${esc(w.symbol)}${w.kept ? ' <span class="text-dim text-xs">kept, short history</span>' : ""}</td>
+      <td class="td-mono">${pct(w.current_pct)}</td>
+      <td class="td-mono font-bold">${pct(w.suggested_pct)}</td>
+      <td class="td-mono ${colorClass(change)}">${w.kept ? "—" : fmtPct(change)}</td>
+      <td class="td-mono">${pct(w.risk_share_pct, 1)}</td>
+    </tr>`;
+  }).join("");
+  const wf = (s.walk_forward || []).map(r => `<tr${r.method === s.method ? ' class="row-selected"' : ""}>
+      <td class="td-main">${METHOD_NAMES[r.method] || esc(r.method)}</td>
+      ${r.note ? `<td class="td-dim" colspan="6">${esc(r.note)}</td>` : `
+      <td class="td-mono ${colorClass(r.cagr_pct)}">${pct(r.cagr_pct)}</td>
+      <td class="td-mono">${pct(r.volatility_pct)}</td>
+      <td class="td-mono td-neg">${pct(r.max_drawdown_pct)}</td>
+      <td class="td-mono">${r.sharpe ?? "—"}</td>
+      <td class="td-mono">${pct(r.turnover_pct_per_year, 0)}</td>
+      <td class="td-mono">${pct(r.costs_pct, 2)}</td>`}
+    </tr>`).join("");
+  const years = (s.walk_forward || []).find(r => r.years)?.years;
+  const defaultName = `${METHOD_NAMES[s.method]} · ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
+  area.innerHTML = `
+    <div class="suggest-facts">
+      <div><span class="kpi-label">Fit</span><div>${feasibilityText(s)}</div></div>
+      <div><span class="kpi-label">Cash</span><div>${pct(s.intentional_cash_pct)} floor${s.forced_cash_pct > 0 ? ` + ${pct(s.forced_cash_pct)} from caps` : ""}${s.kept_at_current_pct > 0 ? ` · ${pct(s.kept_at_current_pct)} kept at current weight` : ""}</div></div>
+      <div><span class="kpi-label">Expected volatility</span><div>${pct(s.portfolio_volatility_pct)} a year</div></div>
+      <div><span class="kpi-label">Data</span><div>${s.lookback_bars} trading days${s.date_range ? `, ${s.date_range[0]} to ${s.date_range[1]}` : ""}</div></div>
+    </div>
+    ${s.ill_conditioned ? `<p class="td-dim mt-sm">These holdings move closely together (condition number ${s.condition_number}), so small price changes can swing the weights.</p>` : ""}
+    ${excluded ? `<p class="td-dim mt-sm">Left out: ${excluded}</p>` : ""}
+    <div class="table-wrap mt-sm"><table id="suggest-table"><thead><tr>
+      <th>Symbol</th><th>Current</th><th>Suggested</th><th>Change</th><th>Share of risk</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="flex justify-between items-center mt-md mb-sm">
+      <div class="card-title">How each method would have done</div>
+      <span class="td-dim">${years ? `${years} years, ` : ""}monthly rebalance, trading charges + 10 bps slippage, past data only at each step</span>
+    </div>
+    <div class="table-wrap"><table id="walk-forward-table"><thead><tr>
+      <th>Method</th><th>Yearly return</th><th>Volatility</th><th>Worst drop</th><th>Sharpe</th><th>Turnover / yr</th><th>Costs</th>
+    </tr></thead><tbody>${wf}</tbody></table></div>
+    <p class="td-dim mt-sm">Past results on today's holdings only. Stocks you sold earlier are not in the test, which flatters every method.</p>
+    <div class="suggest-controls mt-md">
+      <label class="form-label" for="profile-name">Profile name</label>
+      <input type="text" id="profile-name" maxlength="80" value="${esc(defaultName)}"/>
+      <button type="button" class="btn" id="profile-save" onclick="saveSuggestion()">Save as inactive profile</button>
+    </div>
+    <div id="save-msg" class="td-dim mt-sm" role="status"></div>`;
+}
+
+async function runSuggest() {
+  const btn = document.getElementById("opt-run");
+  const area = document.getElementById("suggest-area");
+  btn.disabled = true;
+  area.innerHTML = `<div class="loading-wrap"><div class="spinner"></div><span>Reading price history and running the walk-forward check…</span></div>`;
+  try {
+    const res = await apiPost("/api/rebalance/optimize", { method: document.getElementById("opt-method").value });
+    if (!res.ok) { area.innerHTML = errBox(res.error_message || "Could not build a suggestion"); return; }
+    lastSuggestion = res.data;
+    renderSuggestion(res.data);
+  } catch (err) {
+    area.innerHTML = errBox("Could not build a suggestion: " + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function saveSuggestion() {
+  const msg = document.getElementById("save-msg");
+  const name = document.getElementById("profile-name").value.trim();
+  if (!name) { msg.textContent = "Give the profile a name."; return; }
+  const targets = lastSuggestion.weights.map(w => ({ instrument_token: w.instrument_token, target_weight_pct: w.suggested_pct }));
+  const res = await apiPost("/api/rebalance/profiles", { profile_name: name, description: `${METHOD_NAMES[lastSuggestion.method]}, cap ${lastSuggestion.cap_pct}%`, targets });
+  if (!res.ok) { msg.textContent = res.error_message || "Save failed."; return; }
+  msg.textContent = "Saved. It stays inactive until you activate it below.";
+  document.getElementById("profile-save").disabled = true;
+  loadProfiles();
+}
+
+async function loadProfiles() {
+  const area = document.getElementById("profiles-area");
+  const res = await apiGet("/api/rebalance/profiles");
+  if (!res.ok) { area.innerHTML = errBox(res.error || "Could not load profiles"); return; }
+  if (!res.data.length) {
+    area.innerHTML = `<div class="empty-state"><div class="empty-title">No profiles yet</div><div class="empty-desc">Suggest targets above and save them as a profile.</div></div>`;
+    return;
+  }
+  const rows = res.data.map(p => {
+    const stocks = p.targets.filter(t => t.type === "STOCK").length;
+    const cash = p.targets.find(t => t.type === "CASH");
+    return `<tr>
+      <td class="td-main">${esc(p.profile_name)}${p.description ? `<div class="td-dim">${esc(p.description)}</div>` : ""}</td>
+      <td class="td-mono">${stocks}</td>
+      <td class="td-mono">${cash ? pct(cash.target_weight_pct) : "—"}</td>
+      <td class="td-dim">${p.created_at ? new Date(p.created_at).toLocaleDateString("en-IN") : "—"}</td>
+      <td>${p.is_active ? '<span class="badge badge-buy">Active</span>' : `<button type="button" class="btn btn-xs" onclick="activateProfile(${p.id}, this)" data-name="${esc(p.profile_name)}">Activate</button>`}</td>
+    </tr>`;
+  }).join("");
+  area.innerHTML = `<div class="table-wrap"><table id="profiles-table"><thead><tr>
+    <th>Profile</th><th>Stocks</th><th>Cash</th><th>Saved</th><th></th>
+  </tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+async function activateProfile(id, btn) {
+  if (!confirm(`Activate "${btn.dataset.name}"? Drift signals and proposed orders will follow these targets from now on.`)) return;
+  btn.disabled = true;
+  const res = await apiPost(`/api/rebalance/profiles/${id}/activate`, {});
+  if (!res.ok) { btn.disabled = false; showToast(res.error_message || "Activation failed", "error"); return; }
+  loadPage();
+}
+
 loadPage();
 </script>
 </body>
