@@ -363,7 +363,29 @@ def sync_prices(symbols: list[str], pause: float = 0.3) -> list[str]:
     return failed
 
 
-def load_prices(symbols: list[str], years: int = 6) -> pd.DataFrame:
+def deep_sync_prices(symbols: list[str], pause: float = 0.3) -> list[str]:
+    """Refetch each symbol's full history once (older caches hold about 5 years).
+    Returns the symbols that failed; they are retried on the next scan."""
+    from src.analytics.historical_cache import get_or_sync_historical_bars
+
+    done = {r["tradingsymbol"] for r in execute_sql("SELECT tradingsymbol FROM scanner_deep_sync")}
+    failed = []
+    for sym in (s for s in symbols if s not in done):
+        try:
+            if get_or_sync_historical_bars(sym, force_sync=True).empty:
+                raise ValueError("no bars returned")
+            execute_sql(
+                "INSERT INTO scanner_deep_sync (tradingsymbol) VALUES (:s) ON CONFLICT DO NOTHING",
+                {"s": sym},
+            )
+        except Exception as exc:
+            failed.append(sym)
+            logger.warning("Scanner deep sync failed for {}: {}", sym, exc)
+        time.sleep(pause)
+    return failed
+
+
+def load_prices(symbols: list[str], years: int = 10) -> pd.DataFrame:
     """Adjusted closes, one column per symbol, from the cache in a single query."""
     rows = execute_sql(
         """SELECT tradingsymbol AS s, bar_date AS d, close::float AS c, adj_close::float AS a
@@ -452,7 +474,8 @@ def run_scan(run_id: int) -> None:
         except Exception:
             held = set()
         symbols = sorted({u["symbol"] for u in universe} | held)
-        failed = sync_prices(symbols)
+        failed = deep_sync_prices(symbols)
+        failed += [s for s in sync_prices(symbols) if s not in failed]
         prices = load_prices(symbols)
         result = compute_scan(prices)
         _enrich(result, universe, held)

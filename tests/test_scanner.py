@@ -226,6 +226,7 @@ def test_run_scan_stores_an_enriched_result(db_session):
     run_id = sc.start_scan("test")
     with (
         patch.object(sc, "refresh_universe", return_value=universe),
+        patch.object(sc, "deep_sync_prices", return_value=[]),
         patch.object(sc, "sync_prices", return_value=["S999"]),
         patch.object(sc, "load_prices", return_value=prices),
         patch(
@@ -292,3 +293,41 @@ def test_scheduler_has_scanner_jobs():
 
     ids = {j.id for j in create_scheduler().get_jobs()}
     assert {"market_scanner", "scanner_fundamentals", "news_refresh"} <= ids
+
+
+# ── Ten years of history ──
+
+
+def test_chart_api_accepts_a_ten_year_range():
+    from src.analytics import historical_cache as hc
+
+    body = {"chart": {"result": [{"timestamp": [], "indicators": {"quote": [{}]}}]}}
+    with patch(
+        "requests.get", return_value=SimpleNamespace(status_code=200, json=lambda: body)
+    ) as get:
+        hc._fetch_from_yahoo_chart_api("INFY.NS", period="10y")
+    assert "range=10y" in get.call_args.args[0]
+
+
+@pytest.mark.postgres
+def test_deep_sync_fetches_each_symbol_once_and_retries_failures(db_session):
+    db_session.execute(text("DELETE FROM scanner_deep_sync WHERE tradingsymbol LIKE 'ZZDEEP%'"))
+    calls = []
+
+    def fake_sync(symbol, lookback_days=750, force_sync=False):
+        calls.append((symbol, force_sync))
+        if symbol == "ZZDEEP2":
+            raise OSError("feed down")
+        return pd.DataFrame({"Close": [1.0]})
+
+    with patch("src.analytics.historical_cache.get_or_sync_historical_bars", side_effect=fake_sync):
+        assert sc.deep_sync_prices(["ZZDEEP1", "ZZDEEP2"], pause=0) == ["ZZDEEP2"]
+        assert sc.deep_sync_prices(["ZZDEEP1", "ZZDEEP2"], pause=0) == ["ZZDEEP2"]
+    # ZZDEEP1 was refetched in full once; ZZDEEP2 is retried each time
+    assert calls == [("ZZDEEP1", True), ("ZZDEEP2", True), ("ZZDEEP2", True)]
+
+
+def test_scanner_loads_ten_years_by_default():
+    import inspect
+
+    assert inspect.signature(sc.load_prices).parameters["years"].default == 10

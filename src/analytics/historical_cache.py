@@ -140,7 +140,15 @@ def _fetch_from_yahoo_chart_api(
         "Referer": "https://finance.yahoo.com/",
     }
 
-    range_map = {"1mo": "1mo", "3mo": "3mo", "6mo": "6mo", "1y": "1y", "2y": "2y", "5y": "5y"}
+    range_map = {
+        "1mo": "1mo",
+        "3mo": "3mo",
+        "6mo": "6mo",
+        "1y": "1y",
+        "2y": "2y",
+        "5y": "5y",
+        "10y": "10y",
+    }
     api_range = range_map.get(period, "2y")
 
     if start_date is not None:
@@ -317,11 +325,11 @@ def get_or_sync_historical_bars(
 
         return _bars_to_dataframe(db_bars)
 
-    # 3. Cold start or forced sync: full history (5y also feeds the optimiser's walk-forward check)
+    # 3. Cold start or forced sync: full history (10y gives the scanner's evidence test enough months)
     yf_ticker = get_yf_ticker(tradingsymbol)
     logger.info("Cold start sync for {} ({})", tradingsymbol, yf_ticker)
     try:
-        full_df = _fetch_from_yfinance(yf_ticker, period="5y")
+        full_df = _fetch_from_yfinance(yf_ticker, period="10y")
     except Exception as exc:
         logger.warning("Error fetching full history for {}: {}", tradingsymbol, exc)
         full_df = None

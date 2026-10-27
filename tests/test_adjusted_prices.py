@@ -130,9 +130,9 @@ def test_new_dividend_restates_history_with_a_full_refetch():
         patch("src.analytics.historical_cache.mark_bars_legacy_before") as mark_legacy,
     ):
         get_or_sync_historical_bars("ITC")
-    # Delta fetch, then a full 5y refetch; older rows are relabelled once
+    # Delta fetch, then a full 10y refetch; older rows are relabelled once
     assert fetch.call_count == 2
-    assert fetch.call_args_list[1].kwargs == {"period": "5y"}
+    assert fetch.call_args_list[1].kwargs == {"period": "10y"}
     mark_legacy.assert_called_once_with("ITC", date(2026, 9, 1))
 
 

@@ -222,7 +222,7 @@ Ranks the NIFTY 500 (NSE's published list, refreshed weekly) every weekday at 6:
 1. **Signals:** 12-1 and 6-1 month momentum, price against its 200-day average, 50-day against 200-day, closeness to the 52-week high, low volatility and one-month reversal, all from dividend-adjusted prices.
 2. **Evidence:** every month, the rank correlation (IC) between each signal and the next month's return across all stocks. A signal is used only with a positive average and t > 2, weighted by its consistency.
 3. **Out-of-sample backtest:** each past month the top 20 are picked using only earlier months' evidence, held for a month with delivery charges and slippage, and compared with an equal-weight hold of every stock. The page leads with the verdict, **tested edge** or **no tested edge**, and says when the record is short.
-4. **Caveats it states:** about three years can be tested with five years of cached prices; today's index members flatter the past (survivorship); fundamentals (refreshed on Saturdays) and headlines are shown but not scored, since free data has no history to test them against.
+4. **Caveats it states:** the first scan refetches ten years of prices per stock (about 10 minutes), which gives roughly nine years of tested months; today's index members flatter the past (survivorship); fundamentals (refreshed on Saturdays) and headlines are shown but not scored, since free data has no history to test them against.
 
 ---
 
@@ -262,7 +262,7 @@ Both stages default to Claude Opus 5.5. To test whether Sonnet 5.5 holds up for 
 PortfolioIQ maintains an institutional-grade test suite with 100% passing tests and strict safety certification:
 
 ```bash
-# Run complete test suite (613 unit & integration tests)
+# Run complete test suite (617 unit & integration tests)
 pytest tests/ -v
 
 # Run with test coverage enforcement (>= 75% overall)
@@ -281,7 +281,7 @@ pip-audit -r requirements.txt --ignore-vuln PYSEC-2020-25 --ignore-vuln CVE-2026
 *(The CVE-2026-106454 and CVE-2026-1157xx/115877 ignores are all in twisted, pulled in by `kiteconnect` for its websocket client, which PortfolioIQ never imports. Remove them once twisted 26.10.0 is released.)*
 
 ### Safety Certification Metrics
-- **Total Test Cases**: **613 passed** (0 failures, 0 regressions)
+- **Total Test Cases**: **616 passed** (0 failures, 0 regressions)
 - **Overall Code Coverage**: **83%** (CI gate: 75%)
 - **Critical Path Gatekeeper Coverage**: **100.00%**
 - **Slippage Validator Coverage**: **96.72%**
