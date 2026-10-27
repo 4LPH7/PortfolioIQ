@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import anthropic
-import httpx
+import httpx2
 import numpy as np
 import pandas as pd
 import pytest
@@ -185,7 +185,7 @@ def _cfg(budget=1.0):
 
 
 def _request():
-    return httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    return httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
 
 
 # ── Committee pipeline ──
@@ -263,7 +263,7 @@ def test_budget_stop_keeps_partial_results_and_never_overspends():
 def test_rejected_key_fails_the_run_at_warmup():
     def handler(stage, params):
         raise anthropic.AuthenticationError(
-            "bad key", response=httpx.Response(401, request=_request()), body=None
+            "bad key", response=httpx2.Response(401, request=_request()), body=None
         )
 
     out = run_committee(_snapshot(), FakeClient(handler), _cfg())
