@@ -738,7 +738,7 @@ function currentSymbol() {
 async function loadCommittee() {
   const btn = document.getElementById("committee-run"), meta = document.getElementById("committee-meta");
   const res = await apiGet("/api/research/runs");
-  if (!res.ok) { meta.textContent = res.error || "Research runs unavailable."; return; }
+  if (!res.ok) { meta.textContent = lockedRetry(res, loadCommittee) ? "Unlock to load." : (res.error || "Research runs unavailable."); return; }
   const { enabled, usage, runs } = res.data;
   committeeUsage = usage;
   if (!enabled) {
@@ -859,7 +859,7 @@ async function loadScorecard() {
     : `Track record: ${res.data.settled_runs} runs settled so far. A score needs at least 15 runs with 20 trading days of returns after them.`;
 }
 
-loadCommittee();
+runWhenUnlocked(loadCommittee);
 // ── Stop and target odds ──
 const inr = (v, dp = 2) => v == null ? "—" : (v < 0 ? "−₹" : "₹") + Math.abs(Number(v)).toLocaleString("en-IN", { minimumFractionDigits: dp, maximumFractionDigits: dp });
 const pctOf = v => v == null ? "—" : (v * 100).toFixed(1) + "%";
@@ -955,7 +955,10 @@ function alertStatus(a) {
 async function loadPriceAlerts() {
   const area = document.getElementById("alerts-area");
   const res = await apiGet("/api/alerts/price");
-  if (!res.ok) { area.innerHTML = errBox(esc(res.error || "Could not load alerts")); return; }
+  if (!res.ok) {
+    area.innerHTML = lockedRetry(res, loadPriceAlerts) ? `<p class="td-dim mt-sm">Unlock to load alerts.</p>` : errBox(esc(res.error || "Could not load alerts"));
+    return;
+  }
   const { alerts, market_open } = res.data;
   document.getElementById("alerts-market").textContent = market_open ? "Market open: checked every minute." : "Market closed: checks resume at the next open.";
   if (!alerts.length) { area.innerHTML = `<p class="td-dim mt-sm">No alerts yet.</p>`; return; }
@@ -999,7 +1002,7 @@ async function deleteAlert(id) {
 document.getElementById("alert-kind").addEventListener("change", e => {
   document.getElementById("alert-value-label").textContent = e.target.value === "pct_move" ? "Move (%)" : "Price (₹)";
 });
-loadPriceAlerts();
+runWhenUnlocked(loadPriceAlerts);
 </script>
 </body>
 </html>

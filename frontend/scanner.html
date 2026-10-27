@@ -111,7 +111,12 @@ let scan = null, poll = null;
 async function loadScan() {
   const res = await apiGet("/api/scanner");
   const status = document.getElementById("scan-status");
-  if (!res.ok) { document.getElementById("evidence-area").innerHTML = errBox(esc(res.error || "Could not load the scanner")); return; }
+  if (!res.ok) {
+    document.getElementById("evidence-area").innerHTML = lockedRetry(res, loadScan)
+      ? `<div class="empty-state"><div class="empty-title">Unlock to load the scanner</div></div>`
+      : errBox(esc(res.error || "Could not load the scanner"));
+    return;
+  }
   const { latest, running, last_failure } = res.data;
   document.getElementById("scan-run").disabled = !!running;
   status.innerHTML = running
@@ -261,7 +266,7 @@ async function askCommittee(encoded) {
 }
 
 ["f-search", "f-sector", "f-show", "f-held"].forEach(id => document.getElementById(id).addEventListener("input", renderRanking));
-loadScan();
+runWhenUnlocked(loadScan);
 </script>
 </body>
 </html>

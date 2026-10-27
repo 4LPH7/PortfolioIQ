@@ -176,6 +176,20 @@ async function apiDelete(path) {
   return data;
 }
 
+// A loader that runs at page open must wait for the unlock: before it, every request is a 401.
+// `lockedRetry(res, loader)` is true when a failure is only the lock; the loader reruns after unlock.
+function runWhenUnlocked(loader) {
+  const s = window.PortfolioIQSession;
+  if (s && s.isLocked()) s.onUnlock(loader);
+  else loader();
+}
+
+function lockedRetry(res, loader) {
+  if (res.ok || !/api-key|unauthori[sz]ed/i.test(res.error || res.error_message || "")) return false;
+  if (window.PortfolioIQSession) window.PortfolioIQSession.onUnlock(loader);
+  return true;
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 
 function fmt(n, prefix = "₹", dp = 2) {

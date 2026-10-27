@@ -387,7 +387,12 @@ const relTime = (t) => {
 async function loadNews() {
   const wrap = document.getElementById("news-wrap");
   const res = await apiGet("/api/news", { limit: 15 });
-  if (!res.ok) { wrap.innerHTML = errBox("Couldn't load headlines: " + esc(res.error)); return; }
+  if (!res.ok) {
+    wrap.innerHTML = lockedRetry(res, loadNews)
+      ? `<div class="empty-state"><div class="empty-title">Unlock to see headlines</div></div>`
+      : errBox("Couldn't load headlines: " + esc(res.error));
+    return;
+  }
   if (!res.data.length) {
     wrap.innerHTML = `<div class="empty-state"><div class="empty-title">No headlines yet</div><div class="empty-desc">They appear within a few minutes of the app starting, for stocks that Yahoo Finance covers.</div></div>`;
     return;
@@ -399,7 +404,7 @@ async function loadNews() {
       <span class="sub"><a class="td-link" href="analyzer.html?sym=${encodeURIComponent(n.tradingsymbol)}">${esc(n.tradingsymbol)}</a> · ${esc(n.source || "")}${n.published_at ? " · " + relTime(n.published_at) : ""} ${tags}</span></li>`;
   }).join("")}</ul>`;
 }
-loadNews();
+runWhenUnlocked(loadNews);
 setInterval(() => { if (!document.hidden) loadNews(); }, 10 * 60 * 1000);
 </script>
 </body>
