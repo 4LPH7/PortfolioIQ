@@ -276,9 +276,9 @@ ruff check .
 ruff format --check .
 
 # Run dependency vulnerability audit
-pip-audit -r requirements.txt --ignore-vuln PYSEC-2020-25 --ignore-vuln CVE-2026-77528 --ignore-vuln CVE-2026-106454
+pip-audit -r requirements.txt --ignore-vuln PYSEC-2020-25 --ignore-vuln CVE-2026-77528 --ignore-vuln CVE-2026-106454 --ignore-vuln CVE-2026-115774 --ignore-vuln CVE-2026-115775 --ignore-vuln CVE-2026-115776 --ignore-vuln CVE-2026-115778 --ignore-vuln CVE-2026-115877
 ```
-*(CVE-2026-106454 is in twisted's IMAP server, pulled in by `kiteconnect`; PortfolioIQ never runs IMAP. Remove the ignore once twisted ships a fix.)*
+*(The CVE-2026-106454 and CVE-2026-1157xx/115877 ignores are all in twisted, pulled in by `kiteconnect` for its websocket client, which PortfolioIQ never imports. Remove them once twisted 26.10.0 is released.)*
 
 ### Safety Certification Metrics
 - **Total Test Cases**: **613 passed** (0 failures, 0 regressions)

@@ -46,14 +46,22 @@ jobs:
       - name: Lint codebase with Ruff
         run: ruff check .
 
-      # CVE-2026-106454: twisted IMAP4 server ReDoS. twisted arrives via kiteconnect;
-      # PortfolioIQ never runs an IMAP server. No fixed twisted release yet; drop when one ships.
+      # twisted arrives via kiteconnect, which only needs it for the KiteTicker websocket.
+      # PortfolioIQ uses the REST client only and never imports twisted, so none of these
+      # are reachable: CVE-2026-106454 and -115774 (IMAP4 server), -115775 (XML streams),
+      # -115776 (IRC server), -115778 (Telnet), -115877 (HTTP header parsing).
+      # The fix is only in twisted 26.10.0rc1; drop these ignores once 26.10.0 is final.
       - name: Audit dependencies for vulnerabilities
         run: |
           pip-audit -r requirements.txt --desc \
             --ignore-vuln PYSEC-2020-25 \
             --ignore-vuln CVE-2026-77528 \
-            --ignore-vuln CVE-2026-106454
+            --ignore-vuln CVE-2026-106454 \
+            --ignore-vuln CVE-2026-115774 \
+            --ignore-vuln CVE-2026-115775 \
+            --ignore-vuln CVE-2026-115776 \
+            --ignore-vuln CVE-2026-115778 \
+            --ignore-vuln CVE-2026-115877
 
   docker-build:
     runs-on: ubuntu-latest
