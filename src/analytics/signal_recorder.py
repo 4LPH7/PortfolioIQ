@@ -376,3 +376,26 @@ def mature_forward_returns(
 
     logger.info("Forward return maturation complete: {}", matured)
     return matured
+
+
+def signal_hit_rate(user_id: str = "default") -> dict[str, dict]:
+    """
+    Per horizon: how often BUY signals beat the benchmark and SELL signals lagged it.
+    HOLD is excluded (no directional call). `hit_rate` is None until there is a sample.
+    """
+    from src.db.repository import get_matured_signal_outcomes
+
+    out: dict[str, dict] = {}
+    for horizon in ("5d", "20d", "60d"):
+        calls = [
+            (label, ex)
+            for label, ex in get_matured_signal_outcomes(horizon, user_id)
+            if label != "HOLD"
+        ]
+        hits = sum(1 for label, ex in calls if (ex > 0) == ("BUY" in label))
+        out[horizon] = {
+            "n": len(calls),
+            "hits": hits,
+            "hit_rate": round(hits / len(calls), 4) if calls else None,
+        }
+    return out

@@ -49,7 +49,18 @@ api_v1_bp = Blueprint("api_v1", __name__)
 @api_v1_bp.route("/health")
 def health():
     """Health check endpoint for local and hosted backend monitoring."""
-    return jsonify({"status": "ok", "db": check_connection()})
+    from src.ingestion.market_hours import calendar_covers_year, today_ist
+
+    today = today_ist()
+    # In December also require next year's holidays so a gap is flagged before it bites.
+    years = (today.year, today.year + 1) if today.month == 12 else (today.year,)
+    return jsonify(
+        {
+            "status": "ok",
+            "db": check_connection(),
+            "calendar_ok": all(calendar_covers_year(y) for y in years),
+        }
+    )
 
 
 @api_v1_bp.route("/market/status")
@@ -178,6 +189,15 @@ def post_signal_backtest():
         return jsonify({"ok": True, "data": run_dto.model_dump(mode="json")})
     except Exception as exc:
         return format_error_response("BACKTEST_ERROR", str(exc), 500)
+
+
+@api_v1_bp.route("/signals/hit-rate", methods=["GET"])
+@require_api_key
+def get_signal_hit_rate():
+    """Realized hit rate of BUY/SELL signals vs the benchmark, per forward horizon."""
+    from src.analytics.signal_recorder import signal_hit_rate
+
+    return jsonify({"ok": True, "data": signal_hit_rate(request.args.get("user_id", "default"))})
 
 
 @api_v1_bp.route("/signals/history", methods=["GET"])

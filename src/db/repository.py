@@ -723,6 +723,28 @@ def get_signal_snapshots(
         return _execute(s)
 
 
+def get_matured_signal_outcomes(
+    horizon: str, user_id: str = "default", session: Session | None = None
+) -> list[tuple[str, float]]:
+    """(signal_label, excess return vs benchmark) for snapshots whose `horizon` has matured."""
+    if horizon not in ("5d", "20d", "60d"):
+        raise ValueError(f"Invalid horizon: {horizon}. Must be '5d', '20d', or '60d'.")
+    query = text(f"""
+        SELECT signal_label, excess_return_{horizon} AS excess
+        FROM signal_snapshots
+        WHERE user_id = :user_id AND excess_return_{horizon} IS NOT NULL
+    """)
+
+    def _execute(s):
+        rows = s.execute(query, {"user_id": user_id}).mappings().all()
+        return [(r["signal_label"], float(r["excess"])) for r in rows]
+
+    if session is not None:
+        return _execute(session)
+    with get_db_session() as s:
+        return _execute(s)
+
+
 def get_pending_forward_return_snapshots(
     horizon_days: int,
     session: Session | None = None,

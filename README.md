@@ -4,9 +4,6 @@
 
 [![CI](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml/badge.svg)](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml)
 [![Python Version](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-446%20passed-brightgreen.svg)]()
-[![Coverage](https://img.shields.io/badge/test_coverage-79%25-brightgreen.svg)]()
-[![Critical Path Coverage](https://img.shields.io/badge/safety_critical_coverage-98.9%25-success.svg)]()
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Security: Gitleaks](https://img.shields.io/badge/security-gitleaks-blueviolet.svg)](https://github.com/gitleaks/gitleaks)
 [![Self-Hosted](https://img.shields.io/badge/deployment-100%25%20self--hosted-purple.svg)]()
@@ -281,11 +278,7 @@ pip-audit -r requirements.txt --ignore-vuln PYSEC-2020-25 --ignore-vuln CVE-2026
 *(The CVE-2026-106454 and CVE-2026-1157xx/115877 ignores are all in twisted, pulled in by `kiteconnect` for its websocket client, which PortfolioIQ never imports. Remove them once twisted 26.10.0 is released.)*
 
 ### Safety Certification Metrics
-- **Total Test Cases**: **616 passed** (0 failures, 0 regressions)
-- **Overall Code Coverage**: **83%** (CI gate: 75%)
-- **Critical Path Gatekeeper Coverage**: **100.00%**
-- **Slippage Validator Coverage**: **96.72%**
-- **Trading Safety Gatekeeper**: **98.90%**
+- Test and coverage numbers: see the latest [CI run](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml) (gates: 75% overall, 85% on safety-critical modules).
 - **Secret Leaks**: **0 detected** (Gitleaks verified)
 
 ---

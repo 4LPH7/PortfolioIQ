@@ -62,6 +62,9 @@ Before setting `DRY_RUN_MODE=false` in production:
 ### E. Dry-Run Empirical Soak Period
 - [ ] System has completed a minimum of **14 consecutive trading days** of unattended dry-run operation during active market hours.
 - [ ] Zero unexplained order rejections, database errors, or unhandled exceptions occurred during the soak period.
+- [ ] `python scripts/soak_report.py --days 14` prints `SOAK PASSED` (≥14 days of audit rows, none missing check rows).
+- [ ] `GET /api/v1/signals/hit-rate` shows BUY/SELL calls beating the benchmark more often than not (hit_rate > 0.5 on a meaningful `n`) at the 20d horizon.
+- [ ] `GET /api/v1/health` reports `"calendar_ok": true` (NSE holiday data loaded for the current year).
 - [ ] Every proposed rebalance order logged a complete audit row with passing checks in `order_validation_log`.
 
 ---

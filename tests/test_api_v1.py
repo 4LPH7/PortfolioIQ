@@ -37,14 +37,18 @@ def api_key() -> str:
 # ─────────────────────────────────────────────────────────────
 def test_health_endpoints_accessible_without_auth(client: FlaskClient) -> None:
     """Both /api/v1/health and legacy /api/health must be accessible unauthenticated."""
-    with patch("src.db.connection.check_connection", return_value=True):
+    expected = {"status": "ok", "db": True, "calendar_ok": True}
+    with (
+        patch("src.api.v1.blueprint.check_connection", return_value=True),
+        patch("src.ingestion.market_hours.calendar_covers_year", return_value=True),
+    ):
         res_v1 = client.get("/api/v1/health")
         assert res_v1.status_code == 200
-        assert res_v1.json == {"status": "ok", "db": True}
+        assert res_v1.json == expected
 
         res_legacy = client.get("/api/health")
         assert res_legacy.status_code == 200
-        assert res_legacy.json == {"status": "ok", "db": True}
+        assert res_legacy.json == expected
 
 
 def test_market_status_accessible_without_auth(client: FlaskClient) -> None:

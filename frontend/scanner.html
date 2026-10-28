@@ -68,6 +68,7 @@
       <label class="check-row"><input type="checkbox" id="f-held"> Only my holdings</label>
     </div>
   </div>
+  <div id="hit-area" class="mt-sm"></div>
   <div id="ranking-area" class="mt-sm"></div>
   <p class="text-xs text-dim mt-sm">Prices from Yahoo Finance, members from NSE's NIFTY 500 list. Fundamentals refresh on Saturdays and are shown for context only: free data has no history of them, so they can't be tested. Headlines are counted for your holdings and the top 20. Nothing here places an order.</p>
 </main>
@@ -107,6 +108,15 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const num = (v, dp = 1, suffix = "") => v == null ? "—" : `${Number(v).toFixed(dp)}${suffix}`;
 const signed = (v, dp = 1) => v == null ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(dp)}%`;
 let scan = null, poll = null;
+
+async function loadHitRate() {
+  const res = await apiGet("/api/v1/signals/hit-rate");
+  if (!res.ok) return;
+  const rows = Object.entries(res.data).map(([h, v]) =>
+    `<tr><td>${esc(h)}</td><td>${v.n}</td><td>${v.hit_rate == null ? "—" : (v.hit_rate * 100).toFixed(0) + "%"}</td></tr>`).join("");
+  document.getElementById("hit-area").innerHTML = `<div class="card"><div class="card-title">Live signal hit rate</div><div class="alert-text">BUY signals that beat the benchmark and SELL signals that lagged it, once the horizon has passed. Needs weeks of daily snapshots to mean anything.</div><table class="table"><thead><tr><th>Horizon</th><th>Calls</th><th>Hit rate</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+loadHitRate();
 
 async function loadScan() {
   const res = await apiGet("/api/scanner");

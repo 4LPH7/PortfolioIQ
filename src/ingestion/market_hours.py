@@ -102,6 +102,11 @@ def _get_calendar_records(year: int) -> dict[datetime.date, dict[str, Any]]:
         return records
 
 
+def calendar_covers_year(year: int) -> bool:
+    """False when no NSE holiday data exists for `year` (every weekday would count as open)."""
+    return bool(_get_calendar_records(year))
+
+
 def get_special_session_hours(
     date: datetime.date | None = None,
 ) -> tuple[datetime.time, datetime.time] | None:
