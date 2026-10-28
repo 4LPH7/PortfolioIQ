@@ -305,10 +305,24 @@ async function runAnalysis() {
       return;
     }
     renderResult(r.data);
+    fillScannerRank(r.data.tradingsymbol || r.data.symbol || symbol);
   } catch(err) {
     btn.disabled = false;
     area.innerHTML = errBox("Analysis failed: " + err.message);
   }
+}
+
+// The market scanner's view of this stock, shown beside the evidence verdict
+async function fillScannerRank(sym) {
+  const el = document.getElementById("scanner-rank-cell");
+  if (!el) return;
+  const res = await apiGet(`/api/scanner/rank/${encodeURIComponent(sym)}`);
+  if (!el.isConnected) return;
+  if (!res.ok) { el.textContent = "—"; return; }
+  const r = res.data;
+  el.innerHTML = !r ? "Not ranked"
+    : r.rank == null ? `<span class="badge badge-hold">no tested edge</span>`
+    : `#${esc(r.rank)} of ${esc(r.of)}` + (r.status === "edge" ? "" : ` <span class="badge badge-hold">no tested edge</span>`);
 }
 
 function renderResult(d) {
@@ -337,6 +351,7 @@ function renderResult(d) {
           ["Avg Buy Price", fmt(d.avg_buy_price)],
           ["Return", `<span style="color:${pnlPct >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:700;font-size:1.1rem">${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%</span>`],
           ["Evidence Hurdle", evidenceBadgeHtml],
+          ["Scanner Rank", `<span id="scanner-rank-cell" class="td-dim text-sm">…</span>`],
           ["Data Range", `<span class="text-dim text-sm">${d.data_start || "—"} → ${d.data_end || "—"}</span>`],
         ].map(([l, v]) => `<div><div class="kpi-label">${l}</div><div style="margin-top:0.3rem">${v}</div></div>`).join("")}
       </div>

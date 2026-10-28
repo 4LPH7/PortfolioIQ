@@ -246,8 +246,9 @@ def rebalance_drift():
 @require_api_key
 def rebalance_orders():
     from src.analytics.rebalancer import get_rebalance_summary
+    from src.analytics.scanner import rank_lookup
 
-    data = get_rebalance_summary()
+    data = get_rebalance_summary(scanner_lookup=rank_lookup())
     return jsonify({"ok": True, "data": data})
 
 
@@ -399,6 +400,15 @@ def get_scanner():
     from src.analytics.scanner import latest_scan
 
     return jsonify({"ok": True, "data": latest_scan()})
+
+
+@api_v1_bp.route("/scanner/rank/<symbol>", methods=["GET"])
+@require_api_key
+def get_scanner_rank(symbol: str):
+    """One stock's rank in the latest scan, or null when it was not ranked."""
+    from src.analytics.scanner import rank_lookup
+
+    return jsonify({"ok": True, "data": rank_lookup().get(symbol.upper())})
 
 
 @api_v1_bp.route("/scanner/run", methods=["POST"])
@@ -902,6 +912,7 @@ def post_rebalance_preview():
     from decimal import Decimal
 
     from src.analytics.rebalancer import get_rebalance_summary
+    from src.analytics.scanner import rank_lookup
 
     body = request.get_json(silent=True) or {}
     user_id = body.get("user_id", "default")
@@ -928,6 +939,7 @@ def post_rebalance_preview():
         min_trade_value=min_trade,
         turnover_cap_pct=turnover_cap,
         cash_buffer_pct=cash_buffer,
+        scanner_lookup=rank_lookup(),
     )
     return jsonify({"ok": True, "data": summary}), 200
 

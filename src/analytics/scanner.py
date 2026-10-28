@@ -545,6 +545,18 @@ def latest_scan() -> dict:
     }
 
 
+def rank_lookup() -> dict[str, dict]:
+    """{symbol: {rank, of, status}} from the latest completed scan; empty when there is none."""
+    scan = latest_scan()["latest"]
+    if not scan:
+        return {}
+    result = scan["result"]
+    return {
+        r["symbol"]: {"rank": r["rank"], "of": result["stocks_ranked"], "status": result["status"]}
+        for r in result["ranking"]
+    }
+
+
 def top_symbols(n: int = 20) -> list[str]:
     scan = latest_scan()["latest"]
     if not scan or scan["result"].get("status") == "insufficient_data":

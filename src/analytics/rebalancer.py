@@ -88,6 +88,11 @@ class RebalanceOrder:
     evidence_status: str = "PENDING"
     evidence_badge: str = ""
 
+    # Market scanner context (information only: it never blocks or resizes an order)
+    scanner_rank: int | None = None
+    scanner_status: str | None = None
+    scanner_note: str | None = None
+
     def __post_init__(self):
         self.estimated_value = (self.estimated_price * self.quantity).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP
@@ -292,6 +297,36 @@ def resolve_evidence_status(
     return "PENDING", "PENDING (No Backtest)"
 
 
+SCANNER_TOP_N = 100
+
+
+def annotate_scanner(order: RebalanceOrder, lookup: dict[str, dict] | None) -> None:
+    """Attach the scanner's rank and a plain note. Sells get the rank only. No scan, no change."""
+    if not lookup:
+        return
+    entry = lookup.get(order.tradingsymbol)
+    if entry:
+        order.scanner_rank, order.scanner_status = entry["rank"], entry["status"]
+    if order.side is not OrderSide.BUY:
+        return
+    if not entry:
+        order.scanner_note = (
+            "Not ranked by the scanner: outside the NIFTY 500 or left out by a data check."
+        )
+    elif entry["rank"] is None:
+        order.scanner_note = "Scanner has no tested edge, so there is no rank to weigh."
+    else:
+        where = f"Scanner rank {entry['rank']} of {entry['of']}"
+        if entry["status"] != "edge":
+            order.scanner_note = (
+                f"{where}, but the ranking has no tested edge, so treat it as context."
+            )
+        elif entry["rank"] <= SCANNER_TOP_N:
+            order.scanner_note = f"{where}, from a ranking with a tested edge."
+        else:
+            order.scanner_note = f"{where}: outside the top {SCANNER_TOP_N} that a ranking with a tested edge favours."
+
+
 def generate_rebalance_plan(
     user_id: str = "default",
     dry_run: bool = True,
@@ -306,6 +341,7 @@ def generate_rebalance_plan(
     signal_lookup: dict[str, HoldingSignalDTO] | None = None,
     tactical_signals: list[HoldingSignalDTO] | None = None,
     suppress_unproven_buys: bool = False,
+    scanner_lookup: dict[str, dict] | None = None,
 ) -> RebalancePlan:
     """
     Generate a complete rebalance plan incorporating Indian transaction cost modeling,
@@ -880,6 +916,9 @@ def generate_rebalance_plan(
             if running_turnover >= turnover_cap:
                 plan.turnover_cap_reached = True
 
+    for order in plan.orders:
+        annotate_scanner(order, scanner_lookup)
+
     logger.success(
         "Rebalance plan complete: {} orders ({} sells, {} buys), "
         "total turnover: {} / cap {}, charges: {}, min_trade suppressed: {}, adv scaled: {}, unproven suppressed: {}",
@@ -944,6 +983,9 @@ def get_rebalance_summary(user_id: str = "default", **kwargs: Any) -> dict[str, 
                 "has_tax_warning": o.has_tax_warning,
                 "evidence_status": o.evidence_status,
                 "evidence_badge": o.evidence_badge,
+                "scanner_rank": o.scanner_rank,
+                "scanner_status": o.scanner_status,
+                "scanner_note": o.scanner_note,
                 "tax_warnings": [
                     {"type": w.warning_type, "message": w.message, "severity": w.severity}
                     for w in o.tax_warnings
