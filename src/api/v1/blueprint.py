@@ -1358,11 +1358,6 @@ def get_system_status():
             "schedule": "09:15 IST Mon-Fri",
         },
         {
-            "id": "eod_export",
-            "name": "End of Day Export",
-            "schedule": "15:45 IST Mon-Fri",
-        },
-        {
             "id": "eod_snapshot",
             "name": "Daily EOD Portfolio Snapshot",
             "schedule": "16:00 IST Mon-Fri",

@@ -3,7 +3,6 @@ PortfolioIQ — APScheduler Job Definitions
 Manages all background jobs for the system:
     - SOD Sync (9:15 AM): Kite holdings + margins
     - Instrument Refresh (8:30 AM): Kite instruments API
-    - EOD Export (3:45 PM): Tableau CSV export
     - Partition Maintenance (midnight): Create next day's partition
     - Token Expiry Warning (5:30 AM): Alert if Kite token expired
 """
@@ -50,22 +49,6 @@ def _instrument_refresh_job():
         logger.info("[INSTRUMENTS] Synced {} instruments.", count)
     except Exception as exc:
         logger.exception("[INSTRUMENTS] Sync failed: {}", exc)
-
-
-def _eod_export_job():
-    """End-of-day Tableau CSV export."""
-    from src.export.tableau_export import run_eod_export
-    from src.ingestion.market_hours import is_market_day
-
-    if not is_market_day():
-        logger.info("[EOD] Skipping — not a market day.")
-        return
-
-    try:
-        path = run_eod_export()
-        logger.info("[EOD] Export saved to: {}", path)
-    except Exception as exc:
-        logger.exception("[EOD] Export failed: {}", exc)
 
 
 def _partition_maintenance_job():
@@ -267,15 +250,6 @@ def create_scheduler() -> BackgroundScheduler:
         CronTrigger(hour=8, minute=30, day_of_week="mon-fri", timezone=IST),
         id="instrument_refresh",
         name="Instrument Master Refresh",
-        replace_existing=True,
-    )
-
-    # EOD Export — 3:45 PM IST on weekdays
-    scheduler.add_job(
-        _eod_export_job,
-        CronTrigger(hour=15, minute=45, day_of_week="mon-fri", timezone=IST),
-        id="eod_export",
-        name="End of Day Tableau Export",
         replace_existing=True,
     )
 

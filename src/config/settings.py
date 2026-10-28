@@ -83,7 +83,6 @@ class Settings(BaseSettings):
     timezone: str = Field("Asia/Kolkata")
     market_open_time: str = Field("09:15", description="NSE open time HH:MM IST")
     market_close_time: str = Field("15:30", description="NSE close time HH:MM IST")
-    eod_export_time: str = Field("15:45", description="EOD export trigger HH:MM IST")
 
     # ------------------------------------------------------------------ #
     # Polling
@@ -141,14 +140,9 @@ class Settings(BaseSettings):
     )
 
     # ------------------------------------------------------------------ #
-    # Exports
-    # ------------------------------------------------------------------ #
-    tableau_output_dir: str = Field("./exports/tableau")
-
-    # ------------------------------------------------------------------ #
     # Validators
     # ------------------------------------------------------------------ #
-    @field_validator("market_open_time", "market_close_time", "eod_export_time")
+    @field_validator("market_open_time", "market_close_time")
     @classmethod
     def validate_time_format(cls, v: str) -> str:
         """Ensure time strings are in HH:MM format."""

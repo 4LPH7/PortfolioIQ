@@ -89,7 +89,6 @@ class TestSettingsDefaultsAndProperties:
         assert settings.is_dry_run is True
         assert settings.market_open_time == "09:15"
         assert settings.market_close_time == "15:30"
-        assert settings.eod_export_time == "15:45"
         assert settings.slippage_bound_pct == 2.0
         assert settings.concentration_limit_pct == 15.0
         assert settings.duplicate_window_sec == 300
