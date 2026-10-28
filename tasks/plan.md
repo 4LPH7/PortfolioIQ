@@ -64,7 +64,7 @@ T5 point-in-time guard ─► T6 outcome feedback (gated) ─► CHECKPOINT B
   - **Files:** `src/analytics/walk_forward.py`, `tests/test_walk_forward.py`
   - **Depends on:** none
 
-- [ ] **T2: Volume impact function** (size S, 2 files)
+- [x] **T2: Volume impact function** (size S, 2 files)
   - **Description:** Add `estimate_impact_bps(trade_value, adv_value)` to `cost_calculator.py`. It is a pure function with no DB access, following the formula in Architecture decisions.
   - **Acceptance:**
     - [ ] 1% of ADV gives 5 bps (±0.01).

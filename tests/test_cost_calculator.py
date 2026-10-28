@@ -78,3 +78,31 @@ def test_invalid_side_raises_value_error():
     """Verify invalid side raises ValueError."""
     with pytest.raises(ValueError, match="side must be 'BUY' or 'SELL'"):
         compute_indian_delivery_charges(side="HOLD", trade_value=Decimal("1000.00"))
+
+
+# ──────────────────────────────────────────────────────────
+# Market impact (backtest slippage): impact_bps = min(100, 50 * sqrt(trade / ADV))
+# ──────────────────────────────────────────────────────────
+
+
+def test_impact_anchor_one_percent_of_adv_costs_five_bps():
+    from src.analytics.cost_calculator import estimate_impact_bps
+
+    assert estimate_impact_bps(10_000.0, 1_000_000.0) == pytest.approx(5.0, abs=0.01)
+
+
+def test_impact_grows_with_size_and_is_capped():
+    from src.analytics.cost_calculator import IMPACT_CAP_BPS, estimate_impact_bps
+
+    sizes = [0.0, 1e3, 1e4, 1e5, 1e6, 1e7, 1e9]
+    costs = [estimate_impact_bps(s, 1_000_000.0) for s in sizes]
+    assert costs == sorted(costs)
+    assert costs[0] == 0.0
+    assert max(costs) == IMPACT_CAP_BPS == 100.0
+
+
+@pytest.mark.parametrize("adv", [0.0, -5.0, None, float("nan")])
+def test_impact_without_liquidity_data_is_the_cap(adv):
+    from src.analytics.cost_calculator import estimate_impact_bps
+
+    assert estimate_impact_bps(10_000.0, adv) == 100.0
