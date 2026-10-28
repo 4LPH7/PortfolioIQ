@@ -571,3 +571,29 @@ def test_fundamentals_saved_and_expire_after_seven_days(db_session, monkeypatch)
     assert row["fields"] == fields and row["source"] == "yfinance"
     later = datetime.now(UTC) + pd.Timedelta(days=8)
     assert fundamentals.latest_fundamentals(sym, now=later) is None
+
+
+@pytest.mark.postgres
+def test_fundamentals_are_point_in_time(db_session):
+    """A past `now` must never see a fetch made after it (TradingAgents' point-in-time rule)."""
+    from datetime import timedelta
+
+    sym = "ZZPITTEST"
+    first = datetime(2026, 3, 2, 10, tzinfo=UTC)
+    second = first + timedelta(days=3)
+    for fetched_at, pe in ((first, 10.0), (second, 30.0)):
+        db_session.execute(
+            text(
+                """INSERT INTO fundamentals_snapshots (tradingsymbol, fields, source, fetched_at)
+                   VALUES (:s, CAST(:f AS JSONB), 'yfinance', :t)"""
+            ),
+            {"s": sym, "f": json.dumps({"pe_ttm": {"value": pe, "unit": "x"}}), "t": fetched_at},
+        )
+
+    def pe_at(now):
+        row = fundamentals.latest_fundamentals(sym, now=now)
+        return row and row["fields"]["pe_ttm"]["value"]
+
+    assert pe_at(first - timedelta(days=1)) is None  # before any fetch: unavailable
+    assert pe_at(first + timedelta(days=1)) == 10.0  # between fetches: the earlier one
+    assert pe_at(second + timedelta(hours=1)) == 30.0

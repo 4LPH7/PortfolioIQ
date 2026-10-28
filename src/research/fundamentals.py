@@ -117,13 +117,16 @@ def refresh_fundamentals(symbols: list[str]) -> dict[str, int]:
 
 
 def latest_fundamentals(tradingsymbol: str, now: datetime | None = None) -> dict | None:
-    """{"fields", "source", "fetched_at"} from the newest row, or None if older than 7 days."""
+    """
+    {"fields", "source", "fetched_at"} from the newest row fetched at or before `now`, or None
+    if that is older than 7 days. Point-in-time: a past `now` never sees a later fetch.
+    """
     now = now or datetime.now(UTC)
     rows = execute_sql(
         """SELECT fields, source, fetched_at FROM fundamentals_snapshots
-           WHERE tradingsymbol = :sym AND fetched_at >= :cutoff
+           WHERE tradingsymbol = :sym AND fetched_at >= :cutoff AND fetched_at <= :now
            ORDER BY fetched_at DESC LIMIT 1""",
-        {"sym": tradingsymbol, "cutoff": now - MAX_AGE},
+        {"sym": tradingsymbol, "cutoff": now - MAX_AGE, "now": now},
     )
     return rows[0] if rows else None
 

@@ -11,12 +11,12 @@ Full plan, acceptance criteria and risks: [plan.md](plan.md)
 - [x] T4: `inputs_hash` per backtest run (migration 031, re-check number): M, needs T3
 
 ## Checkpoint A
-- [ ] Full suite green in CI, ruff clean, coverage gates unchanged
-- [ ] Before/after table (main worktree vs branch, 3 NSE symbols) reviewed with user
-- [ ] Decide on re-running or labelling backtest numbers quoted in docs
+- [ ] Full suite green in CI, ruff clean, coverage gates unchanged (green on local Postgres; CI runs on PR/main)
+- [x] Before/after table (main worktree vs branch, 3 NSE symbols) reviewed with user
+- [x] Decide on re-running or labelling backtest numbers quoted in docs (none quoted)
 
 ## Phase 3: Committee (start only after Checkpoint A and a go-ahead)
-- [ ] T5: Point-in-time guard for committee fundamentals: M, no deps
+- [x] T5: Point-in-time guard for committee fundamentals: M, no deps
 - [ ] T6: Feed settled outcomes into next committee run: M, needs T5, gated on N settled runs (N = 20 proposed)
 
 ## Checkpoint B
@@ -26,4 +26,4 @@ Full plan, acceptance criteria and risks: [plan.md](plan.md)
 ## Open questions
 - [ ] Confirm T6 gate N = 20
 - [ ] Confirm impact anchor: 1% of ADV = 5 bps, cap 100 bps
-- [ ] Check Phase 5 docs for backtest numbers that will change
+- [x] Check Phase 5 docs for backtest numbers that will change (none)

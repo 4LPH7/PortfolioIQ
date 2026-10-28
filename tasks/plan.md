@@ -105,7 +105,7 @@ T5 point-in-time guard ─► T6 outcome feedback (gated) ─► CHECKPOINT B
 
 ### Phase 3: Committee (you selected these; start only after Checkpoint A and a go-ahead)
 
-- [ ] **T5: Point-in-time guard for committee snapshots** (size M, 3 files)
+- [x] **T5: Point-in-time guard for committee snapshots** (size M, 3 files)
   - **Description:** For a past `as_of` date, use only `fundamentals_snapshots` rows with `fetched_at ≤ as_of`. If none exist, mark fundamentals as unavailable for that date instead of using today's values. Refuse committee backtests dated before a symbol's first fundamentals row.
   - **Acceptance:**
     - [ ] An `as_of` before the first row yields "unavailable", not the current value.
