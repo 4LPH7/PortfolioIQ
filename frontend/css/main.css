@@ -365,24 +365,14 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--text); width: 
 tr.row-selected td { background: var(--active); }
 
 /* ── Tabs: underline on one rule ────────────────────────── */
-.tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--border); margin-bottom: var(--gap); overflow-x: auto; scrollbar-width: none; }
-.tabs::-webkit-scrollbar { display: none; }
-.tab-btn, .abs-tab-btn {
+.abs-tab-btn {
   position: relative; padding: 10px 0; border: 0; background: none; cursor: pointer;
   color: var(--muted); font-size: var(--fs-body); font-weight: 500; white-space: nowrap;
   transition: color var(--t-fast) ease;
 }
-.tab-btn:hover, .abs-tab-btn:hover { color: var(--text); }
-.tab-btn.active, .abs-tab-btn.active { color: var(--text); }
-.tab-btn.active::after, .abs-tab-btn.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--text); }
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
-
-/* ── Signal method cards ────────────────────────────────── */
-.method-card { background: var(--surface); border: 1px solid var(--border) !important; border-radius: var(--radius); padding: 16px; }
-.method-label { font-size: var(--fs-small); color: var(--muted); margin-bottom: 4px; }
-.method-signal { font-size: var(--fs-section); font-weight: 600; margin-bottom: 4px; }
-.method-detail { font-size: 13px; line-height: 18px; color: var(--muted); }
+.abs-tab-btn:hover { color: var(--text); }
+.abs-tab-btn.active { color: var(--text); }
+.abs-tab-btn.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--text); }
 
 /* ── Notices: inside the block, quiet, one tint per meaning ── */
 .alert, .banner {

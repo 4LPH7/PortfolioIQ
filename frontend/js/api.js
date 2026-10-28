@@ -285,37 +285,6 @@ async function loadSidebarStatus() {
 
 // ── Tab switcher ───────────────────────────────────────────────
 
-function initTabs(containerId) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  const buttons = container.querySelectorAll(".tab-btn");
-  const panels  = container.querySelectorAll(".tab-panel");
-
-  buttons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      buttons.forEach(b => b.classList.remove("active"));
-      panels.forEach(p => p.classList.remove("active"));
-      btn.classList.add("active");
-      const target = btn.dataset.tab;
-      const panel = container.querySelector(`.tab-panel[data-tab="${target}"]`);
-      if (panel) {
-        panel.classList.add("active");
-        requestAnimationFrame(() => {
-          panel.querySelectorAll(".js-plotly-plot").forEach(plot => {
-            if (window.Plotly && typeof window.Plotly.Plots.resize === "function") {
-              window.Plotly.Plots.resize(plot);
-            }
-          });
-          window.dispatchEvent(new Event("resize"));
-        });
-      }
-    });
-  });
-
-  // Activate first tab
-  if (buttons[0]) buttons[0].click();
-}
-
 // ── Plotly theme: ink on white, faint horizontal grid, no y-axis line ──
 
 const CHART = { ink: "#0a0a0a", muted: "#5f6368", grid: "#e5e5e5", hue: "#1d5fbf", pos: "#2e7d32", neg: "#c4242a", pale: "#c9ced6" };

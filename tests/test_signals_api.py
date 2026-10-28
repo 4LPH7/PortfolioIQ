@@ -8,7 +8,7 @@ Validates:
 - GET /api/v1/signals: Returns signals for all active holdings.
 - POST /api/v1/signals/backtest: Triggers walk-forward backtest returning BacktestRunDTO.
 - GET /api/v1/signals/history: Retrieves historical daily signal snapshots with multi-horizon outcomes.
-- Legacy GET /api/v1/analysis/<symbol>: Emits HTTP 299 Deprecation Warning header.
+- GET /api/v1/analysis/<symbol> (retired 5-method view) returns 404.
 - API Key authentication and uniform error envelopes.
 """
 
@@ -216,22 +216,7 @@ class TestSignalsAPI:
                 or float(data[0]["excess_return_5d"]) == 0.015
             )
 
-    def test_legacy_analysis_endpoint_alias_and_deprecation_header(
-        self, client: FlaskClient, api_key: str, sample_holding_signal: HoldingSignalDTO
-    ):
-        with (
-            patch("src.analytics.valuator.get_valuation_summary", return_value={"holdings": []}),
-            patch(
-                "src.analytics.signal_recorder.compute_holding_signal",
-                return_value=sample_holding_signal,
-            ),
-        ):
-            res = client.get(
-                "/api/v1/analysis/INFY",
-                headers={"X-API-Key": api_key},
-            )
-            assert res.status_code == 200
-            assert "Warning" in res.headers
-            assert "299" in res.headers["Warning"]
-            assert "Deprecated endpoint" in res.headers["Warning"]
-            assert res.json["data"]["tradingsymbol"] == "INFY"
+    def test_retired_analysis_endpoint_is_gone(self, client: FlaskClient, api_key: str):
+        """The 5-method /analysis/<symbol> view was retired in favour of /signals/<symbol>."""
+        res = client.get("/api/v1/analysis/INFY", headers={"X-API-Key": api_key})
+        assert res.status_code == 404
