@@ -93,14 +93,14 @@ def test_cors_allowlist_allows_only_configured_origin(
     client = flask_app.app.test_client()
 
     allowed = client.options(
-        "/api/health",
+        "/api/v1/health",
         headers={
             "Origin": "https://allowed.example",
             "Access-Control-Request-Method": "GET",
         },
     )
     denied = client.options(
-        "/api/health",
+        "/api/v1/health",
         headers={
             "Origin": "https://unlisted.example",
             "Access-Control-Request-Method": "GET",

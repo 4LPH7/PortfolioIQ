@@ -36,7 +36,7 @@ def api_key() -> str:
 # Public & Exempt Endpoints
 # ─────────────────────────────────────────────────────────────
 def test_health_endpoints_accessible_without_auth(client: FlaskClient) -> None:
-    """Both /api/v1/health and legacy /api/health must be accessible unauthenticated."""
+    """/api/v1/health must be accessible unauthenticated."""
     expected = {"status": "ok", "db": True, "calendar_ok": True}
     with (
         patch("src.api.v1.blueprint.check_connection", return_value=True),
@@ -46,22 +46,14 @@ def test_health_endpoints_accessible_without_auth(client: FlaskClient) -> None:
         assert res_v1.status_code == 200
         assert res_v1.json == expected
 
-        res_legacy = client.get("/api/health")
-        assert res_legacy.status_code == 200
-        assert res_legacy.json == expected
-
 
 def test_market_status_accessible_without_auth(client: FlaskClient) -> None:
-    """Market status must be accessible unauthenticated on both routes."""
+    """Market status must be accessible unauthenticated."""
     mock_status = {"is_open": True, "status_text": "Market Open"}
     with patch("src.ingestion.market_hours.get_market_status", return_value=mock_status):
         res_v1 = client.get("/api/v1/market/status")
         assert res_v1.status_code == 200
         assert res_v1.json == {"ok": True, "data": mock_status}
-
-        res_legacy = client.get("/api/market/status")
-        assert res_legacy.status_code == 200
-        assert res_legacy.json == {"ok": True, "data": mock_status}
 
 
 def test_broker_callback_returns_to_configured_frontend(client: FlaskClient) -> None:
@@ -120,18 +112,6 @@ def test_protected_endpoint_allows_valid_api_key(client: FlaskClient, api_key: s
     with patch("src.analytics.valuator.get_valuation_summary", return_value=mock_summary):
         res = client.get(
             "/api/v1/portfolio/summary",
-            headers={"X-API-Key": api_key},
-        )
-        assert res.status_code == 200
-        assert res.json == {"ok": True, "data": mock_summary}
-
-
-def test_legacy_alias_allows_authenticated_access(client: FlaskClient, api_key: str) -> None:
-    """Legacy /api/portfolio/summary alias functions identically to /api/v1."""
-    mock_summary = {"total_aum": 250000.0, "holdings": []}
-    with patch("src.analytics.valuator.get_valuation_summary", return_value=mock_summary):
-        res = client.get(
-            "/api/portfolio/summary",
             headers={"X-API-Key": api_key},
         )
         assert res.status_code == 200

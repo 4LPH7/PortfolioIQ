@@ -105,9 +105,8 @@ def serve_frontend_static(filename: str):
     return format_error_response("NOT_FOUND", f"Resource '{filename}' not found", status_code=404)
 
 
-# Dual-mount API Blueprints: /api/v1 (primary) and /api (legacy alias)
+# The frontend (js/api.js) maps every "/api/..." path onto /api/v1
 app.register_blueprint(api_v1_bp, url_prefix="/api/v1")
-app.register_blueprint(api_v1_bp, url_prefix="/api", name="api_legacy")
 
 # Kite apps configured before the API callback was namespaced may still redirect
 # to this root path. Keep it as an alias so those sign-ins complete successfully.

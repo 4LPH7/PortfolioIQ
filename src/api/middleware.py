@@ -27,9 +27,7 @@ correlation_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar(
 # Endpoints explicitly exempt from API key validation
 EXEMPT_ENDPOINTS = {
     "api_v1.health",
-    "api_legacy.health",
     "api_v1.market_status",
-    "api_legacy.market_status",
 }
 
 
