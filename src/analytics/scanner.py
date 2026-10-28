@@ -30,6 +30,7 @@ from loguru import logger
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+from src.analytics.data_quality import assess, freshest
 from src.db.connection import execute_sql, get_db_session
 
 NIFTY500_CSV = "https://archives.nseindia.com/content/indices/ind_nifty500list.csv"
@@ -385,22 +386,33 @@ def deep_sync_prices(symbols: list[str], pause: float = 0.3) -> list[str]:
     return failed
 
 
-def load_prices(symbols: list[str], years: int = 10) -> pd.DataFrame:
-    """Adjusted closes, one column per symbol, from the cache in a single query."""
+def load_prices(symbols: list[str], years: int = 10) -> tuple[pd.DataFrame, list[dict]]:
+    """Adjusted closes, one column per symbol, from the cache in a single query, plus every
+    symbol left out with its reason (thin history, stale, gap, suspended, or no prices)."""
     rows = execute_sql(
         """SELECT tradingsymbol AS s, bar_date AS d, close::float AS c, adj_close::float AS a
            FROM historical_daily_bars WHERE tradingsymbol = ANY(:syms) AND bar_date >= :since""",
         {"syms": symbols, "since": datetime.now(UTC).date() - timedelta(days=365 * years)},
     )
     if not rows:
-        return pd.DataFrame()
+        return pd.DataFrame(), [{"symbol": s, "reason": "no price history"} for s in symbols]
     df = pd.DataFrame(rows, columns=["s", "d", "c", "a"])
     close = df.pivot(index="d", columns="s", values="c").sort_index()
     adj = df.pivot(index="d", columns="s", values="a").reindex_like(close)
     prices = close * (adj / close).bfill().fillna(1.0)  # same convention as historical_cache
     prices.index = pd.to_datetime(prices.index)
-    prices = prices.ffill(limit=5)
-    return prices.loc[:, prices.notna().sum() >= MIN_PRICED_DAYS]
+    own = {c: prices[c].dropna() for c in prices.columns}  # each symbol's real trading days
+    as_of = freshest(own)
+    excluded = [{"symbol": s, "reason": "no price history"} for s in symbols if s not in own]
+    keep = []
+    for sym, series in own.items():
+        reason = assess(series, MIN_PRICED_DAYS, as_of)
+        if reason:
+            excluded.append({"symbol": sym, "reason": reason})
+        else:
+            keep.append(sym)
+    excluded.sort(key=lambda e: e["symbol"])
+    return prices[keep].ffill(limit=5), excluded
 
 
 def _enrich(result: dict, universe: list[dict], held: set[str]) -> None:
@@ -476,10 +488,11 @@ def run_scan(run_id: int) -> None:
         symbols = sorted({u["symbol"] for u in universe} | held)
         failed = deep_sync_prices(symbols)
         failed += [s for s in sync_prices(symbols) if s not in failed]
-        prices = load_prices(symbols)
+        prices, excluded = load_prices(symbols)
         result = compute_scan(prices)
         _enrich(result, universe, held)
         result["sync_failed"] = failed
+        result["excluded"] = excluded
         execute_sql(
             """UPDATE scanner_runs SET status = 'completed', finished_at = NOW(),
                    universe_size = :u, priced = :p, result = CAST(:r AS JSONB) WHERE id = :id""",

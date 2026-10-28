@@ -16,6 +16,8 @@ from collections.abc import Callable
 import numpy as np
 import pandas as pd
 
+from src.analytics.data_quality import assess, freshest
+
 BLOCK_DAYS = 20
 MIN_COMMON_DAYS = 250
 CHUNK = 500
@@ -31,17 +33,22 @@ def daily_returns(
     """Aligned daily returns of each holding (adjusted closes) over the lookback window.
     `holdings`: [{"symbol", "value"}]. A symbol without enough history is left out, with why."""
     window = lookback_years * YEAR
-    closes, excluded = {}, []
+    loaded, excluded = {}, []
     for h in holdings:
         try:
-            c = load_bars(h["symbol"])["Close"].dropna().astype(float).tail(window + 1)
+            loaded[h["symbol"]] = (
+                load_bars(h["symbol"])["Close"].dropna().astype(float).tail(window + 1)
+            )
         except Exception as exc:
             excluded.append({"symbol": h["symbol"], "reason": f"no price history ({exc})"})
-            continue
-        if len(c) < MIN_COMMON_DAYS + 1:
-            excluded.append({"symbol": h["symbol"], "reason": f"only {len(c)} days of history"})
-            continue
-        closes[h["symbol"]] = c
+    as_of = freshest(loaded)
+    closes = {}
+    for sym, c in loaded.items():
+        reason = assess(c, MIN_COMMON_DAYS + 1, as_of)
+        if reason:
+            excluded.append({"symbol": sym, "reason": reason})
+        else:
+            closes[sym] = c
     if not closes:
         raise ValueError("No holding has a year of price history")
     prices = pd.DataFrame(closes).dropna()

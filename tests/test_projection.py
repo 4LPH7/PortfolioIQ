@@ -159,3 +159,18 @@ def test_api_rejects_an_empty_portfolio(client, headers):
     assert res.status_code == 422
     bad = client.post("/api/v1/portfolio/projection", headers=headers, json={"years": 30})
     assert bad.status_code == 422
+
+
+def test_stale_and_suspended_holdings_are_left_out_with_a_reason():
+    rng = np.random.default_rng(6)
+    live = _bars(rng.normal(0, 0.01, 600))
+    stale = live.iloc[:-30]  # stopped trading a month before the others
+    frozen = live.copy()
+    frozen.iloc[-30:] = frozen.iloc[-31]  # price has not moved in 30 days
+    bars = {"LIVE": live, "STALE": stale, "FROZEN": frozen}
+    holdings = [{"symbol": s, "value": 10_000} for s in bars]
+    rets = daily_returns(holdings, bars.__getitem__, 2, benchmark=None)
+    assert rets["symbols"] == ["LIVE"]
+    reasons = {e["symbol"]: e["reason"] for e in rets["excluded"]}
+    assert reasons["STALE"].startswith("last price is ")
+    assert reasons["FROZEN"] == "price has not moved in the last 20 days"

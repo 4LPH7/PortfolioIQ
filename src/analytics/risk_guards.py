@@ -14,6 +14,7 @@ from datetime import datetime
 
 import pandas as pd
 
+from src.analytics.data_quality import assess
 from src.analytics.valuator import PortfolioValuation
 from src.db.connection import execute_sql
 
@@ -98,8 +99,9 @@ def evaluate_risk_guards(
             closes = load_bars(sym)["Close"].dropna().astype(float).tail(TRAILING_WINDOW)
         except Exception:
             closes = pd.Series(dtype=float)
-        if len(closes) < MIN_TRAILING_BARS:
-            skipped.append(f"{sym} ({len(closes)} days)")
+        reason = assess(closes, MIN_TRAILING_BARS, now.date())
+        if reason:
+            skipped.append(f"{sym}: {reason}")
             continue
         high = float(closes.max())
         off_high = (float(closes.iloc[-1]) / high - 1.0) * 100.0 if high > 0 else 0.0
@@ -138,7 +140,7 @@ def evaluate_risk_guards(
                 "risk_trail_skipped",
                 "INFO",
                 "Trailing-stop check skipped",
-                f"Not enough price history (needs {MIN_TRAILING_BARS} days): {', '.join(skipped)}.",
+                f"Price data failed a check, so no trailing-stop alert: {'; '.join(skipped)}.",
                 now,
                 symbols=skipped,
             )

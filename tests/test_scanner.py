@@ -4,7 +4,7 @@ and random markets, costs, the NSE list, the price matrix, runs and the API."""
 from __future__ import annotations
 
 import os
-from datetime import date, timedelta
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -170,16 +170,20 @@ def test_refresh_universe_stores_and_falls_back(db_session):
 
 
 @pytest.mark.postgres
-def test_load_prices_adjusts_and_drops_short_histories(db_session):
-    start = date.today() - timedelta(days=500)
-    days = pd.bdate_range(start, periods=300)
+def test_load_prices_adjusts_and_reports_every_exclusion(db_session):
+    today = pd.Timestamp(date.today())
+    fresh = pd.bdate_range(end=today, periods=300)
+    old = pd.bdate_range(end=today - pd.Timedelta(days=30), periods=300)
+    wave = (100 + np.sin(np.arange(300))).tolist()  # plain floats: SQL cannot bind numpy scalars
     rows = []
-    for i, d in enumerate(days):
-        # ZZLONG: traded price halves on a 2:1 split halfway; adj_close is split-adjusted
-        traded = 200.0 if i < 150 else 100.0
-        rows.append({"s": "ZZLONG", "d": d.date(), "c": traded, "a": 100.0})
+    for i, d in enumerate(fresh):
+        # ZZLONG: the traded price halves on a 2:1 split halfway; adj_close is split-adjusted
+        traded = wave[i] * (2 if i < 150 else 1)
+        rows.append({"s": "ZZLONG", "d": d.date(), "c": traded, "a": wave[i]})
         if i >= 200:
-            rows.append({"s": "ZZSHORT", "d": d.date(), "c": 50.0, "a": 50.0})
+            rows.append({"s": "ZZSHORT", "d": d.date(), "c": 50 + i % 3, "a": 50 + i % 3})
+    for i, d in enumerate(old):
+        rows.append({"s": "ZZSTALE", "d": d.date(), "c": wave[i], "a": wave[i]})
     db_session.execute(
         text(
             """INSERT INTO historical_daily_bars
@@ -188,9 +192,15 @@ def test_load_prices_adjusts_and_drops_short_histories(db_session):
         ),
         rows,
     )
-    prices = sc.load_prices(["ZZLONG", "ZZSHORT"])
-    assert list(prices.columns) == ["ZZLONG"]  # ZZSHORT has only 100 days
-    assert prices["ZZLONG"].dropna().nunique() == 1  # the split no longer looks like a crash
+    prices, excluded = sc.load_prices(["ZZLONG", "ZZSHORT", "ZZSTALE", "ZZNONE"])
+    assert list(prices.columns) == ["ZZLONG"]
+    # the split is no crash; atol covers the cache's 2 to 4 decimal places
+    np.testing.assert_allclose(prices["ZZLONG"].dropna().to_numpy(), np.array(wave), atol=0.01)
+    assert {e["symbol"]: e["reason"] for e in excluded} == {
+        "ZZSHORT": "only 100 days of history (needs 260)",
+        "ZZSTALE": "last price is 30 days old",
+        "ZZNONE": "no price history",
+    }
 
 
 @pytest.mark.postgres
@@ -228,7 +238,11 @@ def test_run_scan_stores_an_enriched_result(db_session):
         patch.object(sc, "refresh_universe", return_value=universe),
         patch.object(sc, "deep_sync_prices", return_value=[]),
         patch.object(sc, "sync_prices", return_value=["S999"]),
-        patch.object(sc, "load_prices", return_value=prices),
+        patch.object(
+            sc,
+            "load_prices",
+            return_value=(prices, [{"symbol": "S999", "reason": "last price is 30 days old"}]),
+        ),
         patch(
             "src.analytics.valuator.compute_portfolio_valuation",
             return_value=SimpleNamespace(holdings=[SimpleNamespace(tradingsymbol="S002")]),
@@ -239,6 +253,7 @@ def test_run_scan_stores_an_enriched_result(db_session):
     assert latest["running"] is None and latest["latest"]["id"] == run_id
     result = latest["latest"]["result"]
     assert result["sync_failed"] == ["S999"] and result["stocks_ranked"] == 60
+    assert result["excluded"] == [{"symbol": "S999", "reason": "last price is 30 days old"}]
     rows = {r["symbol"]: r for r in result["ranking"]}
     assert rows["S001"]["fundamentals"]["pe_ttm"] == 18.5
     assert rows["S001"]["fundamentals"]["roe_pct"] == 20.0
