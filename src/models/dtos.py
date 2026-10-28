@@ -477,6 +477,9 @@ class BacktestRunDTO(BaseDTO):
     excess_cagr_vs_stock: float | None = None
     excess_cagr_vs_benchmark: float | None = None
     total_cost_drag_bps: float = 0.0
+    slippage_drag_inr: float = 0.0  # market impact paid on fills (statutory charges excluded)
+    slippage_drag_bps: float = 0.0  # same, annualised bps of initial capital
+    inputs_hash: str | None = None  # sha256 of parameters, constants and price bars
     status: Literal["PROVEN_EDGE", "UNPROVEN_NOISE", "PENDING"] = "UNPROVEN_NOISE"
     passed_hurdle: bool = False
     hurdle_details: dict[str, Any] = {}

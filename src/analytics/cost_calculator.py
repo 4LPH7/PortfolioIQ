@@ -7,8 +7,27 @@ cash equity delivery trades on NSE via Zerodha.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
+
+# Square-root market impact for backtests: a trade worth 1% of average daily traded value
+# costs 5 bps. ponytail: uncalibrated assumption, not fitted to real fills; recalibrate
+# IMPACT_COEFF_BPS against actual Kite execution prices once enough live fills exist.
+IMPACT_COEFF_BPS = 50.0
+IMPACT_CAP_BPS = 100.0
+
+
+def estimate_impact_bps(trade_value: float, adv_value: float | None) -> float:
+    """
+    Slippage in bps for one fill: min(cap, coeff * sqrt(trade_value / ADV)).
+    ADV is average daily traded value (Close x Volume) in INR. Missing, zero or
+    non-finite ADV returns the cap, so an illiquid stock never looks cheap to trade.
+    """
+    if not (adv_value and adv_value > 0):  # also catches None and NaN
+        return IMPACT_CAP_BPS
+    participation = max(float(trade_value), 0.0) / float(adv_value)
+    return min(IMPACT_CAP_BPS, IMPACT_COEFF_BPS * math.sqrt(participation))
 
 
 @dataclass

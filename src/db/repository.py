@@ -821,7 +821,7 @@ def record_backtest_run(run: BacktestRunDTO, session: Session | None = None) -> 
             total_trades, stock_cagr, stock_sharpe, stock_max_drawdown,
             benchmark_cagr, benchmark_sharpe, benchmark_max_drawdown,
             excess_cagr_vs_stock, excess_cagr_vs_benchmark, total_cost_drag_bps,
-            status, passed_hurdle, hurdle_details, created_at
+            status, passed_hurdle, hurdle_details, inputs_hash, created_at
         )
         VALUES (
             CAST(:run_id AS UUID), :tradingsymbol, :model_version, :train_start_date, :train_end_date,
@@ -831,7 +831,7 @@ def record_backtest_run(run: BacktestRunDTO, session: Session | None = None) -> 
             :total_trades, :stock_cagr, :stock_sharpe, :stock_max_drawdown,
             :benchmark_cagr, :benchmark_sharpe, :benchmark_max_drawdown,
             :excess_cagr_vs_stock, :excess_cagr_vs_benchmark, :total_cost_drag_bps,
-            :status, :passed_hurdle, CAST(:hurdle_details AS JSONB), NOW()
+            :status, :passed_hurdle, CAST(:hurdle_details AS JSONB), :inputs_hash, NOW()
         )
         ON CONFLICT (tradingsymbol, model_version, train_start_date, test_end_date) DO UPDATE SET
             train_end_date = EXCLUDED.train_end_date,
@@ -857,7 +857,8 @@ def record_backtest_run(run: BacktestRunDTO, session: Session | None = None) -> 
             total_cost_drag_bps = EXCLUDED.total_cost_drag_bps,
             status = EXCLUDED.status,
             passed_hurdle = EXCLUDED.passed_hurdle,
-            hurdle_details = EXCLUDED.hurdle_details
+            hurdle_details = EXCLUDED.hurdle_details,
+            inputs_hash = EXCLUDED.inputs_hash
         RETURNING *
     """)
 

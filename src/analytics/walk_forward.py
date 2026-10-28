@@ -10,6 +10,8 @@ transaction charges (STT, DP charges, GST), benchmarks against dual baselines
 
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -19,7 +21,8 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from src.analytics.cost_calculator import compute_indian_delivery_charges
+from src.analytics import cost_calculator
+from src.analytics.cost_calculator import compute_indian_delivery_charges, estimate_impact_bps
 from src.analytics.indicator_evaluator import (
     compute_all_factors,
     compute_composite_score,
@@ -77,6 +80,31 @@ def generate_walk_forward_folds(
     return folds
 
 
+FILL_RULE = "decide_close_fill_next_open"
+
+
+def _frame_digest(df: pd.DataFrame | None, columns: tuple[str, ...]) -> str:
+    if df is None or df.empty:
+        return "none"
+    cols = [c for c in columns if c in df.columns]
+    hashed = pd.util.hash_pandas_object(df[cols], index=True).to_numpy()
+    return hashlib.sha256(",".join(cols).encode() + hashed.tobytes()).hexdigest()
+
+
+def backtest_inputs_hash(df: pd.DataFrame, benchmark_df: pd.DataFrame | None, **params: Any) -> str:
+    """sha256 over everything that decides a backtest's result: parameters, cost and impact
+    constants, fill rule, and the stock and benchmark bars."""
+    payload = {
+        "params": params,
+        "fill_rule": FILL_RULE,
+        "impact_coeff_bps": cost_calculator.IMPACT_COEFF_BPS,
+        "impact_cap_bps": cost_calculator.IMPACT_CAP_BPS,
+        "stock_bars": _frame_digest(df, ("Open", "Close", "Volume")),
+        "benchmark_bars": _frame_digest(benchmark_df, ("Close",)),
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+
+
 def run_walk_forward_backtest(
     df: pd.DataFrame,
     benchmark_df: pd.DataFrame | None = None,
@@ -112,6 +140,19 @@ def run_walk_forward_backtest(
     """
     if df.empty or "Close" not in df.columns:
         raise ValueError("Stock DataFrame is empty or missing 'Close' column")
+
+    inputs_hash = backtest_inputs_hash(
+        df,
+        benchmark_df,
+        tradingsymbol=tradingsymbol,
+        model_version=model_version,
+        train_window=train_window,
+        test_window=test_window,
+        step=step,
+        forward_horizon=forward_horizon,
+        initial_capital=initial_capital,
+        risk_free_rate=risk_free_rate,
+    )
 
     # Clean and align stock dates
     stock_df = df.copy()
@@ -156,10 +197,29 @@ def run_walk_forward_backtest(
     entry_price = 0.0
     entry_cost = Decimal("0.00")
     total_cost_drag_inr = Decimal("0.00")
+    slippage_drag_inr = 0.0
     closed_trades: list[dict[str, Any]] = []
     daily_nav_history: list[tuple[Any, float]] = []
 
     latest_calibrated_evals: list[IndicatorEvaluationDTO] = []
+    # Order decided on one bar's close, filled at the next bar's open (adjusted, like Close)
+    pending: tuple[str, int] | None = None
+    fill_prices = (
+        stock_df["Open"].fillna(stock_df["Close"])
+        if "Open" in stock_df.columns
+        else stock_df["Close"]
+    )
+    # 20-day average traded value, read at the decision bar (known at that close). Without
+    # volume the impact model charges its cap. ponytail: adjusted Close x raw Volume, close
+    # enough for an impact estimate; use Raw Close if corporate-action years look off.
+    adv = (
+        (stock_df["Close"] * stock_df["Volume"]).rolling(20).mean()
+        if "Volume" in stock_df.columns
+        else None
+    )
+
+    def adv_at(i: int) -> float | None:
+        return float(adv.iloc[i]) if adv is not None else None
 
     # Iterate sequentially through walk-forward folds
     for _fold_idx, (train_slice, test_slice) in enumerate(folds):
@@ -176,23 +236,23 @@ def run_walk_forward_backtest(
         )
         latest_calibrated_evals = calibrated_evals
 
-        # Out-of-sample execution on test slice
+        # Out-of-sample execution: decide on bar t's close, fill at bar t+1's open.
+        # A signal on the last simulated bar never fills.
         for bar_idx in range(test_slice.start, test_slice.stop):
             bar_date = stock_df.index[bar_idx]
             cur_price = float(stock_df["Close"].iloc[bar_idx])
-            cur_factors = {name: float(all_factors[name].iloc[bar_idx]) for name in all_factors}
+            fill_price = float(fill_prices.iloc[bar_idx])
+            side = pending[0] if pending and pending[1] == bar_idx and fill_price > 0 else None
+            pending = None
 
-            composite_score, _ = compute_composite_score(
-                evaluations=calibrated_evals,
-                current_factors=cur_factors,
-            )
-
-            # Signal execution rules: BUY >= 60.0, SELL <= 40.0
-            if composite_score >= 60.0 and position_shares == 0 and cur_price > 0:
-                # Buy maximum integer delivery shares (leaving ~0.25% buffer for transaction fees)
-                target_shares = int(cash / (cur_price * 1.0025))
+            if side == "BUY":
+                # Pay the open plus market impact (sized on the cash about to be deployed),
+                # then buy max integer delivery shares (leaving ~0.25% buffer for fees)
+                impact = estimate_impact_bps(cash, adv_at(bar_idx - 1)) / 10_000
+                exec_price = fill_price * (1 + impact)
+                target_shares = int(cash / (exec_price * 1.0025))
                 if target_shares > 0:
-                    trade_val = Decimal(str(round(target_shares * cur_price, 2)))
+                    trade_val = Decimal(str(round(target_shares * exec_price, 2)))
                     buy_costs = compute_indian_delivery_charges(
                         side="BUY",
                         trade_value=trade_val,
@@ -200,14 +260,18 @@ def run_walk_forward_backtest(
                     required_outlay = float(trade_val + buy_costs.total_charges)
                     if cash >= required_outlay:
                         position_shares = target_shares
-                        entry_price = cur_price
+                        entry_price = exec_price
                         entry_cost = buy_costs.total_charges
+                        slippage_drag_inr += target_shares * (exec_price - fill_price)
                         cash -= required_outlay
                         total_cost_drag_inr += buy_costs.total_charges
 
-            elif composite_score <= 40.0 and position_shares > 0 and cur_price > 0:
-                # Liquidate delivery position
-                sell_val = Decimal(str(round(position_shares * cur_price, 2)))
+            elif side == "SELL" and position_shares > 0:
+                # Liquidate delivery position at the open minus market impact
+                impact = estimate_impact_bps(position_shares * fill_price, adv_at(bar_idx - 1))
+                exec_price = fill_price * (1 - impact / 10_000)
+                slippage_drag_inr += position_shares * (fill_price - exec_price)
+                sell_val = Decimal(str(round(position_shares * exec_price, 2)))
                 sell_costs = compute_indian_delivery_charges(
                     side="SELL",
                     trade_value=sell_val,
@@ -226,7 +290,7 @@ def run_walk_forward_backtest(
                 closed_trades.append(
                     {
                         "entry_price": entry_price,
-                        "exit_price": cur_price,
+                        "exit_price": exec_price,
                         "shares": position_shares,
                         "gross_pnl": gross_pnl,
                         "net_pnl": net_pnl,
@@ -237,13 +301,29 @@ def run_walk_forward_backtest(
                 entry_price = 0.0
                 entry_cost = Decimal("0.00")
 
+            cur_factors = {name: float(all_factors[name].iloc[bar_idx]) for name in all_factors}
+            composite_score, _ = compute_composite_score(
+                evaluations=calibrated_evals,
+                current_factors=cur_factors,
+            )
+
+            # Signal rules: BUY >= 60.0, SELL <= 40.0, executed at the next bar's open
+            if composite_score >= 60.0 and position_shares == 0:
+                pending = ("BUY", bar_idx + 1)
+            elif composite_score <= 40.0 and position_shares > 0:
+                pending = ("SELL", bar_idx + 1)
+
             # Mark-to-market daily portfolio NAV
             nav = cash + (position_shares * cur_price)
             daily_nav_history.append((bar_date, nav))
 
     # Mark to market and close any open position at the final test bar
     if position_shares > 0 and daily_nav_history:
-        final_price = float(stock_df["Close"].iloc[folds[-1][1].stop - 1])
+        final_idx = folds[-1][1].stop - 1
+        close_price = float(stock_df["Close"].iloc[final_idx])
+        impact = estimate_impact_bps(position_shares * close_price, adv_at(final_idx))
+        final_price = close_price * (1 - impact / 10_000)
+        slippage_drag_inr += position_shares * (close_price - final_price)
         final_val = Decimal(str(round(position_shares * final_price, 2)))
         final_costs = compute_indian_delivery_charges(
             side="SELL",
@@ -335,6 +415,8 @@ def run_walk_forward_backtest(
         / Decimal(str(max(years, 0.25)))
     )
 
+    slippage_drag_bps = slippage_drag_inr / initial_capital * 10_000 / max(years, 0.25)
+
     # ──────────────────────────────────────────────────────────
     # Dual Baseline Attribution
     # ──────────────────────────────────────────────────────────
@@ -405,6 +487,9 @@ def run_walk_forward_backtest(
         "adequate_win_rate": adequate_win_rate,
         "excess_cagr_stock_pct": round(excess_cagr_vs_stock * 100.0, 2),
         "excess_cagr_benchmark_pct": round(excess_cagr_vs_benchmark * 100.0, 2),
+        # Stored here because hurdle_details is the run's JSON column (no migration needed)
+        "slippage_drag_inr": round(slippage_drag_inr, 2),
+        "slippage_drag_bps": round(slippage_drag_bps, 2),
     }
 
     return BacktestRunDTO(
@@ -434,6 +519,9 @@ def run_walk_forward_backtest(
         excess_cagr_vs_stock=round(excess_cagr_vs_stock, 4),
         excess_cagr_vs_benchmark=round(excess_cagr_vs_benchmark, 4),
         total_cost_drag_bps=round(total_cost_drag_bps, 2),
+        slippage_drag_inr=round(slippage_drag_inr, 2),
+        slippage_drag_bps=round(slippage_drag_bps, 2),
+        inputs_hash=inputs_hash,
         status=status,
         passed_hurdle=passed_hurdle,
         hurdle_details=hurdle_details,

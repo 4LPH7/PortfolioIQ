@@ -261,3 +261,19 @@ class TestSchedulerJobsIntegration:
         job_ids = [j.id for j in sched.get_jobs()]
         assert "daily_signals" in job_ids
         assert "mature_forward_returns" in job_ids
+
+
+@pytest.mark.postgres
+def test_inputs_hash_round_trips_through_backtest_runs(db_session):
+    from src.db.repository import record_backtest_run
+
+    run = BacktestRunDTO(
+        run_id=str(uuid.uuid4()),
+        tradingsymbol="HASHTEST",
+        train_start_date=date(2024, 1, 1),
+        train_end_date=date(2024, 12, 31),
+        test_start_date=date(2025, 1, 1),
+        test_end_date=date(2025, 3, 31),
+        inputs_hash="ab" * 32,
+    )
+    assert record_backtest_run(run).inputs_hash == "ab" * 32
