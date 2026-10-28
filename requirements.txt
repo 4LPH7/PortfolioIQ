@@ -27,7 +27,6 @@ gunicorn==23.0.0          # Production WSGI server
 
 # ── Scheduling ──────────────────────────────────────────────
 apscheduler==3.11.3
-pytz==2026.5
 
 # ── HTTP & Retry ─────────────────────────────────────────────
 requests>=2.33.0

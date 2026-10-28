@@ -451,28 +451,6 @@ def upsert_market_calendar_entry(entry: CreateMarketCalendarDTO) -> MarketCalend
         return MarketCalendarDTO.model_validate(dict(row))
 
 
-def record_holdings_reconciliation(entry: HoldingsReconciliationDTO) -> HoldingsReconciliationDTO:
-    """Record a holdings reconciliation log entry."""
-    query = text("""
-        INSERT INTO holdings_reconciliation_log (
-            user_id, instrument_token, tradingsymbol, old_quantity, new_quantity,
-            old_avg_price, new_avg_price, delta_quantity, reconciliation_reason, detected_at
-        )
-        VALUES (
-            :user_id, :instrument_token, :tradingsymbol, :old_quantity, :new_quantity,
-            :old_avg_price, :new_avg_price, :delta_quantity, :reconciliation_reason, NOW()
-        )
-        RETURNING *
-    """)
-    dump = entry.model_dump()
-    dump.pop("id", None)
-    dump.pop("detected_at", None)
-    with get_db_session() as session:
-        result = session.execute(query, dump)
-        row = result.mappings().one()
-        return HoldingsReconciliationDTO.model_validate(dict(row))
-
-
 def get_holdings_reconciliation_logs(
     user_id: str = "default", limit: int = 50, reason: str | None = None
 ) -> list[HoldingsReconciliationDTO]:

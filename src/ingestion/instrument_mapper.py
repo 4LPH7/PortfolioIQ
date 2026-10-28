@@ -19,40 +19,10 @@ from sqlalchemy import text
 
 from src.db.connection import get_db_session
 from src.ingestion.kite_auth import get_authenticated_kite
+from src.ingestion.ticker_map import get_yf_ticker
 
 # Path to the seed CSV mapping file
 MAPPING_CSV = Path(__file__).parent.parent.parent / "data" / "instrument_master.csv"
-
-
-def tradingsymbol_to_yf_ticker(tradingsymbol: str, exchange: str = "NSE") -> str:
-    """
-    Convert a Zerodha trading symbol to a Yahoo Finance ticker.
-
-    Rules:
-        NSE symbols → append '.NS'
-        BSE symbols → append '.BO'
-        Indices → use '^NSEI' etc. (handled by special_cases)
-
-    Args:
-        tradingsymbol: e.g., 'RELIANCE', 'M&M', 'BAJAJ-AUTO'
-        exchange: 'NSE' or 'BSE'
-
-    Returns:
-        Yahoo Finance ticker string, e.g., 'RELIANCE.NS'
-    """
-    # Special cases that don't follow the standard .NS pattern
-    special_cases = {
-        "NIFTY 50": "^NSEI",
-        "NIFTY": "^NSEI",
-        "BANKNIFTY": "^NSEBANK",
-        "SENSEX": "^BSESN",
-    }
-
-    if tradingsymbol in special_cases:
-        return special_cases[tradingsymbol]
-
-    suffix = ".NS" if exchange == "NSE" else ".BO"
-    return f"{tradingsymbol}{suffix}"
 
 
 def load_mapping_from_csv() -> dict[str, dict]:
@@ -112,7 +82,7 @@ def sync_instrument_master_from_kite() -> int:
             csv_data = csv_mapping.get(symbol, {})
 
             # Use CSV override for YF ticker, fall back to auto-generated
-            yf_ticker = csv_data.get("yf_ticker") or tradingsymbol_to_yf_ticker(
+            yf_ticker = csv_data.get("yf_ticker") or get_yf_ticker(
                 symbol, inst.get("exchange", "NSE")
             )
 

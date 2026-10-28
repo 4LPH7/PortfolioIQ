@@ -102,7 +102,7 @@ def _record_reconciliation_log(
 def _ensure_instrument_exists(session, holding: dict) -> None:
     """
     Insert or update instrument_master record for the holding/position.
-    Maps yf_ticker via tradingsymbol_to_yf_ticker so live quotes and analytics work immediately.
+    Maps yf_ticker via ticker_map.get_yf_ticker so live quotes and analytics work immediately.
     """
     token = holding.get("instrument_token")
     if not token:
@@ -112,9 +112,9 @@ def _ensure_instrument_exists(session, holding: dict) -> None:
     isin = holding.get("isin")
     name = holding.get("name") or holding.get("company_name") or tradingsymbol
 
-    from src.ingestion.instrument_mapper import tradingsymbol_to_yf_ticker
+    from src.ingestion.ticker_map import get_yf_ticker
 
-    yf_ticker = tradingsymbol_to_yf_ticker(tradingsymbol, exchange)
+    yf_ticker = get_yf_ticker(tradingsymbol, exchange)
 
     # Check if (exchange, tradingsymbol) exists with different token
     existing_sym = session.execute(

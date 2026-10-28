@@ -22,8 +22,8 @@ from __future__ import annotations
 import threading
 import webbrowser
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
-import pytz
 from flask import Flask, request
 from kiteconnect import KiteConnect
 from loguru import logger
@@ -32,7 +32,7 @@ from sqlalchemy import text
 from src.config.settings import get_settings
 from src.db.connection import execute_sql, get_db_session
 
-IST = pytz.timezone("Asia/Kolkata")
+IST = ZoneInfo("Asia/Kolkata")
 
 
 def _get_kite_client() -> KiteConnect:

@@ -136,12 +136,12 @@ except Exception as _safety_exc:
 # whenever the API process is stopped.
 _inline_scheduler = None
 if os.environ.get("RUN_INLINE_SCHEDULER", "").lower() == "true":
-    import pytz
+    from zoneinfo import ZoneInfo
 
     from src.config.settings import get_settings
     from src.scheduler.jobs import create_scheduler
 
-    _IST = pytz.timezone("Asia/Kolkata")
+    _IST = ZoneInfo("Asia/Kolkata")
     _inline_scheduler = create_scheduler()
 
     def _poll_live_quotes() -> None:

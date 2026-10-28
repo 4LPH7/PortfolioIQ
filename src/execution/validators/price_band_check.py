@@ -51,7 +51,7 @@ def _age_sec(ts: datetime | None) -> float | None:
     if ts is None:
         return None
     if ts.tzinfo is None:
-        ts = IST.localize(ts)
+        ts = ts.replace(tzinfo=IST)
     return (now_ist() - ts.astimezone(IST)).total_seconds()
 
 

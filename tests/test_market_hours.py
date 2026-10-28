@@ -27,7 +27,7 @@ with patch("src.db.connection.execute_sql") as mock_execute:
 
 def make_ist_datetime(year, month, day, hour, minute, second=0):
     """Helper to create an IST-aware datetime."""
-    return IST.localize(datetime.datetime(year, month, day, hour, minute, second))
+    return datetime.datetime(year, month, day, hour, minute, second).replace(tzinfo=IST)
 
 
 # ============================================================

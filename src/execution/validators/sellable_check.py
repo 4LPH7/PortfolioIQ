@@ -82,7 +82,7 @@ def _synced_today(last_synced_at: datetime | None) -> bool:
     if last_synced_at is None:
         return False
     if last_synced_at.tzinfo is None:
-        last_synced_at = IST.localize(last_synced_at)
+        last_synced_at = last_synced_at.replace(tzinfo=IST)
     return last_synced_at.astimezone(IST).date() == today_ist()
 
 

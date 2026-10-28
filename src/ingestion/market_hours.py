@@ -11,14 +11,14 @@ import json
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
-import pytz
 from loguru import logger
 
 from src.config.settings import get_settings
 from src.db.connection import execute_sql
 
-IST = pytz.timezone("Asia/Kolkata")
+IST = ZoneInfo("Asia/Kolkata")
 
 # NSE regular trading session boundaries
 MARKET_OPEN_H, MARKET_OPEN_M = 9, 15
@@ -150,7 +150,7 @@ def is_market_open(dt: datetime.datetime | None = None) -> bool:
     if dt is None:
         dt = now_ist()
     elif dt.tzinfo is None:
-        dt = IST.localize(dt)
+        dt = dt.replace(tzinfo=IST)
     else:
         dt = dt.astimezone(IST)
 
@@ -187,7 +187,7 @@ def seconds_until_market_open(now: datetime.datetime | None = None) -> float:
     if now is None:
         now = now_ist()
     elif now.tzinfo is None:
-        now = IST.localize(now)
+        now = now.replace(tzinfo=IST)
     else:
         now = now.astimezone(IST)
 
@@ -200,12 +200,10 @@ def seconds_until_market_open(now: datetime.datetime | None = None) -> float:
     def get_open_time_for_date(date_to_check: datetime.date) -> datetime.datetime:
         special_hours = get_special_session_hours(date_to_check)
         if special_hours:
-            return IST.localize(datetime.datetime.combine(date_to_check, special_hours[0]))
-        return IST.localize(
-            datetime.datetime(
-                date_to_check.year, date_to_check.month, date_to_check.day, open_h, open_m, 0
-            )
-        )
+            return datetime.datetime.combine(date_to_check, special_hours[0]).replace(tzinfo=IST)
+        return datetime.datetime(
+            date_to_check.year, date_to_check.month, date_to_check.day, open_h, open_m, 0
+        ).replace(tzinfo=IST)
 
     candidate = get_open_time_for_date(now.date())
 

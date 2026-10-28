@@ -93,7 +93,7 @@ def validate_slippage(order: RebalanceOrder) -> tuple[bool, str]:
                 needs_refresh = True
             else:
                 if last_updated.tzinfo is None:
-                    last_updated = IST.localize(last_updated)
+                    last_updated = last_updated.replace(tzinfo=IST)
                 else:
                     last_updated = last_updated.astimezone(IST)
                 elapsed = (now_ist() - last_updated).total_seconds()

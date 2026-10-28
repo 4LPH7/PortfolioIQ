@@ -23,7 +23,6 @@ from src.db.repository import (
     record_broker_execution,
     record_cash_flow,
     record_daily_snapshot,
-    record_holdings_reconciliation,
     record_order_attempt,
     record_signal_snapshot,
     update_app_config,
@@ -40,7 +39,6 @@ from src.models.dtos import (
     CreateSnapshotDTO,
     HistoricalBarDTO,
     HoldingDTO,
-    HoldingsReconciliationDTO,
     IndicatorEvaluationDTO,
     MarketCalendarDTO,
     OrderAttemptDTO,
@@ -334,20 +332,6 @@ def test_holdings_reconciliation_repository():
         "detected_at": None,
     }
     mock_result.mappings.return_value.one.return_value = mock_row
-
-    with patch("src.db.repository.get_db_session") as mock_get_session:
-        mock_get_session.return_value.__enter__.return_value = mock_session
-        entry = HoldingsReconciliationDTO(
-            instrument_token=123456,
-            tradingsymbol="RELIANCE",
-            old_quantity=10,
-            new_quantity=15,
-            delta_quantity=5,
-            reconciliation_reason="T1_SETTLEMENT",
-        )
-        res = record_holdings_reconciliation(entry)
-        assert res.id == 1
-        assert res.reconciliation_reason == "T1_SETTLEMENT"
 
     mock_result.mappings.return_value.all.return_value = [mock_row]
     with patch("src.db.repository.get_db_session") as mock_get_session:

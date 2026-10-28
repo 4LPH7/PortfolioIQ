@@ -137,7 +137,7 @@ class TestSlippageValidator:
 
         from src.ingestion.market_hours import IST
 
-        mock_now.return_value = IST.localize(datetime(2026, 9, 28, 10, 15, 0))
+        mock_now.return_value = datetime(2026, 9, 28, 10, 15, 0).replace(tzinfo=IST)
 
         mock_sql.side_effect = [
             [{"is_active": True}],  # instrument_master
@@ -171,7 +171,7 @@ class TestSlippageValidator:
 
         from src.ingestion.market_hours import IST
 
-        mock_now.return_value = IST.localize(datetime(2026, 9, 28, 10, 15, 0))
+        mock_now.return_value = datetime(2026, 9, 28, 10, 15, 0).replace(tzinfo=IST)
 
         mock_sql.side_effect = [
             [{"is_active": True}],  # instrument_master
@@ -202,7 +202,7 @@ class TestSlippageValidator:
 
         from src.ingestion.market_hours import IST
 
-        mock_now.return_value = IST.localize(datetime(2026, 9, 28, 10, 15, 0))
+        mock_now.return_value = datetime(2026, 9, 28, 10, 15, 0).replace(tzinfo=IST)
         mock_sql.side_effect = [
             [{"is_active": True}],
             [{"key": "slippage_bound_pct", "value": "2.0"}],
@@ -228,7 +228,7 @@ class TestSlippageValidator:
 
         from src.ingestion.market_hours import IST
 
-        mock_now.return_value = IST.localize(datetime(2026, 9, 28, 10, 15, 0))
+        mock_now.return_value = datetime(2026, 9, 28, 10, 15, 0).replace(tzinfo=IST)
         mock_sql.side_effect = [
             [{"is_active": True}],
             [{"key": "slippage_bound_pct", "value": "2.0"}],
@@ -254,7 +254,7 @@ class TestSlippageValidator:
 
         from src.ingestion.market_hours import IST
 
-        mock_now.return_value = IST.localize(datetime(2026, 9, 28, 10, 15, 0))
+        mock_now.return_value = datetime(2026, 9, 28, 10, 15, 0).replace(tzinfo=IST)
         mock_sql.side_effect = [
             [{"is_active": True}],
             [{"key": "slippage_bound_pct", "value": "2.0"}],
