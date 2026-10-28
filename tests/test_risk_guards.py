@@ -32,8 +32,8 @@ def _holding(sym, avg, price):
     )
 
 
-def _bars(closes):
-    return pd.DataFrame({"Close": closes}, index=pd.bdate_range("2026-07-01", periods=len(closes)))
+def _bars(closes, end="2026-10-26"):
+    return pd.DataFrame({"Close": closes}, index=pd.bdate_range(end=end, periods=len(closes)))
 
 
 def _run(holdings, sectors=None, bars=None, th=GuardThresholds()):
@@ -68,7 +68,23 @@ def test_trailing_stop_quiet_inside_the_limit():
 def test_short_history_is_skipped_with_a_stated_reason():
     alerts = _run([_holding("NEWIPO", 100, 101)], bars={"NEWIPO": _bars(np.full(12, 100.0))})
     info = next(a for a in alerts if a["id"] == "risk_trail_skipped")
-    assert info["severity"] == "INFO" and "NEWIPO (12 days)" in info["message"]
+    assert info["severity"] == "INFO"
+    assert "NEWIPO: only 12 days of history (needs 40)" in info["message"]
+
+
+def test_a_stale_price_suppresses_the_trailing_stop_with_a_reason():
+    falling = np.concatenate([np.full(50, 100.0), np.linspace(100, 85, 10)])
+    alerts = _run([_holding("HALTED", 100, 101)], bars={"HALTED": _bars(falling, end="2026-09-01")})
+    assert not [a for a in alerts if a["id"] == "risk_trail_HALTED"]
+    info = next(a for a in alerts if a["id"] == "risk_trail_skipped")
+    assert "HALTED: last price is 56 days old" in info["message"]
+
+
+def test_a_suspended_price_suppresses_the_trailing_stop_with_a_reason():
+    frozen = np.concatenate([np.linspace(130, 100, 40), np.full(25, 100.0)])
+    alerts = _run([_holding("SUSP", 100, 101)], bars={"SUSP": _bars(frozen)})
+    info = next(a for a in alerts if a["id"] == "risk_trail_skipped")
+    assert "SUSP: price has not moved in the last 20 days" in info["message"]
 
 
 def test_sector_limit_ignores_unmapped_holdings():

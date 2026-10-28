@@ -212,6 +212,7 @@ function renderEvidence(s, run) {
         <p class="td-dim">A signal is used only if, month by month, stocks it ranked higher went on to do better: a positive average rank correlation (IC) with a t-statistic above 2. Weights follow each signal's consistency. The ranking below uses the full record; the backtest above only ever used what was known at the time.</p>
         <div class="table-wrap"><table><thead><tr><th>Signal</th><th>Status</th><th>Weight</th><th>Avg IC</th><th>t</th><th>Months positive</th></tr></thead><tbody>${sigRows}</tbody></table></div>
       </details>
+      ${excludedBlock(s.excluded)}
     </div>`;
   if (b.months) {
     const xs = b.curve.dates, port = b.curve.portfolio, univ = b.curve.universe;
@@ -220,6 +221,14 @@ function renderEvidence(s, run) {
       { type: "scatter", x: xs, y: univ, name: "Whole index, equal weight", line: { color: CHART.muted, width: 1.5, dash: "dot" } },
     ], { ...PLOTLY_LAYOUT, height: 260, yaxis: { ...PLOTLY_LAYOUT.yaxis, title: { text: "Growth of ₹1", font: { size: 12 } } }, legend: { ...PLOTLY_LAYOUT.legend, orientation: "h", y: 1.12 } }, PLOTLY_CONFIG);
   }
+}
+
+function excludedBlock(list) {
+  if (!list || !list.length) return "";
+  const rows = list.map(e => `<tr><td class="td-main">${esc(e.symbol)}</td><td class="td-dim">${esc(e.reason)}</td></tr>`).join("");
+  return `<details class="mt-sm"><summary>${list.length} stocks left out of the ranking</summary>
+    <p class="td-dim">Each failed a data check, so a bad or missing price feed can't distort the ranking.</p>
+    <div class="table-wrap"><table><thead><tr><th>Stock</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
 }
 
 function fillSectors(rows) {
