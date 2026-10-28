@@ -13,14 +13,10 @@ import pandas as pd
 
 from src.analytics.historical_cache import (
     _bars_to_dataframe,
-    get_benchmark_bars,
     get_last_completed_trading_date,
     get_or_sync_historical_bars,
 )
 from src.ingestion.ticker_map import (
-    DEFAULT_BENCHMARK_SYMBOL,
-    DEFAULT_BENCHMARK_TICKER,
-    get_benchmark_ticker,
     get_yf_ticker,
 )
 from src.models.dtos import HistoricalBarDTO
@@ -43,10 +39,6 @@ def test_ticker_map_standard_and_overrides():
     assert get_yf_ticker("GOLDENTOBC-BZ") == "GOLDENTOBC.NS"
     assert get_yf_ticker("NIFTY 50") == "^NSEI"
     assert get_yf_ticker("NIFTY 50 TRI") == "^NSEI"
-
-    # Benchmark helper
-    assert get_benchmark_ticker() == DEFAULT_BENCHMARK_TICKER
-    assert get_benchmark_ticker(DEFAULT_BENCHMARK_SYMBOL) == "^NSEI"
 
 
 # ──────────────────────────────────────────────────────────
@@ -278,19 +270,6 @@ def test_cold_start_sync():
         assert len(df) == 2
         assert mock_yf.call_count == 1
         assert mock_upsert.call_count == 1
-
-
-def test_get_benchmark_bars():
-    """Verify get_benchmark_bars delegates with DEFAULT_BENCHMARK_SYMBOL."""
-    with patch("src.analytics.historical_cache.get_or_sync_historical_bars") as mock_sync:
-        mock_sync.return_value = pd.DataFrame({"Close": [24500.0]})
-        df = get_benchmark_bars()
-        assert not df.empty
-        mock_sync.assert_called_once_with(
-            DEFAULT_BENCHMARK_SYMBOL,
-            lookback_days=750,
-            force_sync=False,
-        )
 
 
 def test_yfinance_error_graceful_fallback():

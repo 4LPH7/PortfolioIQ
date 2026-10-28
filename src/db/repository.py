@@ -246,17 +246,6 @@ def get_current_holdings(user_id: str = "default", active_only: bool = True) -> 
         return [HoldingDTO.model_validate(dict(r)) for r in result.mappings().all()]
 
 
-def get_app_config(key: str) -> AppConfigDTO | None:
-    """Retrieve a single runtime configuration key from system_config."""
-    query = text(
-        "SELECT key, value, value_type, description, updated_at FROM system_config WHERE key = :key"
-    )
-    with get_db_session() as session:
-        result = session.execute(query, {"key": key})
-        row = result.mappings().first()
-        return AppConfigDTO.model_validate(dict(row)) if row else None
-
-
 def list_app_configs() -> list[AppConfigDTO]:
     """Retrieve all configuration records from system_config."""
     query = text(

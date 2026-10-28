@@ -91,11 +91,6 @@ def fetch_fundamentals_batch(
     return results
 
 
-def fetch_fundamentals(tradingsymbol: str, timeout: float = FETCH_TIMEOUT_SEC) -> dict | None:
-    """Fields for one symbol, or None if the fetch failed or passed the deadline."""
-    return fetch_fundamentals_batch([tradingsymbol], timeout).get(tradingsymbol)
-
-
 def refresh_fundamentals(symbols: list[str]) -> dict[str, int]:
     saved = failed = 0
     for i in range(0, len(symbols), BATCH):

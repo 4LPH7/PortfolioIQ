@@ -16,7 +16,6 @@ from unittest.mock import patch
 from src.analytics.drift_detector import DriftDirection, DriftSignal, DriftType
 from src.analytics.rebalancer import (
     OrderSide,
-    generate_rebalance_orders,
     generate_rebalance_plan,
     get_rebalance_summary,
 )
@@ -350,10 +349,6 @@ def test_order_and_summary_cost_breakdown():
         assert order.cost.dp_charges == Decimal("15.34")
         assert order.charges_total == Decimal("118.96")
         assert plan.total_charges == Decimal("118.96")
-
-        # Test convenience function generate_rebalance_orders
-        orders = generate_rebalance_orders()
-        assert len(orders) == 1
 
         # Test summary JSON output
         summary = get_rebalance_summary()

@@ -563,10 +563,6 @@ class HistoricalBarDTO(BaseDTO):
 # ─────────────────────────────────────────────────────────────
 # Phase 6 Product & UX Polish DTOs
 # ─────────────────────────────────────────────────────────────
-class AuthVerifyRequestDTO(BaseDTO):
-    api_key: str | None = None
-
-
 class AlertItemDTO(BaseDTO):
     id: str
     type: Literal["DRIFT", "PRICE_STALE", "TAX", "SYSTEM", "RISK"]
@@ -577,24 +573,6 @@ class AlertItemDTO(BaseDTO):
     action_url: str = ""
     timestamp: datetime
     metadata: dict[str, Any] = {}
-
-
-class AlertSummaryDTO(BaseDTO):
-    unread_count: int
-    alerts: list[AlertItemDTO]
-    system_healthy: bool
-
-
-class SystemStatusDTO(BaseDTO):
-    status: Literal["OK", "DEGRADED", "ERROR"]
-    timestamp: datetime
-    api_version: str = "v1"
-    environment: str
-    dry_run_mode: bool
-    database: dict[str, Any]
-    broker: dict[str, Any]
-    market: dict[str, Any]
-    scheduler: dict[str, Any]
 
 
 class CSVImportHoldingDTO(BaseDTO):

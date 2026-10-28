@@ -11,7 +11,7 @@ from src.analytics.rebalancer import (
     OrderSide,
     RebalanceOrder,
     RebalancePlan,
-    generate_rebalance_orders,
+    generate_rebalance_plan,
     resolve_evidence_status,
 )
 from src.analytics.valuator import PortfolioValuation
@@ -91,6 +91,6 @@ class TestRebalancerStructures:
             patch("src.analytics.rebalancer.compute_portfolio_valuation", return_value=val),
             patch("src.analytics.rebalancer.detect_drift", return_value=[]),
         ):
-            orders = generate_rebalance_orders()
+            orders = generate_rebalance_plan().orders
             assert isinstance(orders, list)
             assert len(orders) == 0

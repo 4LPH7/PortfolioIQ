@@ -896,16 +896,6 @@ def generate_rebalance_plan(
     return plan
 
 
-def generate_rebalance_orders(
-    user_id: str = "default",
-    dry_run: bool = True,
-    **kwargs: Any,
-) -> list[RebalanceOrder]:
-    """Convenience alias returning only the list of RebalanceOrder objects."""
-    plan = generate_rebalance_plan(user_id=user_id, dry_run=dry_run, **kwargs)
-    return plan.orders
-
-
 def get_rebalance_summary(user_id: str = "default", **kwargs: Any) -> dict[str, Any]:
     """JSON-friendly rebalance plan summary for the dashboard and API."""
     plan = generate_rebalance_plan(user_id=user_id, **kwargs)

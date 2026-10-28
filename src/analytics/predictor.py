@@ -650,8 +650,3 @@ def analyse_holding(
         result.composite.signal if result.composite else "N/A",
     )
     return result
-
-
-def analyse_all_holdings(holdings: list[dict]) -> dict[str, StockAnalysis]:
-    """Analyse all holdings. holdings is list of {symbol, avg_price} dicts."""
-    return {h["symbol"]: analyse_holding(h["symbol"], h.get("avg_price", 0.0)) for h in holdings}

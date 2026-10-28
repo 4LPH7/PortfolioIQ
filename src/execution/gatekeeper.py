@@ -25,7 +25,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
 from uuid import uuid4
 
 from loguru import logger
@@ -268,26 +267,3 @@ def validate_plan(plan: RebalancePlan) -> GatekeeperResult:
         result.dry_run_count,
     )
     return result
-
-
-def get_gatekeeper_summary(plan: RebalancePlan) -> dict[str, Any]:
-    """JSON-friendly gatekeeper summary for the dashboard."""
-    result = validate_plan(plan)
-    return {
-        "is_dry_run": result.is_dry_run,
-        "approved": result.approved_count,
-        "rejected": result.rejected_count,
-        "dry_run_skipped": result.dry_run_count,
-        "reports": [
-            {
-                "symbol": r.order.tradingsymbol,
-                "side": r.order.side.value,
-                "quantity": r.order.quantity,
-                "result": r.result.value,
-                "checks_passed": r.checks_passed,
-                "checks_failed": r.checks_failed,
-                "failure_reason": r.failure_reason,
-            }
-            for r in result.reports
-        ],
-    }

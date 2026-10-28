@@ -17,7 +17,6 @@ from src.execution.gatekeeper import (
     ValidationReport,
     ValidationResult,
     _log_validation,
-    get_gatekeeper_summary,
     validate_order,
     validate_plan,
 )
@@ -538,24 +537,6 @@ class TestGatekeeperPipeline:
         assert result.rejected_count == 1
         assert result.dry_run_count == 1
         assert len(result.reports) == 3
-
-    @patch("src.execution.gatekeeper.validate_plan")
-    def test_get_gatekeeper_summary(self, mock_validate_plan, sample_buy_order) -> None:
-        rep = ValidationReport(
-            order=sample_buy_order,
-            result=ValidationResult.APPROVED,
-            checks_passed=["MARKET_HOURS"],
-            checks_failed=[],
-        )
-        mock_validate_plan.return_value = GatekeeperResult(
-            reports=[rep], approved_count=1, rejected_count=0, dry_run_count=0, is_dry_run=False
-        )
-        summary = get_gatekeeper_summary(RebalancePlan(orders=[sample_buy_order]))
-
-        assert summary["is_dry_run"] is False
-        assert summary["approved"] == 1
-        assert len(summary["reports"]) == 1
-        assert summary["reports"][0]["symbol"] == "INFY"
 
 
 # =====================================================================

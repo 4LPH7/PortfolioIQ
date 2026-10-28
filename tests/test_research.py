@@ -315,7 +315,7 @@ def test_fundamentals_batch_keeps_results_before_a_hang(monkeypatch):
 
 def test_fundamentals_fetch_returns_child_result(monkeypatch):
     monkeypatch.setattr(fundamentals, "_fetch_many", _quick)
-    got = fundamentals.fetch_fundamentals("TESTCO", timeout=60)
+    got = fundamentals.fetch_fundamentals_batch(["TESTCO"], 60)["TESTCO"]
     assert got["ticker"] == "TESTCO.NS" and got["pe_ttm"]["value"] == 20.0
 
 

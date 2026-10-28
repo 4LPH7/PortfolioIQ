@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from src.db.repository import (
-    get_app_config,
     get_cash_flows,
     get_current_holdings,
     get_daily_snapshots,
@@ -33,7 +32,6 @@ from src.db.repository import (
     upsert_market_calendar_entry,
 )
 from src.models.dtos import (
-    AppConfigDTO,
     BacktestRunDTO,
     BrokerExecutionDTO,
     CreateCashFlowDTO,
@@ -266,11 +264,6 @@ def test_app_config_get_and_update():
 
     with patch("src.db.repository.get_db_session") as mock_get_session:
         mock_get_session.return_value.__enter__.return_value = mock_session
-
-        cfg = get_app_config("dry_run_mode")
-        assert isinstance(cfg, AppConfigDTO)
-        assert cfg.key == "dry_run_mode"
-        assert cfg.value == "true"
 
         update_app_config("dry_run_mode", "false")
         assert mock_session.execute.called

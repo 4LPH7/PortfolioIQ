@@ -25,9 +25,6 @@ SYMBOL_OVERRIDES: Final[dict[str, str]] = {
     "SENSEX": "^BSESN",
 }
 
-DEFAULT_BENCHMARK_SYMBOL: Final[str] = "NIFTY 50 TRI"
-DEFAULT_BENCHMARK_TICKER: Final[str] = "^NSEI"
-
 
 def get_yf_ticker(tradingsymbol: str, exchange: str = "NSE") -> str:
     """
@@ -46,16 +43,3 @@ def get_yf_ticker(tradingsymbol: str, exchange: str = "NSE") -> str:
 
     suffix = ".NS" if exchange.upper() == "NSE" else ".BO"
     return f"{clean_sym}{suffix}"
-
-
-def get_benchmark_ticker(benchmark_symbol: str = DEFAULT_BENCHMARK_SYMBOL) -> str:
-    """
-    Get the Yahoo Finance ticker for the comparative benchmark index.
-
-    Args:
-        benchmark_symbol: Standard benchmark name (default 'NIFTY 50 TRI')
-
-    Returns:
-        Yahoo Finance ticker string (e.g. '^NSEI')
-    """
-    return get_yf_ticker(benchmark_symbol)

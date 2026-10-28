@@ -23,7 +23,6 @@ from src.db.repository import (
 )
 from src.ingestion.market_hours import is_holiday, now_ist
 from src.ingestion.ticker_map import (
-    DEFAULT_BENCHMARK_SYMBOL,
     get_yf_ticker,
 )
 from src.models.dtos import HistoricalBarDTO
@@ -403,15 +402,3 @@ def backfill_adjusted_prices(limit: int = 50) -> dict[str, int]:
     if done or failed:
         logger.info("Adjusted-price backfill: {} refetched, {} failed", done, failed)
     return {"refetched": done, "failed": failed}
-
-
-def get_benchmark_bars(
-    lookback_days: int = 750,
-    force_sync: bool = False,
-) -> pd.DataFrame:
-    """Retrieve or synchronize benchmark daily bars (NIFTY 50 TRI)."""
-    return get_or_sync_historical_bars(
-        DEFAULT_BENCHMARK_SYMBOL,
-        lookback_days=lookback_days,
-        force_sync=force_sync,
-    )
