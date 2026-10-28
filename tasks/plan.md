@@ -54,7 +54,7 @@ T5 point-in-time guard ─► T6 outcome feedback (gated) ─► CHECKPOINT B
 
 ### Phase 1: Realistic signal backtest
 
-- [ ] **T1: Fill at next session's open** (size S, 2 files)
+- [x] **T1: Fill at next session's open** (size S, 2 files)
   - **Description:** A decision made on bar *t*'s close fills at bar *t+1*'s Open. A signal on the final bar of the test window produces no fill.
   - **Acceptance:**
     - [ ] A synthetic series where a signal fires at bar *t* fills at Open[*t+1*], not Close[*t*].

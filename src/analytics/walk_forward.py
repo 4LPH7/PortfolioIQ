@@ -160,6 +160,13 @@ def run_walk_forward_backtest(
     daily_nav_history: list[tuple[Any, float]] = []
 
     latest_calibrated_evals: list[IndicatorEvaluationDTO] = []
+    # Order decided on one bar's close, filled at the next bar's open (adjusted, like Close)
+    pending: tuple[str, int] | None = None
+    fill_prices = (
+        stock_df["Open"].fillna(stock_df["Close"])
+        if "Open" in stock_df.columns
+        else stock_df["Close"]
+    )
 
     # Iterate sequentially through walk-forward folds
     for _fold_idx, (train_slice, test_slice) in enumerate(folds):
@@ -176,23 +183,20 @@ def run_walk_forward_backtest(
         )
         latest_calibrated_evals = calibrated_evals
 
-        # Out-of-sample execution on test slice
+        # Out-of-sample execution: decide on bar t's close, fill at bar t+1's open.
+        # A signal on the last simulated bar never fills.
         for bar_idx in range(test_slice.start, test_slice.stop):
             bar_date = stock_df.index[bar_idx]
             cur_price = float(stock_df["Close"].iloc[bar_idx])
-            cur_factors = {name: float(all_factors[name].iloc[bar_idx]) for name in all_factors}
+            fill_price = float(fill_prices.iloc[bar_idx])
+            side = pending[0] if pending and pending[1] == bar_idx and fill_price > 0 else None
+            pending = None
 
-            composite_score, _ = compute_composite_score(
-                evaluations=calibrated_evals,
-                current_factors=cur_factors,
-            )
-
-            # Signal execution rules: BUY >= 60.0, SELL <= 40.0
-            if composite_score >= 60.0 and position_shares == 0 and cur_price > 0:
+            if side == "BUY":
                 # Buy maximum integer delivery shares (leaving ~0.25% buffer for transaction fees)
-                target_shares = int(cash / (cur_price * 1.0025))
+                target_shares = int(cash / (fill_price * 1.0025))
                 if target_shares > 0:
-                    trade_val = Decimal(str(round(target_shares * cur_price, 2)))
+                    trade_val = Decimal(str(round(target_shares * fill_price, 2)))
                     buy_costs = compute_indian_delivery_charges(
                         side="BUY",
                         trade_value=trade_val,
@@ -200,14 +204,14 @@ def run_walk_forward_backtest(
                     required_outlay = float(trade_val + buy_costs.total_charges)
                     if cash >= required_outlay:
                         position_shares = target_shares
-                        entry_price = cur_price
+                        entry_price = fill_price
                         entry_cost = buy_costs.total_charges
                         cash -= required_outlay
                         total_cost_drag_inr += buy_costs.total_charges
 
-            elif composite_score <= 40.0 and position_shares > 0 and cur_price > 0:
+            elif side == "SELL" and position_shares > 0:
                 # Liquidate delivery position
-                sell_val = Decimal(str(round(position_shares * cur_price, 2)))
+                sell_val = Decimal(str(round(position_shares * fill_price, 2)))
                 sell_costs = compute_indian_delivery_charges(
                     side="SELL",
                     trade_value=sell_val,
@@ -226,7 +230,7 @@ def run_walk_forward_backtest(
                 closed_trades.append(
                     {
                         "entry_price": entry_price,
-                        "exit_price": cur_price,
+                        "exit_price": fill_price,
                         "shares": position_shares,
                         "gross_pnl": gross_pnl,
                         "net_pnl": net_pnl,
@@ -236,6 +240,18 @@ def run_walk_forward_backtest(
                 position_shares = 0
                 entry_price = 0.0
                 entry_cost = Decimal("0.00")
+
+            cur_factors = {name: float(all_factors[name].iloc[bar_idx]) for name in all_factors}
+            composite_score, _ = compute_composite_score(
+                evaluations=calibrated_evals,
+                current_factors=cur_factors,
+            )
+
+            # Signal rules: BUY >= 60.0, SELL <= 40.0, executed at the next bar's open
+            if composite_score >= 60.0 and position_shares == 0:
+                pending = ("BUY", bar_idx + 1)
+            elif composite_score <= 40.0 and position_shares > 0:
+                pending = ("SELL", bar_idx + 1)
 
             # Mark-to-market daily portfolio NAV
             nav = cash + (position_shares * cur_price)

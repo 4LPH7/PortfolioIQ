@@ -230,3 +230,49 @@ def test_walk_forward_disjoint_benchmark_fallback():
 
     assert result.benchmark_cagr is not None
     assert result.status in ("PROVEN_EDGE", "UNPROVEN_NOISE")
+
+
+# ──────────────────────────────────────────────────────────
+# Fill timing: decide on close t, fill at open t+1
+# ──────────────────────────────────────────────────────────
+
+
+def _scripted_run(monkeypatch, df, buy_at=None, sell_at=None):
+    """Run one 252/48 fold with signals scripted by bar index instead of real indicators."""
+    import src.analytics.walk_forward as wf
+
+    monkeypatch.setattr(
+        wf, "compute_all_factors", lambda d: {"idx": pd.Series(range(len(d)), index=d.index)}
+    )
+    monkeypatch.setattr(wf, "evaluate_indicators", lambda **_: [])
+
+    def score(evaluations, current_factors):
+        i = current_factors["idx"]
+        return (70.0 if i == buy_at else 30.0 if i == sell_at else 50.0), None
+
+    monkeypatch.setattr(wf, "compute_composite_score", score)
+    return run_walk_forward_backtest(df=df, train_window=252, test_window=48, step=48)
+
+
+def _flat_bars(n=300):
+    idx = pd.date_range("2023-01-02", periods=n, freq="B")
+    return pd.DataFrame({"Open": [100.0] * n, "Close": [100.0] * n}, index=idx)
+
+
+def test_signal_fills_at_next_open_not_same_close(monkeypatch):
+    df = _flat_bars()
+    df.iloc[261, df.columns.get_loc("Open")] = 50.0  # the bar after the BUY decision opens cheap
+
+    result = _scripted_run(monkeypatch, df, buy_at=260, sell_at=270)
+
+    # Bought at 50 (next open), sold at 100: roughly doubles. A same-close fill (100 -> 100) loses fees.
+    assert result.total_trades == 1
+    assert result.strategy_win_rate == 1.0
+    assert result.strategy_cagr > 1.0
+
+
+def test_signal_on_last_bar_does_not_fill(monkeypatch):
+    result = _scripted_run(monkeypatch, _flat_bars(), buy_at=299)
+
+    assert result.total_trades == 0
+    assert result.strategy_cagr == 0.0

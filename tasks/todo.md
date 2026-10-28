@@ -3,7 +3,7 @@
 Full plan, acceptance criteria and risks: [plan.md](plan.md)
 
 ## Phase 1: Realistic signal backtest
-- [ ] T1: Fill at next session's open (`walk_forward.py`): S, no deps
+- [x] T1: Fill at next session's open (`walk_forward.py`): S, no deps
 - [ ] T2: Volume impact function `estimate_impact_bps` (`cost_calculator.py`): S, no deps
 - [ ] T3: Apply impact in signal backtest and report slippage drag: M, needs T1 + T2
 
