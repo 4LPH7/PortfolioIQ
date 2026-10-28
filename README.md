@@ -108,7 +108,6 @@ Real orders pass these checks in order, and each result is written to the audit 
 - **Dry run first.** `DRY_RUN_MODE=true` is the default and the global kill switch. When live data needed for a check is missing, a live order is rejected rather than guessed.
 - **Alerts are not orders.** Price alerts, risk guards and news only notify you.
 - **AI is advisory.** The research committee has a hard per-run cost cap, a daily limit, and checks that every number it cites matches the data it was given.
-- **No secrets in the repo.** Keys live in `.env`; CI scans history with Gitleaks and audits dependencies.
 
 ## How it fits together
 
