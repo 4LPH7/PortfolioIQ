@@ -74,7 +74,7 @@ T5 point-in-time guard ─► T6 outcome feedback (gated) ─► CHECKPOINT B
   - **Files:** `src/analytics/cost_calculator.py`, `tests/test_cost_calculator.py`
   - **Depends on:** none
 
-- [ ] **T3: Apply impact in the signal backtest and report it** (size M, 3 files)
+- [x] **T3: Apply impact in the signal backtest and report it** (size M, 3 files)
   - **Description:** Buys pay the next open plus impact. Sells receive the next open minus impact. ADV is computed causally from prior bars only. Report slippage drag in INR and as a percentage of gross P&L.
   - **Acceptance:**
     - [ ] On two synthetic stocks with identical prices but different volumes, the less liquid one shows lower net return.

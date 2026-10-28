@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from src.analytics.cost_calculator import compute_indian_delivery_charges
+from src.analytics.cost_calculator import compute_indian_delivery_charges, estimate_impact_bps
 from src.analytics.indicator_evaluator import (
     compute_all_factors,
     compute_composite_score,
@@ -156,6 +156,7 @@ def run_walk_forward_backtest(
     entry_price = 0.0
     entry_cost = Decimal("0.00")
     total_cost_drag_inr = Decimal("0.00")
+    slippage_drag_inr = 0.0
     closed_trades: list[dict[str, Any]] = []
     daily_nav_history: list[tuple[Any, float]] = []
 
@@ -167,6 +168,17 @@ def run_walk_forward_backtest(
         if "Open" in stock_df.columns
         else stock_df["Close"]
     )
+    # 20-day average traded value, read at the decision bar (known at that close). Without
+    # volume the impact model charges its cap. ponytail: adjusted Close x raw Volume, close
+    # enough for an impact estimate; use Raw Close if corporate-action years look off.
+    adv = (
+        (stock_df["Close"] * stock_df["Volume"]).rolling(20).mean()
+        if "Volume" in stock_df.columns
+        else None
+    )
+
+    def adv_at(i: int) -> float | None:
+        return float(adv.iloc[i]) if adv is not None else None
 
     # Iterate sequentially through walk-forward folds
     for _fold_idx, (train_slice, test_slice) in enumerate(folds):
@@ -193,10 +205,13 @@ def run_walk_forward_backtest(
             pending = None
 
             if side == "BUY":
-                # Buy maximum integer delivery shares (leaving ~0.25% buffer for transaction fees)
-                target_shares = int(cash / (fill_price * 1.0025))
+                # Pay the open plus market impact (sized on the cash about to be deployed),
+                # then buy max integer delivery shares (leaving ~0.25% buffer for fees)
+                impact = estimate_impact_bps(cash, adv_at(bar_idx - 1)) / 10_000
+                exec_price = fill_price * (1 + impact)
+                target_shares = int(cash / (exec_price * 1.0025))
                 if target_shares > 0:
-                    trade_val = Decimal(str(round(target_shares * fill_price, 2)))
+                    trade_val = Decimal(str(round(target_shares * exec_price, 2)))
                     buy_costs = compute_indian_delivery_charges(
                         side="BUY",
                         trade_value=trade_val,
@@ -204,14 +219,18 @@ def run_walk_forward_backtest(
                     required_outlay = float(trade_val + buy_costs.total_charges)
                     if cash >= required_outlay:
                         position_shares = target_shares
-                        entry_price = fill_price
+                        entry_price = exec_price
                         entry_cost = buy_costs.total_charges
+                        slippage_drag_inr += target_shares * (exec_price - fill_price)
                         cash -= required_outlay
                         total_cost_drag_inr += buy_costs.total_charges
 
             elif side == "SELL" and position_shares > 0:
-                # Liquidate delivery position
-                sell_val = Decimal(str(round(position_shares * fill_price, 2)))
+                # Liquidate delivery position at the open minus market impact
+                impact = estimate_impact_bps(position_shares * fill_price, adv_at(bar_idx - 1))
+                exec_price = fill_price * (1 - impact / 10_000)
+                slippage_drag_inr += position_shares * (fill_price - exec_price)
+                sell_val = Decimal(str(round(position_shares * exec_price, 2)))
                 sell_costs = compute_indian_delivery_charges(
                     side="SELL",
                     trade_value=sell_val,
@@ -230,7 +249,7 @@ def run_walk_forward_backtest(
                 closed_trades.append(
                     {
                         "entry_price": entry_price,
-                        "exit_price": fill_price,
+                        "exit_price": exec_price,
                         "shares": position_shares,
                         "gross_pnl": gross_pnl,
                         "net_pnl": net_pnl,
@@ -259,7 +278,11 @@ def run_walk_forward_backtest(
 
     # Mark to market and close any open position at the final test bar
     if position_shares > 0 and daily_nav_history:
-        final_price = float(stock_df["Close"].iloc[folds[-1][1].stop - 1])
+        final_idx = folds[-1][1].stop - 1
+        close_price = float(stock_df["Close"].iloc[final_idx])
+        impact = estimate_impact_bps(position_shares * close_price, adv_at(final_idx))
+        final_price = close_price * (1 - impact / 10_000)
+        slippage_drag_inr += position_shares * (close_price - final_price)
         final_val = Decimal(str(round(position_shares * final_price, 2)))
         final_costs = compute_indian_delivery_charges(
             side="SELL",
@@ -351,6 +374,8 @@ def run_walk_forward_backtest(
         / Decimal(str(max(years, 0.25)))
     )
 
+    slippage_drag_bps = slippage_drag_inr / initial_capital * 10_000 / max(years, 0.25)
+
     # ──────────────────────────────────────────────────────────
     # Dual Baseline Attribution
     # ──────────────────────────────────────────────────────────
@@ -421,6 +446,9 @@ def run_walk_forward_backtest(
         "adequate_win_rate": adequate_win_rate,
         "excess_cagr_stock_pct": round(excess_cagr_vs_stock * 100.0, 2),
         "excess_cagr_benchmark_pct": round(excess_cagr_vs_benchmark * 100.0, 2),
+        # Stored here because hurdle_details is the run's JSON column (no migration needed)
+        "slippage_drag_inr": round(slippage_drag_inr, 2),
+        "slippage_drag_bps": round(slippage_drag_bps, 2),
     }
 
     return BacktestRunDTO(
@@ -450,6 +478,8 @@ def run_walk_forward_backtest(
         excess_cagr_vs_stock=round(excess_cagr_vs_stock, 4),
         excess_cagr_vs_benchmark=round(excess_cagr_vs_benchmark, 4),
         total_cost_drag_bps=round(total_cost_drag_bps, 2),
+        slippage_drag_inr=round(slippage_drag_inr, 2),
+        slippage_drag_bps=round(slippage_drag_bps, 2),
         status=status,
         passed_hurdle=passed_hurdle,
         hurdle_details=hurdle_details,

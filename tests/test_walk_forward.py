@@ -276,3 +276,37 @@ def test_signal_on_last_bar_does_not_fill(monkeypatch):
 
     assert result.total_trades == 0
     assert result.strategy_cagr == 0.0
+
+
+# ──────────────────────────────────────────────────────────
+# Market impact on fills (volume-based slippage)
+# ──────────────────────────────────────────────────────────
+
+
+def _bars_with_volume(volume):
+    df = _flat_bars()
+    df["Volume"] = volume
+    return df
+
+
+def test_less_liquid_stock_pays_more_slippage(monkeypatch):
+    liquid = _scripted_run(monkeypatch, _bars_with_volume(1e9), buy_at=260, sell_at=270)
+    thin = _scripted_run(monkeypatch, _bars_with_volume(1e3), buy_at=260, sell_at=270)
+
+    assert 0.0 < liquid.slippage_drag_inr < thin.slippage_drag_inr
+    assert thin.strategy_cagr < liquid.strategy_cagr
+    assert thin.hurdle_details["slippage_drag_inr"] == thin.slippage_drag_inr
+
+
+def test_one_percent_of_adv_costs_five_bps_each_way(monkeypatch):
+    # ADV = 100 * 100,000 = 1 crore; a ~1 lakh trade is 1% of it -> ~5 bps per fill
+    result = _scripted_run(monkeypatch, _bars_with_volume(1e5), buy_at=260, sell_at=270)
+
+    assert result.total_trades == 1
+    assert result.slippage_drag_inr == pytest.approx(100.0, abs=2.0)
+
+
+def test_missing_volume_charges_the_cap(monkeypatch):
+    result = _scripted_run(monkeypatch, _flat_bars(), buy_at=260, sell_at=270)
+
+    assert result.slippage_drag_inr > 1900.0  # ~1% on each side of a 1 lakh round trip
