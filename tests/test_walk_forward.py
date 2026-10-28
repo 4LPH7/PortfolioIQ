@@ -310,3 +310,53 @@ def test_missing_volume_charges_the_cap(monkeypatch):
     result = _scripted_run(monkeypatch, _flat_bars(), buy_at=260, sell_at=270)
 
     assert result.slippage_drag_inr > 1900.0  # ~1% on each side of a 1 lakh round trip
+
+
+# ──────────────────────────────────────────────────────────
+# Run fingerprint: same inputs -> same hash, any changed input -> new hash
+# ──────────────────────────────────────────────────────────
+
+_PARAMS = dict(
+    tradingsymbol="X",
+    model_version="v1.0.0",
+    train_window=252,
+    test_window=63,
+    step=63,
+    forward_horizon=20,
+    initial_capital=100000.0,
+    risk_free_rate=0.065,
+)
+
+
+def test_inputs_hash_is_stable():
+    from src.analytics.walk_forward import backtest_inputs_hash
+
+    df, bench = _bars_with_volume(1e5), _flat_bars()
+    first = backtest_inputs_hash(df, bench, **_PARAMS)
+    assert len(first) == 64
+    assert first == backtest_inputs_hash(df.copy(), bench.copy(), **_PARAMS)
+
+
+@pytest.mark.parametrize("change", ["window", "close", "volume", "benchmark", "impact_cap"])
+def test_inputs_hash_changes_when_any_input_changes(change, monkeypatch):
+    import src.analytics.cost_calculator as cc
+    from src.analytics.walk_forward import backtest_inputs_hash
+
+    df, bench, params = _bars_with_volume(1e5), _flat_bars(), dict(_PARAMS)
+    base = backtest_inputs_hash(df, bench, **params)
+    if change == "window":
+        params["test_window"] = 42
+    elif change == "close":
+        df.iloc[100, df.columns.get_loc("Close")] = 100.5
+    elif change == "volume":
+        df.iloc[100, df.columns.get_loc("Volume")] = 7
+    elif change == "benchmark":
+        bench.iloc[5, bench.columns.get_loc("Close")] = 99.0
+    else:
+        monkeypatch.setattr(cc, "IMPACT_CAP_BPS", 50.0)
+    assert backtest_inputs_hash(df, bench, **params) != base
+
+
+def test_backtest_result_carries_inputs_hash(monkeypatch):
+    result = _scripted_run(monkeypatch, _bars_with_volume(1e5), buy_at=260, sell_at=270)
+    assert result.inputs_hash and len(result.inputs_hash) == 64

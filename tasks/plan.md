@@ -86,7 +86,7 @@ T5 point-in-time guard ─► T6 outcome feedback (gated) ─► CHECKPOINT B
 
 ### Phase 2: Auditability
 
-- [ ] **T4: Fingerprint each backtest run** (size M, 5 files)
+- [x] **T4: Fingerprint each backtest run** (size M, 5 files)
   - **Description:** Store `inputs_hash` = sha256 of canonical JSON. The JSON covers symbol, model version, train/test/step windows, forward horizon, capital, risk-free rate, impact constant and cap, fill rule name, last bar date, row count, and a digest of the Open/Close/Volume values. Store it in a new nullable column via migration `031_backtest_inputs_hash.sql` (031 is the next free number; re-check before creating). Return it from the backtest API.
   - **Acceptance:**
     - [ ] Two runs on identical inputs give the same hash.

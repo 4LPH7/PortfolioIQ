@@ -257,6 +257,7 @@ def test_phase_5_table_structures():
             assert "excess_cagr_vs_stock" in bt_cols
             assert "passed_hurdle" in bt_cols
             assert "status" in bt_cols
+            assert "inputs_hash" in bt_cols
 
             # 3. indicator_evaluations
             result = session.execute(

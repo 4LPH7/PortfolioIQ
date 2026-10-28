@@ -10,6 +10,8 @@ transaction charges (STT, DP charges, GST), benchmarks against dual baselines
 
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -19,6 +21,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+from src.analytics import cost_calculator
 from src.analytics.cost_calculator import compute_indian_delivery_charges, estimate_impact_bps
 from src.analytics.indicator_evaluator import (
     compute_all_factors,
@@ -77,6 +80,31 @@ def generate_walk_forward_folds(
     return folds
 
 
+FILL_RULE = "decide_close_fill_next_open"
+
+
+def _frame_digest(df: pd.DataFrame | None, columns: tuple[str, ...]) -> str:
+    if df is None or df.empty:
+        return "none"
+    cols = [c for c in columns if c in df.columns]
+    hashed = pd.util.hash_pandas_object(df[cols], index=True).to_numpy()
+    return hashlib.sha256(",".join(cols).encode() + hashed.tobytes()).hexdigest()
+
+
+def backtest_inputs_hash(df: pd.DataFrame, benchmark_df: pd.DataFrame | None, **params: Any) -> str:
+    """sha256 over everything that decides a backtest's result: parameters, cost and impact
+    constants, fill rule, and the stock and benchmark bars."""
+    payload = {
+        "params": params,
+        "fill_rule": FILL_RULE,
+        "impact_coeff_bps": cost_calculator.IMPACT_COEFF_BPS,
+        "impact_cap_bps": cost_calculator.IMPACT_CAP_BPS,
+        "stock_bars": _frame_digest(df, ("Open", "Close", "Volume")),
+        "benchmark_bars": _frame_digest(benchmark_df, ("Close",)),
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+
+
 def run_walk_forward_backtest(
     df: pd.DataFrame,
     benchmark_df: pd.DataFrame | None = None,
@@ -112,6 +140,19 @@ def run_walk_forward_backtest(
     """
     if df.empty or "Close" not in df.columns:
         raise ValueError("Stock DataFrame is empty or missing 'Close' column")
+
+    inputs_hash = backtest_inputs_hash(
+        df,
+        benchmark_df,
+        tradingsymbol=tradingsymbol,
+        model_version=model_version,
+        train_window=train_window,
+        test_window=test_window,
+        step=step,
+        forward_horizon=forward_horizon,
+        initial_capital=initial_capital,
+        risk_free_rate=risk_free_rate,
+    )
 
     # Clean and align stock dates
     stock_df = df.copy()
@@ -480,6 +521,7 @@ def run_walk_forward_backtest(
         total_cost_drag_bps=round(total_cost_drag_bps, 2),
         slippage_drag_inr=round(slippage_drag_inr, 2),
         slippage_drag_bps=round(slippage_drag_bps, 2),
+        inputs_hash=inputs_hash,
         status=status,
         passed_hurdle=passed_hurdle,
         hurdle_details=hurdle_details,

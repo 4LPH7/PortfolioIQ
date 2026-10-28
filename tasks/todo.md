@@ -8,7 +8,7 @@ Full plan, acceptance criteria and risks: [plan.md](plan.md)
 - [x] T3: Apply impact in signal backtest and report slippage drag: M, needs T1 + T2
 
 ## Phase 2: Auditability
-- [ ] T4: `inputs_hash` per backtest run (migration 031, re-check number): M, needs T3
+- [x] T4: `inputs_hash` per backtest run (migration 031, re-check number): M, needs T3
 
 ## Checkpoint A
 - [ ] Full suite green in CI, ruff clean, coverage gates unchanged
