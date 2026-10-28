@@ -563,18 +563,6 @@ class HistoricalBarDTO(BaseDTO):
 # ─────────────────────────────────────────────────────────────
 # Phase 6 Product & UX Polish DTOs
 # ─────────────────────────────────────────────────────────────
-class AlertItemDTO(BaseDTO):
-    id: str
-    type: Literal["DRIFT", "PRICE_STALE", "TAX", "SYSTEM", "RISK"]
-    severity: Literal["CRITICAL", "WARNING", "INFO"]
-    title: str
-    message: str
-    action_label: str = ""
-    action_url: str = ""
-    timestamp: datetime
-    metadata: dict[str, Any] = {}
-
-
 class CSVImportHoldingDTO(BaseDTO):
     tradingsymbol: str
     quantity: int

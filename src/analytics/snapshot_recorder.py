@@ -6,7 +6,7 @@ detects broker cash margin deltas, and handles historical baseline backfilling.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from loguru import logger
@@ -17,13 +17,10 @@ from src.db.connection import get_db_session
 from src.db.repository import (
     get_cash_flows,
     get_daily_snapshots,
-    record_cash_flow,
     record_daily_snapshot,
 )
 from src.models.dtos import (
-    CreateCashFlowDTO,
     CreateSnapshotDTO,
-    PortfolioCashFlowDTO,
     PortfolioDailySnapshotDTO,
 )
 
@@ -176,146 +173,3 @@ def record_daily_eod_snapshot(
         f"NAV={total_nav}, UnitNAV={unit_nav}, Units={units}, Return={daily_return_pct}"
     )
     return recorded
-
-
-def detect_and_sync_cash_margin_deltas(
-    user_id: str = "default",
-    current_broker_cash: Decimal | None = None,
-    sync_date: date | None = None,
-) -> list[PortfolioCashFlowDTO]:
-    """
-    Compares current broker available cash margin against recorded cash balance.
-    Accounts for settled trade fills in order_audit_trail.
-    Any unexplained jump is logged as an AUTO_MARGIN_SYNC cash flow (DEPOSIT/WITHDRAWAL).
-    """
-    if sync_date is None:
-        sync_date = date.today()
-
-    with get_db_session() as session:
-        # 1. Get current broker cash from user_margins if not passed
-        if current_broker_cash is None:
-            margin_row = (
-                session.execute(
-                    text(
-                        "SELECT available_cash FROM user_margins WHERE user_id = :user_id LIMIT 1"
-                    ),
-                    {"user_id": user_id},
-                )
-                .mappings()
-                .first()
-            )
-            if not margin_row or margin_row["available_cash"] is None:
-                return []
-            current_broker_cash = Decimal(str(margin_row["available_cash"]))
-
-        # 2. Get latest recorded snapshot cash balance
-        snap_row = (
-            session.execute(
-                text(
-                    "SELECT cash_balance, unit_nav FROM portfolio_daily_snapshots "
-                    "WHERE user_id = :user_id ORDER BY snapshot_date DESC LIMIT 1"
-                ),
-                {"user_id": user_id},
-            )
-            .mappings()
-            .first()
-        )
-
-        if not snap_row or snap_row["cash_balance"] is None:
-            # No baseline to compare against
-            return []
-
-        recorded_cash = Decimal(str(snap_row["cash_balance"]))
-        unit_nav = Decimal(str(snap_row["unit_nav"])) if snap_row["unit_nav"] else Decimal("100.00")
-
-        # 3. Sum trade fills since last snapshot date
-        fills = (
-            session.execute(
-                text("""
-                SELECT
-                    COALESCE(SUM(CASE
-                        WHEN transaction_type = 'SELL' THEN (requested_quantity * price_at_signal)
-                        WHEN transaction_type = 'BUY'  THEN -(requested_quantity * price_at_signal)
-                        ELSE 0
-                    END), 0) AS net_trade_cash
-                FROM order_audit_trail
-                WHERE user_id = :user_id
-                  AND created_at::date >= :sync_date
-                  AND validation_status = 'APPROVED'
-            """),
-                {"user_id": user_id, "sync_date": sync_date},
-            )
-            .mappings()
-            .first()
-        )
-        trade_cash_delta = Decimal(str(fills["net_trade_cash"])) if fills else Decimal("0.00")
-
-        expected_cash = recorded_cash + trade_cash_delta
-        unexplained_delta = current_broker_cash - expected_cash
-
-        # Discrepancy threshold: ₹50
-        if abs(unexplained_delta) < Decimal("50.00"):
-            return []
-
-        flow_type = "DEPOSIT" if unexplained_delta > 0 else "WITHDRAWAL"
-        abs_amount = abs(unexplained_delta)
-        units_affected = (
-            (abs_amount / unit_nav).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
-            if unit_nav > 0
-            else None
-        )
-
-        flow_create = CreateCashFlowDTO(
-            user_id=user_id,
-            flow_date=sync_date,
-            flow_type=flow_type,
-            amount=abs_amount,
-            units_affected=units_affected,
-            nav_per_unit=unit_nav,
-            source="AUTO_MARGIN_SYNC",
-            notes=f"Detected unexplained margin change of {unexplained_delta} from broker",
-        )
-        flow_dto = record_cash_flow(flow_create)
-        logger.warning(
-            f"[CASH_SYNC] Auto-recorded {flow_type} of ₹{abs_amount} "
-            f"(Units affected: {units_affected}) from broker margin sync."
-        )
-        return [flow_dto]
-
-
-def backfill_historical_snapshots(user_id: str = "default") -> int:
-    """
-    Backfills daily snapshots:
-    If order history exists in order_audit_trail, constructs baseline from first trade date.
-    If no prior history exists, establishes a Day-1 baseline today at 100.00.
-    Returns count of snapshots created.
-    """
-    with get_db_session() as session:
-        first_order = (
-            session.execute(
-                text(
-                    "SELECT MIN(created_at::date) AS start_date FROM order_audit_trail "
-                    "WHERE user_id = :user_id AND validation_status = 'APPROVED'"
-                ),
-                {"user_id": user_id},
-            )
-            .mappings()
-            .first()
-        )
-
-    today = date.today()
-    if not first_order or not first_order["start_date"]:
-        # No trade history: record baseline today
-        record_daily_eod_snapshot(user_id=user_id, snapshot_date=today)
-        return 1
-
-    start_date = first_order["start_date"]
-    current_date = start_date
-    count = 0
-    while current_date <= today:
-        record_daily_eod_snapshot(user_id=user_id, snapshot_date=current_date)
-        count += 1
-        current_date += timedelta(days=1)
-
-    logger.info(f"[BACKFILL] Completed backfill of {count} daily snapshots from {start_date}.")
-    return count

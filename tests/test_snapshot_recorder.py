@@ -4,13 +4,11 @@ Verifies daily EOD snapshot creation, unitized NAV calculation,
 cash flow adjustments, broker margin delta detection, and baseline backfill.
 """
 
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from src.analytics.snapshot_recorder import (
-    backfill_historical_snapshots,
-    detect_and_sync_cash_margin_deltas,
     record_daily_eod_snapshot,
 )
 from src.analytics.valuator import PortfolioValuation
@@ -166,79 +164,3 @@ def test_record_eod_snapshot_with_external_deposit_isolates_return():
         # Daily return is 0.0000%
         assert snapshot.daily_return_pct == Decimal("0.0000")
         assert snapshot.net_external_flow == Decimal("50000.00")
-
-
-def test_detect_and_sync_cash_margin_deltas():
-    """Verify unexplained broker margin increase auto-creates DEPOSIT flow."""
-    mock_session = MagicMock()
-
-    # Mock DB queries inside detect_and_sync_cash_margin_deltas:
-    # 1. user_margins (not queried if current_broker_cash is passed)
-    # 2. portfolio_daily_snapshots latest cash_balance = 50,000, unit_nav = 100.00
-    mock_snap_row = {"cash_balance": Decimal("50000.00"), "unit_nav": Decimal("100.0000")}
-    # 3. order_audit_trail net trade cash = 0 (no trades)
-    mock_fills_row = {"net_trade_cash": Decimal("0.00")}
-
-    mock_session.execute.return_value.mappings.return_value.first.side_effect = [
-        mock_snap_row,
-        mock_fills_row,
-    ]
-
-    with (
-        patch("src.analytics.snapshot_recorder.get_db_session") as mock_get_session,
-        patch("src.analytics.snapshot_recorder.record_cash_flow") as mock_record_flow,
-    ):
-        mock_get_session.return_value.__enter__.return_value = mock_session
-        mock_record_flow.side_effect = lambda f: PortfolioCashFlowDTO.model_validate(
-            dict(id=99, **f.model_dump())
-        )
-
-        # Broker has 75,000 cash; recorded was 50,000 -> +25,000 unexplained jump
-        flows = detect_and_sync_cash_margin_deltas(
-            current_broker_cash=Decimal("75000.00"),
-            sync_date=date(2026, 1, 2),
-        )
-
-        assert len(flows) == 1
-        assert flows[0].flow_type == "DEPOSIT"
-        assert flows[0].amount == Decimal("25000.00")
-        assert flows[0].source == "AUTO_MARGIN_SYNC"
-        assert flows[0].units_affected == Decimal("250.000000")
-
-
-def test_backfill_historical_snapshots_empty_history():
-    """Verify backfill establishes Day-1 baseline today when no order history exists."""
-    mock_session = MagicMock()
-    mock_session.execute.return_value.mappings.return_value.first.return_value = {
-        "start_date": None
-    }
-
-    with (
-        patch("src.analytics.snapshot_recorder.get_db_session") as mock_get_session,
-        patch("src.analytics.snapshot_recorder.record_daily_eod_snapshot") as mock_snapshot,
-    ):
-        mock_get_session.return_value.__enter__.return_value = mock_session
-
-        count = backfill_historical_snapshots(user_id="default")
-        assert count == 1
-        assert mock_snapshot.called
-        assert mock_snapshot.call_args[1]["snapshot_date"] == date.today()
-
-
-def test_backfill_historical_snapshots_with_history():
-    """Verify backfill loops from earliest trade date up to today."""
-    mock_session = MagicMock()
-    start_date = date.today() - timedelta(days=2)
-    mock_session.execute.return_value.mappings.return_value.first.return_value = {
-        "start_date": start_date
-    }
-
-    with (
-        patch("src.analytics.snapshot_recorder.get_db_session") as mock_get_session,
-        patch("src.analytics.snapshot_recorder.record_daily_eod_snapshot") as mock_snapshot,
-    ):
-        mock_get_session.return_value.__enter__.return_value = mock_session
-
-        count = backfill_historical_snapshots(user_id="default")
-        assert count == 3
-        assert mock_snapshot.call_count == 3
