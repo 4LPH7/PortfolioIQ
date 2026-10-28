@@ -17,10 +17,10 @@ Full plan, acceptance criteria and risks: [plan.md](plan.md)
 
 ## Phase 3: Committee (start only after Checkpoint A and a go-ahead)
 - [x] T5: Point-in-time guard for committee fundamentals: M, no deps
-- [ ] T6: Feed settled outcomes into next committee run: M, needs T5, gated on N settled runs (N = 20 proposed)
+- [x] T6: Feed settled outcomes into next committee run: M, needs T5, gated on N settled runs (N = 20 proposed)
 
 ## Checkpoint B
-- [ ] Committee tests green, prompt hashes reviewed, budget confirmed
+- [x] Committee tests green, prompt hashes reviewed, budget confirmed
 - [ ] Decide whether to extend fixes to the allocation optimizer
 
 ## Open questions

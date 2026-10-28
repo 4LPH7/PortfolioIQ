@@ -115,7 +115,7 @@ T5 point-in-time guard ─► T6 outcome feedback (gated) ─► CHECKPOINT B
   - **Files:** `src/research/fundamentals.py`, `src/research/snapshot.py`, `tests/test_research.py`
   - **Depends on:** none (no committee backtest exists yet)
 
-- [ ] **T6: Feed settled outcomes into the next committee run** (size M, 3 files; gated)
+- [x] **T6: Feed settled outcomes into the next committee run** (size M, 3 files; gated)
   - **Description:** Include the last N settled runs for the same symbol in the PM's input as data, each with its as-of date, horizon returns and alpha vs NIFTY. Advisory only.
   - **Gate:** at least N settled runs per symbol (proposed N = 20, to confirm) and T5 complete.
   - **Acceptance:**

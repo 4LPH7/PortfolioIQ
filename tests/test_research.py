@@ -597,3 +597,97 @@ def test_fundamentals_are_point_in_time(db_session):
     assert pe_at(first - timedelta(days=1)) is None  # before any fetch: unavailable
     assert pe_at(first + timedelta(days=1)) == 10.0  # between fetches: the earlier one
     assert pe_at(second + timedelta(hours=1)) == 30.0
+
+
+# ── Track record: settled outcomes of earlier runs (TradingAgents-style reflection) ──
+
+TRACK = {"settled_runs": 24, "hit_rate_pct": 58.33, "avg_alpha_20d_pct": 1.2}
+
+
+def test_snapshot_track_record_is_a_citable_section():
+    bars = _bars()
+    snap = build_snapshot("TESTCO", bars, None, None, NOW, track_record=TRACK)
+    allowed = allowlist(snap)
+    assert allowed["track_record.hit_rate_pct"]["value"] == 58.33
+    assert allowed["track_record.settled_runs"]["unit"] == "count"
+
+    # Below the gate nothing is added, so existing prompts stay byte-identical
+    bare = build_snapshot("TESTCO", bars, None, None, NOW)
+    assert "track_record" not in bare["data"]
+    assert not any("track_record" in u for u in bare["unavailable"])
+
+
+def test_committee_with_track_record_completes_within_budget():
+    snap = build_snapshot("TESTCO", _bars(), None, None, NOW, track_record=TRACK)
+    out = run_committee(snap, FakeClient(), _cfg(budget=1.0))
+    assert out["status"] == "completed" and out["cost_usd"] <= 1.0
+
+
+def test_research_package_has_no_path_to_orders():
+    import ast
+    from pathlib import Path
+
+    for path in Path("src/research").glob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text())):
+            names = [a.name for a in getattr(node, "names", [])]
+            module = getattr(node, "module", None) or ""
+            for name in [module, *names]:
+                assert not name.startswith("src.execution"), f"{path} imports {name}"
+
+
+def test_build_snapshot_asks_for_track_record_as_of_last_bar(monkeypatch):
+    import src.analytics.historical_cache as hc
+    import src.analytics.valuator as valuator
+
+    bars = _bars()
+    seen = {}
+    monkeypatch.setattr(hc, "get_or_sync_historical_bars", lambda *a, **k: bars)
+    monkeypatch.setattr(
+        valuator, "compute_portfolio_valuation", lambda u: SimpleNamespace(holdings=[])
+    )
+    monkeypatch.setattr(fundamentals, "latest_fundamentals", lambda s: None)
+    monkeypatch.setattr(runs, "track_record", lambda u, s, as_of: seen.update(as_of=as_of) or TRACK)
+
+    snap = runs._build_snapshot("default", "TESTCO")
+    assert seen["as_of"] == bars.index[-1].date()
+    assert snap["data"]["track_record"]["settled_runs"]["value"] == 24
+
+
+@pytest.mark.postgres
+def test_track_record_needs_twenty_runs_settled_before_as_of(db_session):
+    from datetime import timedelta
+
+    as_of = date(2026, 6, 30)
+
+    def add(i, symbol="ZZTR", user="default", rating="Buy", alpha=0.02, days_before=None):
+        db_session.execute(
+            text(
+                """INSERT INTO research_runs (user_id, idempotency_key, tradingsymbol, run_date,
+                       status, decision, data_as_of, alpha_20d)
+                   VALUES (:u, :k, :s, :d, 'completed', CAST(:dec AS JSONB), :d, :a)"""
+            ),
+            {
+                "u": user,
+                "k": f"tr-{i}",
+                "s": symbol,
+                "d": as_of - timedelta(days=30 + i if days_before is None else days_before),
+                "dec": json.dumps({"rating": rating}),
+                "a": alpha,
+            },
+        )
+
+    for i in range(15):
+        add(i)  # Buy, beat the index: hits
+    for i in range(15, 20):
+        add(i, rating="Sell", alpha=0.01)  # Sell, beat the index anyway: misses
+    add(100, days_before=5)  # its 20-day window has not closed by as_of
+    add(101, symbol="OTHER")
+    add(102, user="someone_else")
+
+    assert runs.track_record("default", "ZZTR", as_of) == {
+        "settled_runs": 20,
+        "hit_rate_pct": 75.0,
+        "avg_alpha_20d_pct": 1.75,
+    }
+    # A day earlier the newest qualifying run is still inside its window: 19 < 20
+    assert runs.track_record("default", "ZZTR", as_of - timedelta(days=1)) is None

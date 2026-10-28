@@ -9,7 +9,7 @@ import json
 import os
 import threading
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pandas as pd
 from loguru import logger
@@ -19,6 +19,7 @@ from src.db.connection import execute_sql, get_db_session
 
 CALL_TIMEOUT_SEC = 180.0
 MIN_SCORED = 15  # compute_spearman_ic's own minimum
+MIN_TRACK_RECORD = 20  # settled runs on a stock before its record goes into the snapshot
 SUMMARY_COLS = """id, tradingsymbol, status, run_date, data_as_of, cost_usd::float AS cost_usd,
     budget_usd::float AS budget_usd, error, decision->>'rating' AS rating,
     (decision->>'conviction')::int AS conviction, grounding->'rate' AS grounding_rate,
@@ -190,7 +191,15 @@ def _build_snapshot(user_id: str, symbol: str) -> dict:
         if held
         else None
     )
-    return build_snapshot(symbol, bars, holding, latest_fundamentals(symbol), datetime.now(UTC))
+    as_of = bars["Close"].dropna().index[-1].date()
+    return build_snapshot(
+        symbol,
+        bars,
+        holding,
+        latest_fundamentals(symbol),
+        datetime.now(UTC),
+        track_record=track_record(user_id, symbol, as_of),
+    )
 
 
 def execute_run(run_id: int, client=None) -> None:
@@ -356,6 +365,33 @@ def settle_research_runs() -> dict[str, int]:
             settled[f"{h}d"] += 1
     logger.info("Research settlement: {}", settled)
     return settled
+
+
+def track_record(user_id: str, symbol: str, as_of: date) -> dict | None:
+    """
+    How earlier committee runs on this stock turned out, for the next run's snapshot.
+    Point-in-time: only runs whose 20-trading-day window closed before `as_of` (30 calendar
+    days). None below MIN_TRACK_RECORD runs, where a hit rate would mostly be noise.
+    """
+    rows = execute_sql(
+        """SELECT decision->>'rating' AS rating, alpha_20d::float AS alpha
+           FROM research_runs
+           WHERE user_id = :u AND tradingsymbol = :s AND status = 'completed'
+             AND alpha_20d IS NOT NULL AND data_as_of <= :cutoff""",
+        {"u": user_id, "s": symbol, "cutoff": as_of - timedelta(days=30)},
+    )
+    if len(rows) < MIN_TRACK_RECORD:
+        return None
+    alphas = [r["alpha"] for r in rows]
+    out = {
+        "settled_runs": len(rows),
+        "avg_alpha_20d_pct": round(sum(alphas) / len(alphas) * 100, 2),
+    }
+    # A hit is a Buy/Overweight that beat the index or a Sell/Underweight that lagged it
+    calls = [SIGN[r["rating"]] * r["alpha"] for r in rows if SIGN.get(r["rating"])]
+    if calls:
+        out["hit_rate_pct"] = round(100 * sum(c > 0 for c in calls) / len(calls), 2)
+    return out
 
 
 def scorecard(user_id: str) -> dict:

@@ -36,10 +36,12 @@ def build_snapshot(
     holding: dict | None,
     fundamentals: dict | None,
     now: datetime,
+    track_record: dict | None = None,
 ) -> dict:
     """
     `bars`: adjusted daily bars ("Close", optional "Raw Close"). `holding`: {"weight_pct",
     "unrealised_pnl_pct"} or None. `fundamentals`: a latest_fundamentals() row or None.
+    `track_record`: runs.track_record() for this stock, or None below its minimum sample.
     """
     closes = bars["Close"].dropna().astype(float)
     if len(closes) < MIN_BARS:
@@ -92,6 +94,15 @@ def build_snapshot(
         data["fundamentals"] = f
     else:
         unavailable.append("fundamentals: no fetch in the last 7 days")
+
+    if track_record:
+        src = "research_runs (settled 20-day alpha vs NIFTY 50 TRI)"
+        record = {"settled_runs": _v(track_record["settled_runs"], "count", src, as_of)}
+        for key in ("hit_rate_pct", "avg_alpha_20d_pct"):
+            if track_record.get(key) is not None:
+                record[key] = _v(track_record[key], "pct", src, as_of)
+        data["track_record"] = record
+    # Below the minimum sample the section is simply absent, so the prompt is unchanged
 
     return {
         "schema_version": SNAPSHOT_SCHEMA_VERSION,
