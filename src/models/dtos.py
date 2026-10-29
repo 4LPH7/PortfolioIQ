@@ -224,6 +224,16 @@ class ProjectionRequestDTO(BaseModel):
     seed: int = Field(19, ge=0)
 
 
+class JournalEntryDTO(BaseModel):
+    """A decision to record. Context (scanner, committee, price) is captured by the server."""
+
+    user_id: str = "default"
+    symbol: str = Field(pattern=r"^[A-Z0-9&_-]{1,30}$")
+    action: Literal["took", "skipped", "watching"]
+    side: Literal["BUY", "SELL"] | None = None
+    reason: str = Field(default="", max_length=500)
+
+
 class ResearchRunRequestDTO(BaseModel):
     """One committee run. A repeated idempotency_key returns the run it already created."""
 

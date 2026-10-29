@@ -150,6 +150,16 @@
     <div id="projection-area"></div>
   </div>
 
+  <!-- Decision journal -->
+  <div class="card" style="margin-bottom: 1.5rem;" id="journal-card">
+    <div class="card-header" style="margin-bottom: 0.5rem;">
+      <div class="card-title">Decision journal</div>
+    </div>
+    <p class="td-dim" style="margin-top:0">What you took or skipped, with the scanner rank and committee rating at the time, and how each one did 20 trading days later against NIFTY 50 TRI. Information only.</p>
+    <div id="journal-summary" class="mt-sm"></div>
+    <div id="journal-area"></div>
+  </div>
+
   <!-- Event Log Table -->
   <div class="card">
     <div class="card-header flex items-center justify-between" style="margin-bottom: 0.75rem;">
@@ -684,6 +694,41 @@ function renderProjection(d) {
     { type: "bar", x: mids, y: d.histogram.counts, marker: { color: mids.map(m => m < d.start_value ? CHART.neg : CHART.pale) }, hovertemplate: "₹%{x:,.0f}: %{y} replays<extra></extra>" },
   ], { ...PLOTLY_LAYOUT, height: 280, bargap: 0.05, xaxis: { ...PLOTLY_LAYOUT.xaxis, title: { text: `Value after ${d.years} ${d.years === 1 ? "year" : "years"} (red: below today)`, font: { size: 12 } }, tickprefix: "₹" } }, PLOTLY_CONFIG);
 }
+// ── Decision journal ──
+async function loadJournal() {
+  const area = document.getElementById("journal-area"), sum = document.getElementById("journal-summary");
+  const res = await apiGet("/api/journal");
+  if (!res.ok) { area.innerHTML = errBox(escP(res.error || "Could not load the journal")); return; }
+  const { entries, summary } = res.data;
+  const pct = v => v == null ? "—" : (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) + "%";
+  sum.innerHTML = summary.status === "insufficient_data"
+    ? `<p class="td-dim">${summary.settled} of ${summary.min_settled} settled decisions so far. No comparison until there are ${summary.min_settled}, so a few lucky calls can't pass for a record.</p>`
+    : `<div class="grid-3" style="gap:0.75rem">
+        <div class="metric-sm"><div class="metric-sm-label">Took, average 20-day alpha</div><div class="metric-sm-val">${pct(summary.took_avg_alpha_20d_pct)}</div></div>
+        <div class="metric-sm"><div class="metric-sm-label">Skipped, average 20-day alpha</div><div class="metric-sm-val">${pct(summary.skipped_avg_alpha_20d_pct)}</div></div>
+        <div class="metric-sm"><div class="metric-sm-label">Top 100 scanner rank</div><div class="metric-sm-val">${pct(summary.by_rank.top_100.avg_alpha_20d_pct)} <span class="td-dim" style="font-size:12px">n=${summary.by_rank.top_100.n}</span></div></div>
+      </div>`;
+  if (!entries.length) { area.innerHTML = `<p class="td-dim mt-sm">No decisions logged yet. Use "Log this decision" on the Analyzer.</p>`; return; }
+  const rows = entries.map(e => {
+    const c = e.context || {};
+    const rank = c.scanner && c.scanner.rank != null ? `#${escP(c.scanner.rank)}` : "—";
+    const rating = c.committee ? escP(c.committee.rating) : "—";
+    return `<tr>
+      <td class="td-dim">${escP(e.decided_on)}</td>
+      <td class="td-main">${escP(e.tradingsymbol)}</td>
+      <td>${escP(e.action)}</td>
+      <td class="td-mono">${rank}</td>
+      <td>${rating}</td>
+      <td class="td-mono">${e.price_at_decision != null ? "₹" + Number(e.price_at_decision).toFixed(2) : "—"}</td>
+      <td class="td-mono">${pct(e.alpha_20d)}</td>
+      <td class="td-dim td-wrap">${escP(e.reason || "")}</td>
+    </tr>`;
+  }).join("");
+  area.innerHTML = `<div class="table-wrap mt-sm"><table><thead><tr>
+    <th>Date</th><th>Stock</th><th>Action</th><th>Scanner</th><th>Committee</th><th>Price then</th><th>20-day alpha</th><th>Why</th>
+  </tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+loadJournal();
 </script>
 </body>
 </html>

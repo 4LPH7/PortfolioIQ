@@ -224,6 +224,19 @@ def research_settlement_job():
         return {}
 
 
+def journal_settlement_job():
+    """Settle 20-day alpha for decision journal entries whose horizon has passed."""
+    from src.analytics.journal import settle
+    from src.db.connection import execute_sql
+
+    try:
+        users = {r["user_id"] for r in execute_sql("SELECT DISTINCT user_id FROM decision_journal")}
+        return {u: settle(u) for u in users}
+    except Exception as exc:
+        logger.exception("[JOURNAL] Settlement failed: {}", exc)
+        return {}
+
+
 _daily_signals_job = record_daily_signals_job
 _mature_forward_returns_job = mature_forward_returns_job
 
@@ -336,6 +349,15 @@ def create_scheduler() -> BackgroundScheduler:
     )
 
     # Research committee: settle ratings after the bars are in, refresh fundamentals overnight
+    scheduler.add_job(
+        journal_settlement_job,
+        CronTrigger(hour=16, minute=45, day_of_week="mon-fri", timezone=IST),
+        id="journal_settlement",
+        name="Decision Journal Settlement",
+        max_instances=1,
+        coalesce=True,
+        replace_existing=True,
+    )
     scheduler.add_job(
         research_settlement_job,
         CronTrigger(hour=16, minute=40, day_of_week="mon-fri", timezone=IST),

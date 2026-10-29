@@ -31,6 +31,7 @@ from src.models.dtos import (
     CreateProfileDTO,
     CSVImportHoldingDTO,
     CSVImportResultDTO,
+    JournalEntryDTO,
     OddsRequestDTO,
     OptimizeRequestDTO,
     PriceAlertDTO,
@@ -389,6 +390,46 @@ def post_trade_odds(payload: OddsRequestDTO):
         return format_error_response(code="ODDS_REJECTED", message=str(exc), status_code=422)
     data["symbol"], data["sizing"] = payload.symbol, sizing
     return jsonify({"ok": True, "data": data})
+
+
+# ─────────────────────────────────────────────────────────────
+# Decision journal (information only; it never places or blocks an order)
+# ─────────────────────────────────────────────────────────────
+@api_v1_bp.route("/journal", methods=["GET"])
+@require_api_key
+def get_journal():
+    from src.analytics import journal
+
+    user_id = request.args.get("user_id", "default")
+    return jsonify(
+        {
+            "ok": True,
+            "data": {"entries": journal.list_entries(user_id), "summary": journal.summary(user_id)},
+        }
+    )
+
+
+@api_v1_bp.route("/journal", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+@validate_json(JournalEntryDTO)
+def post_journal(payload: JournalEntryDTO):
+    from src.analytics import journal
+
+    try:
+        context = journal.build_context(payload.symbol, payload.user_id)
+        entry = journal.record(
+            payload.user_id,
+            payload.symbol,
+            payload.action,
+            payload.side,
+            payload.reason,
+            context,
+            context.get("price"),
+        )
+    except ValueError as exc:
+        return format_error_response(code="JOURNAL_REJECTED", message=str(exc), status_code=422)
+    return jsonify({"ok": True, "data": entry}), 201
 
 
 # ─────────────────────────────────────────────────────────────

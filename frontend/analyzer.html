@@ -114,6 +114,14 @@
       <button type="button" class="btn" id="odds-run" onclick="runOdds()">Run replays</button>
     </div>
     <div id="odds-area"></div>
+    <div id="journal-bar" class="suggest-controls mt-sm" hidden>
+      <span class="td-dim">Log this decision:</span>
+      <button type="button" class="btn btn-sm" onclick="logDecision('took')">Took it</button>
+      <button type="button" class="btn btn-sm btn-ghost" onclick="logDecision('skipped')">Skipped</button>
+      <button type="button" class="btn btn-sm btn-ghost" onclick="logDecision('watching')">Watching</button>
+      <input type="text" id="journal-reason" maxlength="500" placeholder="Why (optional)" aria-label="Reason" style="max-width:320px">
+      <span class="td-dim" id="journal-msg"></span>
+    </div>
   </div>
 
   <div class="section-header">Price alerts</div>
@@ -652,8 +660,20 @@ async function runOdds() {
   }
 }
 
+// Decision journal: the server captures the scanner rank, committee rating and price itself
+async function logDecision(action) {
+  const sym = lastOdds ? lastOdds.symbol : currentSymbol();
+  const msg = document.getElementById("journal-msg");
+  const reason = document.getElementById("journal-reason").value.trim();
+  const res = await apiPost("/api/journal", { symbol: sym, action, reason });
+  if (!res.ok) { msg.textContent = res.error_message || "Could not log it"; return; }
+  msg.textContent = `Logged: ${action} ${sym}.`;
+  document.getElementById("journal-reason").value = "";
+}
+
 function renderOdds(d) {
   const o = d.odds, be = d.break_even, v = d.verdict, h = d.history, s = d.sizing;
+  document.getElementById("journal-bar").hidden = false;
   const decided = o.target_first + o.stop_first;
   const share = decided ? o.target_first / decided : null;
   const metric = (label, val, color) => `<div class="metric-sm"><div class="metric-sm-label">${label}</div><div class="metric-sm-val" style="color:${color}">${val}</div></div>`;
