@@ -165,6 +165,7 @@ def check_price_alerts(now: datetime | None = None) -> dict[str, int]:
         params = {"id": a["id"], "p": q["price"], "src": q["source"], "now": now, "today": today}
         if outcome == "ring":
             rang += 1
+            _notify_ring(a, q["price"])
             off = a["kind"] != "pct_move" and not a["rearm"]
             execute_sql(
                 f"""UPDATE price_alerts SET triggered_at = :now, triggered_price = :p,
@@ -182,6 +183,19 @@ def check_price_alerts(now: datetime | None = None) -> dict[str, int]:
             )
     logger.info("Price alerts: {} checked, {} rang", len(alerts), rang)
     return {"checked": len(alerts), "rang": rang}
+
+
+def _notify_ring(a: dict, price: float) -> None:
+    from src.ingestion import notify
+
+    if a["kind"] == "pct_move":
+        title, body = f"{a['tradingsymbol']} moved {a['pct']:g}% today", f"Price {price:,.2f}."
+    else:
+        verb = "rises to" if a["kind"] == "above" else "falls to"
+        title, body = notify.price_alert_message(
+            a["tradingsymbol"], verb, a["price"], price, "quote"
+        )
+    notify.send("price_alert", title, body, dedupe_key=f"alert:{a['id']}:{a['triggered_on']}")
 
 
 def describe(a: dict) -> str:

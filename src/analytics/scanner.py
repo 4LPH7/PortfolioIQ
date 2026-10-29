@@ -476,6 +476,37 @@ def start_scan(trigger: str) -> int | None:
         return None
 
 
+def _previous_completed() -> dict | None:
+    rows = execute_sql(
+        """SELECT result FROM scanner_runs WHERE status = 'completed'
+           ORDER BY finished_at DESC OFFSET 1 LIMIT 1"""
+    )
+    return rows[0]["result"] if rows else None
+
+
+def _notify_changes(result: dict) -> None:
+    """Push when the verdict flips or a stock enters the top 5. Failures never fail the scan."""
+    from src.ingestion import notify
+
+    try:
+        prev = _previous_completed()
+        if prev and prev.get("status") != result["status"]:
+            title, body = notify.verdict_change_message(prev["status"], result["status"])
+            notify.send("scanner_verdict", title, body, dedupe_key=f"verdict:{result['as_of']}")
+        was_top5 = {r["symbol"] for r in (prev or {}).get("ranking", [])[:5]}
+        for row in result["ranking"][:5]:
+            if row["symbol"] not in was_top5 and prev:
+                title, body = notify.top5_message(row["symbol"], row["rank"])
+                notify.send(
+                    "scanner_top5",
+                    title,
+                    body,
+                    dedupe_key=f"top5:{row['symbol']}:{result['as_of']}",
+                )
+    except Exception as exc:  # a notification problem must not look like a failed scan
+        logger.warning("Scanner notifications skipped: {}", exc)
+
+
 def run_scan(run_id: int) -> None:
     from src.analytics.valuator import compute_portfolio_valuation
 
@@ -508,6 +539,7 @@ def run_scan(run_id: int) -> None:
         logger.info(
             "Scan {} done: {} stocks ranked, {}", run_id, result["stocks_ranked"], result["status"]
         )
+        _notify_changes(result)
     except Exception as exc:
         logger.exception("Scan {} failed: {}", run_id, exc)
         execute_sql(

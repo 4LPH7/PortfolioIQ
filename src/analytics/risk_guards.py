@@ -68,6 +68,18 @@ def _alert(alert_id: str, severity: str, title: str, message: str, now: datetime
     }
 
 
+def _notify_loss_alerts(alerts: list[dict]) -> None:
+    """Push new holding-loss warnings. The alert itself is unchanged; this only tells you."""
+    from src.ingestion import notify
+
+    for a in alerts:
+        if a["id"].startswith("risk_loss_"):
+            title, body = notify.guard_message(a["id"][len("risk_loss_") :], a["title"])
+            notify.send(
+                "guard_critical", title, body, dedupe_key=f"{a['id']}:{a['timestamp'][:10]}"
+            )
+
+
 def evaluate_risk_guards(
     valuation: PortfolioValuation,
     thresholds: GuardThresholds,
@@ -145,4 +157,5 @@ def evaluate_risk_guards(
                 symbols=skipped,
             )
         )
+    _notify_loss_alerts(alerts)
     return alerts

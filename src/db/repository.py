@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -264,9 +265,16 @@ CONFIG_CHOICES = {
 }
 
 
+NTFY_TOPIC_RE = re.compile(r"^(|[A-Za-z0-9_-]{8,64})$")  # empty turns notifications off
+
+
 def _normalise_config_value(key: str, value_type: str, value: str) -> str:
     """Validate a setting against its declared type; a bad value never reaches the guards."""
     raw = str(value).strip()
+    if key == "ntfy_topic" and not NTFY_TOPIC_RE.match(raw):
+        raise ValueError("ntfy_topic must be 8 to 64 letters, digits, - or _ (or empty)")
+    if key == "ntfy_server" and not raw.startswith("https://"):
+        raise ValueError("ntfy_server must be an https:// address")
     if value_type == "boolean":
         if raw.lower() not in ("true", "false"):
             raise ValueError(f"{key} must be true or false")

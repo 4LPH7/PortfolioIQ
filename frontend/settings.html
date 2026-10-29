@@ -553,6 +553,11 @@ const SAFEGUARDS = [
   { key: "risk_max_sector_pct", label: "Alert when one sector exceeds", kind: "number", unit: "%" },
   { key: "risk_block_max_sector_pct", label: "Block a live buy that takes one sector above", kind: "number", unit: "%" },
   { key: "risk_block_max_drawdown_pct", label: "Block live buys while the portfolio is down more than", kind: "number", unit: "%" },
+  { key: "ntfy_topic", label: "Push topic (ntfy.sh): choose an unguessable name, empty to turn off", kind: "text" },
+  { key: "notify_price_alert", label: "Push when a price alert rings", kind: "toggle" },
+  { key: "notify_scanner_verdict", label: "Push when the scanner verdict changes", kind: "toggle" },
+  { key: "notify_scanner_top5", label: "Push when a stock enters the scanner top 5", kind: "toggle" },
+  { key: "notify_guard_critical", label: "Push when a risk alert becomes critical", kind: "toggle" },
 ];
 const MODEL_OPTIONS = [["claude-opus-5-5", "Claude Opus 5.5"], ["claude-sonnet-5-5", "Claude Sonnet 5.5 (cheaper)"]];
 const RESEARCH_SETTINGS = [
@@ -581,6 +586,8 @@ async function loadSafeguards(wrapId = "safeguards", controls = SAFEGUARDS) {
       control = `<input type="checkbox" class="switch" id="${id}" ${c.value === "true" ? "checked" : ""}>`;
     } else if (g.kind === "select") {
       control = `<select id="${id}">${g.options.map(([v, t]) => `<option value="${v}" ${c.value === v ? "selected" : ""}>${t}</option>`).join("")}</select>`;
+    } else if (g.kind === "text") {
+      control = `<input type="text" id="${id}" maxlength="64" value="${String(c.value ?? "").replace(/"/g, "&quot;")}" autocomplete="off" spellcheck="false">`;
     } else {
       control = `<input type="number" id="${id}" min="0" step="any" value="${c.value}"><span class="text-muted">${g.unit}</span>`;
     }

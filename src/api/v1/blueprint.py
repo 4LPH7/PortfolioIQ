@@ -393,6 +393,28 @@ def post_trade_odds(payload: OddsRequestDTO):
 
 
 # ─────────────────────────────────────────────────────────────
+# Push notifications (ntfy.sh; off until a topic is set)
+# ─────────────────────────────────────────────────────────────
+@api_v1_bp.route("/notify/test", methods=["POST"])
+@require_api_key
+@limiter.limit(get_settings().rate_limit_mutations)
+def post_notify_test():
+    from src.ingestion import notify
+
+    if not notify._config().get("ntfy_topic"):
+        return format_error_response(
+            code="NOTIFY_OFF", message="Set a topic in Settings first.", status_code=422
+        )
+    sent = notify.send(
+        "test",
+        "PortfolioIQ test notification",
+        "If you can read this, push notifications work. " + notify.NOT_AN_ORDER,
+        force=True,
+    )
+    return jsonify({"ok": True, "data": {"sent": sent}})
+
+
+# ─────────────────────────────────────────────────────────────
 # Decision journal (information only; it never places or blocks an order)
 # ─────────────────────────────────────────────────────────────
 @api_v1_bp.route("/journal", methods=["GET"])
