@@ -61,7 +61,7 @@
     <span class="alert-icon"><span class="material-symbols-outlined">balance</span></span>
     <div class="alert-body">
       <div class="alert-title">Research Tool Only</div>
-      <div class="alert-text">All predictions are based on historical price patterns and statistical models. They do <strong>NOT</strong> constitute financial advice. Past performance ≠ future results.</div>
+      <div class="alert-text">All predictions are based on historical price patterns and statistical models. They are not financial advice. Past performance ≠ future results.</div>
     </div>
   </div>
 
@@ -459,7 +459,7 @@ function renderResult(d) {
         ["P25 Low", mc.p25, "var(--orange)"],
         ["P50 Median", mc.p50, "var(--accent)"],
         ["P75 High", mc.p75, "var(--green)"],
-        ["P90 Optimistic", mc.p90, "#2e7d32"]
+        ["P90 Optimistic", mc.p90, "#3ecf8e"]
       ].map(([l, v, c]) => `
       <div class="metric-sm">
         <div class="metric-sm-label">${l}</div>
@@ -479,13 +479,13 @@ function renderResult(d) {
     Plotly.newPlot("mc-chart", [
       { type: "scatter", x: [...dates, ...dates.slice().reverse()], y: [...p90, ...p10.slice().reverse()], fill: "toself", fillcolor: "rgba(29,95,191,0.07)", line: { width: 0 }, name: "10–90th %ile" },
       { type: "scatter", x: dates, y: p90, name: "P90 Optimistic", line: { color: "rgba(46,125,50,0.55)", width: 1.5, dash: "dot" } },
-      { type: "scatter", x: dates, y: p50, name: "P50 Median", line: { color: "#1d5fbf", width: 3 } },
+      { type: "scatter", x: dates, y: p50, name: "P50 Median", line: { color: "#8fb4f0", width: 3 } },
       { type: "scatter", x: dates, y: p10, name: "P10 Pessimistic", line: { color: "rgba(196,36,42,0.55)", width: 1.5, dash: "dot" } },
     ], {
       ...PLOTLY_LAYOUT,
       height: 340,
       shapes: [{ type: "line", x0: dates[0], x1: dates[dates.length - 1], y0: d.current_price, y1: d.current_price, line: { color: "rgba(0,0,0,0.18)", width: 1, dash: "dash" } }],
-      annotations: [{ x: dates[dates.length - 1], y: d.current_price, text: `₹${d.current_price != null ? d.current_price.toFixed(2) : ""} today`, showarrow: false, xanchor: "right", font: { color: "#5f6368", size: 10 } }]
+      annotations: [{ x: dates[dates.length - 1], y: d.current_price, text: `₹${d.current_price != null ? d.current_price.toFixed(2) : ""} today`, showarrow: false, xanchor: "right", font: { color: "#a2a6ae", size: 10 } }]
     }, PLOTLY_CONFIG);
   }
 }

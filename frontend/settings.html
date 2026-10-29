@@ -113,7 +113,7 @@
   <div class="abstract-card" id="data-abstract">
     <div class="abstract-header">
       <div class="abstract-title">
-        <span class="material-symbols-outlined" style="vertical-align:middle;margin-right:4px;">build</span> Real Data Management &amp; Ingestion Abstract
+        <span class="material-symbols-outlined" style="vertical-align:middle;margin-right:4px;">build</span> Portfolio data
       </div>
       <div style="display:flex;gap:0.5rem;align-items:center;">
         <button class="abs-tab-btn active" id="tab-btn-csv" onclick="setAbstractTab('csv')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px;">folder</span> CSV Import</button>
@@ -414,7 +414,7 @@ function renderAbstractPreview(parsed) {
     thead.innerHTML = "<tr><th>Date</th><th>Particulars</th><th>Kind</th><th>Debit</th><th>Credit</th><th>Balance</th></tr>";
     tbody.innerHTML = rows.slice(0, 15).map(r =>
       `<tr><td>${escapeHtml(r.posting_date)||'—'}</td><td>${escapeHtml(r.particulars)}</td><td><span class="badge badge-hold">${escapeHtml(r.entry_kind)}</span></td>
-       <td>${r.debit?'₹'+escapeHtml(r.debit):''}</td><td style="color:#2e7d32">${r.credit?'₹'+escapeHtml(r.credit):''}</td><td>${r.net_balance?'₹'+escapeHtml(r.net_balance):''}</td></tr>`
+       <td>${r.debit?'₹'+escapeHtml(r.debit):''}</td><td style="color:#3ecf8e">${r.credit?'₹'+escapeHtml(r.credit):''}</td><td>${r.net_balance?'₹'+escapeHtml(r.net_balance):''}</td></tr>`
     ).join("");
   } else {
     thead.innerHTML = "<tr><th>Symbol</th><th>Qty</th><th>Avg Cost</th><th>LTP</th><th>Exchange</th><th>Product</th></tr>";
@@ -509,7 +509,7 @@ async function loadAbstractLedger() {
       `<tr><td>${escapeHtml(r.posting_date)||'—'}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(r.particulars)}">${escapeHtml(r.particulars)}</td>
        <td><span class="badge badge-hold">${escapeHtml(r.entry_kind)}</span></td>
        <td style="text-align:right">${r.debit ? '₹'+Number(r.debit).toLocaleString('en-IN') : ''}</td>
-       <td style="text-align:right;color:#2e7d32">${r.credit ? '₹'+Number(r.credit).toLocaleString('en-IN') : ''}</td>
+       <td style="text-align:right;color:#3ecf8e">${r.credit ? '₹'+Number(r.credit).toLocaleString('en-IN') : ''}</td>
        <td style="text-align:right">${r.net_balance != null ? '₹'+Number(r.net_balance).toLocaleString('en-IN') : ''}</td></tr>`
     ).join("");
   } catch(err) {

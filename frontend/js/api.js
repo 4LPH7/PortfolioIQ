@@ -235,25 +235,25 @@ function signalBadge(signal) {
 function sigColor(signal) {
   const norm = (signal || "").replace(/_/g, " ").toUpperCase().trim();
   const map = {
-    "STRONG BUY":  "#2e7d32",
-    "BUY":         "#2e7d32",
-    "HOLD":        "#5f6368",
-    "SELL":        "#c4242a",
-    "STRONG SELL": "#c4242a",
+    "STRONG BUY":  "#3ecf8e",
+    "BUY":         "#3ecf8e",
+    "HOLD":        "#a2a6ae",
+    "SELL":        "#ff7a7a",
+    "STRONG SELL": "#ff7a7a",
   };
-  return map[norm] || "#5f6368";
+  return map[norm] || "#a2a6ae";
 }
 
 function sigIcon(signal) {
   const norm = (signal || "").replace(/_/g, " ").toUpperCase().trim();
   const map = {
-    "STRONG BUY": `<span class="material-symbols-outlined" style="font-size:16px;color:#2e7d32;vertical-align:middle;">rocket_launch</span>`,
-    "BUY": `<span class="material-symbols-outlined" style="font-size:16px;color:#2e7d32;vertical-align:middle;">trending_up</span>`,
-    "HOLD": `<span class="material-symbols-outlined" style="font-size:16px;color:#5f6368;vertical-align:middle;">pause_circle</span>`,
-    "SELL": `<span class="material-symbols-outlined" style="font-size:16px;color:#c4242a;vertical-align:middle;">trending_down</span>`,
-    "STRONG SELL": `<span class="material-symbols-outlined" style="font-size:16px;color:#c4242a;vertical-align:middle;">arrow_downward</span>`,
+    "STRONG BUY": `<span class="material-symbols-outlined" style="font-size:16px;color:#3ecf8e;vertical-align:middle;">rocket_launch</span>`,
+    "BUY": `<span class="material-symbols-outlined" style="font-size:16px;color:#3ecf8e;vertical-align:middle;">trending_up</span>`,
+    "HOLD": `<span class="material-symbols-outlined" style="font-size:16px;color:#a2a6ae;vertical-align:middle;">pause_circle</span>`,
+    "SELL": `<span class="material-symbols-outlined" style="font-size:16px;color:#ff7a7a;vertical-align:middle;">trending_down</span>`,
+    "STRONG SELL": `<span class="material-symbols-outlined" style="font-size:16px;color:#ff7a7a;vertical-align:middle;">arrow_downward</span>`,
   };
-  return map[norm] || `<span class="material-symbols-outlined" style="font-size:16px;color:#5f6368;vertical-align:middle;">pause_circle</span>`;
+  return map[norm] || `<span class="material-symbols-outlined" style="font-size:16px;color:#a2a6ae;vertical-align:middle;">pause_circle</span>`;
 }
 
 function loading(msg = "Loading…") {
@@ -293,19 +293,19 @@ async function loadSidebarStatus() {
 
 // ── Tab switcher ───────────────────────────────────────────────
 
-// ── Plotly theme: ink on white, faint horizontal grid, no y-axis line ──
+// ── Plotly theme: light ink on the dark glass, faint horizontal grid, no y-axis line ──
 
-const CHART = { ink: "#0a0a0a", muted: "#5f6368", grid: "#e5e5e5", hue: "#1d5fbf", pos: "#2e7d32", neg: "#c4242a", pale: "#c9ced6" };
+const CHART = { ink: "#ededef", muted: "#a2a6ae", grid: "rgba(255,255,255,0.07)", hue: "#8fb4f0", pos: "#3ecf8e", neg: "#ff7a7a", pale: "rgba(255,255,255,0.22)" };
 
 const PLOTLY_LAYOUT = {
   paper_bgcolor: "rgba(0,0,0,0)",
   plot_bgcolor: "rgba(0,0,0,0)",
-  font: { family: "Geist, Inter, system-ui, sans-serif", color: CHART.ink, size: 12 },
+  font: { family: "Manrope, system-ui, sans-serif", color: CHART.ink, size: 12 },
   xaxis: { gridcolor: CHART.grid, zeroline: false, showline: false, color: CHART.muted, tickfont: { size: 12, color: CHART.muted } },
   yaxis: { gridcolor: CHART.grid, zeroline: false, showline: false, color: CHART.muted, tickfont: { size: 12, color: CHART.muted } },
   margin: { l: 48, r: 16, t: 16, b: 36 },
   legend: { bgcolor: "rgba(0,0,0,0)", font: { size: 12, color: CHART.muted } },
-  hoverlabel: { bgcolor: "#141414", bordercolor: "#141414", font: { color: "#ffffff", size: 12, family: "Geist, Inter, sans-serif" } },
+  hoverlabel: { bgcolor: "#1b1c20", bordercolor: "rgba(255,255,255,0.12)", font: { color: "#ffffff", size: 12, family: "Manrope, system-ui, sans-serif" } },
 };
 
 const PLOTLY_CONFIG = { responsive: true, displayModeBar: false };

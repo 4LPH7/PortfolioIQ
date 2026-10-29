@@ -125,7 +125,7 @@
         <span class="badge badge-hold" id="chart-points-badge">0 points</span>
       </div>
       <div class="text-xs text-muted flex items-center gap-sm">
-        <span><span class="status-dot" style="display:inline-block;background:#1d5fbf;margin-right:4px;"></span> Portfolio NAV</span>
+        <span><span class="status-dot" style="display:inline-block;background:#8fb4f0;margin-right:4px;"></span> Portfolio NAV</span>
         <span><span class="status-dot" style="display:inline-block;background:#8a8a8a;margin-right:4px;"></span> NIFTY 50 TRI</span>
         <span><span class="material-symbols-outlined" style="vertical-align:middle;font-size:16px;margin-right:4px;">push_pin</span> Event Markers</span>
       </div>
@@ -442,8 +442,8 @@
         name: "Portfolio Unit NAV",
         x: dates,
         y: navNorm,
-        line: { color: "#1d5fbf", width: 2 },
-        marker: { size: dates.length === 1 ? 10 : 0, color: "#1d5fbf" },
+        line: { color: "#8fb4f0", width: 2 },
+        marker: { size: dates.length === 1 ? 10 : 0, color: "#8fb4f0" },
         fill: "tozeroy",
         fillcolor: "rgba(29,95,191,0.06)",
         hovertemplate: "<b>Portfolio NAV</b>: %{y:.2f} (Base 100)<br>Date: %{x}<extra></extra>",
@@ -483,7 +483,7 @@
 
         const isDeposit = f.flow_type === "DEPOSIT" || f.flow_type === "DIVIDEND";
         pinSymbols.push(isDeposit ? "triangle-up" : "triangle-down");
-        pinColors.push(isDeposit ? "#2e7d32" : "#c4242a");
+        pinColors.push(isDeposit ? "#3ecf8e" : "#ff7a7a");
         pinTexts.push(`${f.flow_type}: ₹${parseFloat(f.amount || 0).toLocaleString("en-IN")}`);
       }
     });
@@ -498,7 +498,7 @@
         pinDates.push(dt);
         pinNavs.push(yVal);
         pinSymbols.push("diamond");
-        pinColors.push("#0a0a0a");
+        pinColors.push("#ededef");
         const side = o.transaction_type || o.order_side || "ORDER";
         pinTexts.push(`${side} ${o.quantity} ${o.tradingsymbol} (${o.status})`);
       }
@@ -515,7 +515,7 @@
           symbol: pinSymbols,
           color: pinColors,
           size: 10,
-          line: { color: "#ffffff", width: 1 },
+          line: { color: "#050608", width: 1 },
         },
         text: pinTexts,
         hovertemplate: "<b>Event</b>: %{text}<br>Date: %{x}<extra></extra>",

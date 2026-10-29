@@ -19,7 +19,7 @@
   --control: rgba(255, 255, 255, 0.14);    /* input and secondary-button edge */
   --text: #ededef;
   --muted: #a2a6ae;
-  --faint: #858a93;
+  --faint: #9095a0;
   --primary: #2f63c4; --primary-ink: #ffffff;
   --hue: #8fb4f0;                          /* the one chart hue */
   --positive: #3ecf8e; --negative: #ff7a7a; --warning: #f5c451;
@@ -193,6 +193,26 @@ dialog::backdrop, .sidebar-backdrop { background: rgba(0, 0, 0, 0.6); -webkit-ba
   .page-title { font-size: 24px; line-height: 30px; }
 }
 
+/* ── Browser surfaces: native controls, scrollbars, selection and caret in the theme ── */
+:root { color-scheme: dark; scrollbar-color: rgba(255, 255, 255, 0.16) transparent; }
+::selection { background: rgba(143, 180, 240, 0.3); color: var(--text); }
+input, textarea { caret-color: var(--hue); }
+
+/* ── Toasts float over content, so they are solid enough to read over anything ── */
+.toast {
+  background: var(--surface-strong);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  border: 1px solid var(--border);
+  box-shadow: var(--edge), 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Dashboard: the two panels share a bottom edge; an empty chart says so in its middle ── */
+.grid-main { align-items: stretch; }
+.chart-box:has(> .text-muted:only-child) {
+  display: grid; place-items: center; min-height: 200px;
+  background: transparent; border: 0; box-shadow: none;
+}
+
 /* ── The mark: white on the dark glass, with a soft light behind it ── */
 .sidebar-logo-icon { position: relative; isolation: isolate; }
 .sidebar-logo-img { filter: none; }
@@ -254,3 +274,6 @@ a { transition: color 180ms ease; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .sidebar, .card, .kpi-grid, .table-wrap, .alert, .metric-sm, .abstract-card { background: #121316; }
 }
+
+/* Count badges: white figures need a deeper red than the text red to stay readable */
+.nav-badge, .bell-badge, #bell-badge { background: #d93f3f; }

@@ -158,9 +158,9 @@ setInterval(() => { document.getElementById("clock").textContent = new Date().to
       document.getElementById("tax-chart-card").style.display = "block";
       Plotly.newPlot("tax-chart",[
         {type:"bar",name:"STCG Tax",x:holdings.map(h=>h.symbol),y:holdings.map(h=>h.estimated_stcg_tax||0),
-          marker:{color:"rgba(196,36,42,0.7)",line:{color:"#c4242a",width:1.5}}},
+          marker:{color:"rgba(196,36,42,0.7)",line:{color:"#ff7a7a",width:1.5}}},
         {type:"bar",name:"LTCG Tax",x:holdings.map(h=>h.symbol),y:holdings.map(h=>h.estimated_ltcg_tax||0),
-          marker:{color:"rgba(46,125,50,0.7)",line:{color:"#2e7d32",width:1.5}}},
+          marker:{color:"rgba(46,125,50,0.7)",line:{color:"#3ecf8e",width:1.5}}},
       ],{...PLOTLY_LAYOUT,height:220,barmode:"stack",
         xaxis:{...PLOTLY_LAYOUT.xaxis},
         yaxis:{...PLOTLY_LAYOUT.yaxis,tickprefix:"₹",tickformat:",.0f"},

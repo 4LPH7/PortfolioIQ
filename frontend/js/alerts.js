@@ -17,7 +17,14 @@
   let pollTimer = null;
   let activeFilter = "ALL";
   let alertsCache = [];
-  const knownAlertIds = new Set();
+  // Alerts already toasted this browser session, so a critical alert pops up once, not on every page
+  const SEEN_KEY = "portfolioiq_alerts_toasted";
+  const knownAlertIds = (() => {
+    try { return new Set(JSON.parse(sessionStorage.getItem(SEEN_KEY) || "[]")); } catch { return new Set(); }
+  })();
+  function rememberToasted() {
+    try { sessionStorage.setItem(SEEN_KEY, JSON.stringify([...knownAlertIds].slice(-200))); } catch { /* storage off */ }
+  }
 
   function getDismissedIds() {
     try {
@@ -174,6 +181,7 @@
         }
       }
     });
+    rememberToasted();
 
     renderAlerts();
   }
