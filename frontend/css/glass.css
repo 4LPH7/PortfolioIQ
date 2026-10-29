@@ -1,0 +1,194 @@
+/* PortfolioIQ — liquid glass theme.
+   Loaded after main.css, so it overrides the ledger palette without touching page markup.
+   Dark ground with soft coloured light behind the panels: glass only reads on colour.
+   Text stays above 4.5:1 on the lightest glass; green/red and the chart hue are tuned for dark. */
+
+:root {
+  --ground: #0b0d12;
+  --surface: rgba(255, 255, 255, 0.075);  /* glass panel: a light tint, so colour shows through */
+  --surface-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02) 42%, rgba(255, 255, 255, 0.05));
+  --raised: rgba(255, 255, 255, 0.07);   /* filled wells, hover rows */
+  --active: rgba(255, 255, 255, 0.14);   /* active nav pill, selected segment */
+  --border: rgba(255, 255, 255, 0.12);   /* panel edge: a bright hairline catches the light */
+  --rule: rgba(255, 255, 255, 0.08);
+  --control: rgba(255, 255, 255, 0.22);
+  --text: #f5f7fb;
+  --muted: #b3bac9;                      /* was #5f6368: too dark on glass */
+  --faint: #9aa3b6;                      /* was #6b6b6b: now clears 4.5:1 on the lightest glass */
+  --primary: #f5f7fb;  --primary-ink: #0b0d12;
+  --hue: #7fb0ff;                        /* the chart hue, lifted for a dark ground */
+  --positive: #34d399; --negative: #f87171; --warning: #fbbf24;
+  --pill-positive-bg: rgba(52, 211, 153, 0.16); --pill-positive-ink: #a7f3d0;
+  --pill-negative-bg: rgba(248, 113, 113, 0.16); --pill-negative-ink: #fecaca;
+  --pill-warning-bg: rgba(251, 191, 36, 0.14);  --pill-warning-ink: #fde68a; --pill-warning-line: rgba(251, 191, 36, 0.35);
+  --pill-neutral-bg: rgba(255, 255, 255, 0.1);  --pill-neutral-ink: #d7dce6;
+  --grid: rgba(255, 255, 255, 0.08);
+  --glass-blur: 28px;
+  --glass-sat: 180%;
+  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.32), inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --radius: 18px; --radius-sm: 12px; --radius-xs: 8px;
+  --shadow-card: var(--glass-shadow);
+}
+
+/* ── Background: soft coloured light that the glass refracts ── */
+html, body { background: var(--ground); }
+body {
+  color: var(--text);
+  background-color: var(--ground);
+  background-image:
+    radial-gradient(60vmax 60vmax at 8% 10%, rgba(56, 120, 255, 0.42), transparent 60%),
+    radial-gradient(50vmax 50vmax at 92% 8%, rgba(168, 85, 247, 0.34), transparent 60%),
+    radial-gradient(55vmax 55vmax at 70% 95%, rgba(20, 184, 166, 0.26), transparent 60%),
+    radial-gradient(40vmax 40vmax at 25% 85%, rgba(244, 114, 182, 0.18), transparent 62%);
+  background-attachment: fixed;
+}
+
+/* ── Glass material, shared by every surface ── */
+.sidebar,
+.topbar,
+.card,
+.kpi-card,
+.table-wrap,
+.alert,
+.empty-state,
+.dry-run-notice,
+.bottom-nav,
+.metric-sm,
+.chart-box,
+.loading-wrap,
+.drawer-panel,
+.alert-card,
+.session-dialog,
+.abstract-card,
+.guard-row {
+  background: var(--surface-sheen), var(--surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border-color: var(--border);
+}
+.card, .kpi-card, .table-wrap, .alert, .metric-sm, .abstract-card {
+  border-radius: var(--radius);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+.card { padding: var(--card-pad); }
+
+/* Sidebar and topbar float as glass over the light, with a bright top edge */
+.sidebar {
+  top: 12px; bottom: 12px; left: 12px;
+  height: auto;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+.topbar {
+  margin: 12px 12px 0 calc(var(--sidebar-w) + 24px);
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+
+/* Nav pills read as glass chips */
+.nav-item:hover { background: var(--raised); color: var(--text); }
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: var(--glass-edge);
+  color: var(--text);
+}
+.sidebar-divider { border-top-color: var(--rule); }
+
+/* Buttons: a bright glass pill for primary, frosted for the rest */
+.btn {
+  border-radius: 999px;
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+  box-shadow: var(--glass-edge);
+  transition: background-color var(--t-fast) ease, transform var(--t-fast) var(--ease);
+}
+.btn:hover { background: rgba(255, 255, 255, 0.14); transform: translateY(-1px); }
+.btn:active { transform: translateY(0) scale(0.98); }
+.btn-primary, .btn-success {
+  background: linear-gradient(180deg, #ffffff, #dfe6f3);
+  border-color: transparent;
+  color: var(--primary-ink) !important;
+  box-shadow: 0 6px 18px rgba(127, 176, 255, 0.35), inset 0 1px 0 #fff;
+}
+.btn-primary:hover, .btn-success:hover { background: linear-gradient(180deg, #ffffff, #e9eef8); }
+
+/* Inputs: inset glass wells */
+input, select, textarea {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+input:focus, select:focus, textarea:focus { border-color: rgba(127, 176, 255, 0.7); }
+select option { background: #151923; color: var(--text); }
+
+/* Tables sit inside the glass panel; rows rule softly */
+table thead th { color: var(--muted); }
+tbody tr:hover td { background: rgba(255, 255, 255, 0.04); }
+
+/* Headings keep the hierarchy; the glass gets the weight, not the type */
+.page-title { color: var(--text); }
+.page-title span { color: var(--hue); }
+.page-subtitle { color: var(--muted); }
+
+/* Status: keep the meaning in text and dots, not colour alone */
+.badge-buy { background: var(--pill-positive-bg); color: var(--pill-positive-ink); }
+.badge-sell, .badge-strong-sell { background: var(--pill-negative-bg); color: var(--pill-negative-ink); }
+.badge-hold { background: var(--pill-neutral-bg); color: var(--pill-neutral-ink); }
+
+/* Dialogs and drawers: a deeper glass with a visible edge over the scrim */
+dialog::backdrop, .sidebar-backdrop { background: rgba(4, 6, 12, 0.5); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.session-dialog { background: rgba(22, 26, 36, 0.78); }
+
+/* Motion: the glass lifts on hover, reduced for people who ask for less motion */
+.kpi-card, .metric-sm, .card[data-lift] { transition: transform var(--t-mid) var(--ease), box-shadow var(--t-mid) var(--ease); }
+.kpi-card:hover, .metric-sm:hover { transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+  .kpi-card:hover, .metric-sm:hover, .btn:hover, .btn:active { transform: none; }
+}
+
+/* Older browsers without backdrop-filter: a solid panel keeps the text readable */
+@supports not (backdrop-filter: blur(1px)) {
+  .sidebar, .topbar, .card, .kpi-card, .table-wrap, .alert, .metric-sm { background: rgba(22, 26, 36, 0.92); }
+}
+
+/* Sidebar dry-run note: a quiet glass chip, the warning colour only on its dot */
+.sidebar .dry-run-notice, .sidebar [class*="dry-run"] {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+/* Alerts stay on the glass: the colour lives in the icon and a thin edge, not a filled block */
+.alert { background: var(--surface-sheen), var(--surface); }
+.alert-warn, .alert-err, .alert-info, .alert-ok {
+  background: var(--surface-sheen), var(--surface);
+}
+.alert-warn { border-color: rgba(251, 191, 36, 0.35); }
+.alert-err { border-color: rgba(248, 113, 113, 0.4); }
+.alert-info { border-color: rgba(127, 176, 255, 0.35); }
+.alert-warn .alert-title, .alert-warn .alert-icon { color: #fde68a; }
+
+/* Phone: the sidebar folds into a glass sheet again, and the topbar and content use the full width */
+@media (max-width: 768px) {
+  .sidebar {
+    top: 0 !important; bottom: 0 !important; left: 0 !important;
+    border-radius: 0 22px 22px 0;
+    height: auto !important;
+    transform: translateX(-100%) !important;
+    background: var(--surface) !important;
+    box-shadow: var(--glass-shadow) !important;
+  }
+  .sidebar.open { transform: none !important; }
+  .topbar {
+    margin: 0 !important; border-radius: 0 0 18px 18px;
+    left: 0 !important; width: 100% !important;
+  }
+}
