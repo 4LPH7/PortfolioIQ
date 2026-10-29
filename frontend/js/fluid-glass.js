@@ -29,16 +29,14 @@
   uniform float uSplit;  // colour dispersion at the edge
   out vec4 fragColor;
 
-  // The light behind the glass: a near-black ground with three coloured lights and a faint grid.
-  // The grid makes the bending visible; without it refraction is hard to see.
+  // The light behind the glass: the page's navy wallpaper with its Lagoon and Iris lights,
+  // drawn tighter than the page's so the bending of their edges shows through the lens.
   vec3 backdrop(vec2 q) {
-    vec3 c = vec3(0.012, 0.016, 0.027);
-    vec2 a = q - vec2(-0.5, 0.42);  c += vec3(0.22, 0.47, 1.00) * exp(-dot(a, a) * 2.4) * 0.95;
-    vec2 b = q - vec2( 0.55, -0.3); c += vec3(0.66, 0.33, 0.97) * exp(-dot(b, b) * 2.1) * 0.85;
-    vec2 d = q - vec2( 0.1, 0.72);  c += vec3(0.08, 0.72, 0.65) * exp(-dot(d, d) * 3.2) * 0.55;
-    float gx = smoothstep(0.93, 1.0, abs(sin(q.x * 10.0)));
-    float gy = smoothstep(0.93, 1.0, abs(sin(q.y * 10.0)));
-    return c + (gx + gy) * vec3(0.05, 0.06, 0.08);
+    vec3 c = vec3(0.039, 0.063, 0.125);
+    vec2 a = q - vec2(-0.5, 0.42);  c += vec3(0.24, 0.62, 0.72) * exp(-dot(a, a) * 3.0) * 0.9;
+    vec2 b = q - vec2( 0.55, -0.3); c += vec3(0.42, 0.41, 0.92) * exp(-dot(b, b) * 2.6) * 0.85;
+    vec2 d = q - vec2( 0.1, 0.72);  c += vec3(0.49, 0.71, 1.00) * exp(-dot(d, d) * 6.0) * 0.45;
+    return c;
   }
 
   void main() {

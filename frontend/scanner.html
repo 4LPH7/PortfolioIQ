@@ -5,7 +5,7 @@
   <meta name="view-transition" content="same-origin"/>
   <title>PortfolioIQ — Market Scanner</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
   <link rel="stylesheet" href="css/main.css"/>
   <link rel="stylesheet" href="css/glass.css"/>
@@ -14,7 +14,7 @@
 <body>
 <nav class="sidebar" id="main-sidebar" aria-label="Main Navigation">
   <div class="sidebar-header">
-    <div class="sidebar-header-row"><div class="sidebar-logo"><div class="sidebar-logo-icon"><img src="img/logo.png" alt="PortfolioIQ Logo" class="sidebar-logo-img"/></div><div><div class="sidebar-logo-text">PortfolioIQ</div><div class="sidebar-badge">v3.0 LIVE</div></div></div><button type="button" class="sidebar-retract-btn" id="sidebar-retract-btn" title="Toggle Sidebar Shelf" aria-label="Toggle sidebar shelf"><span class="material-symbols-outlined">chevron_left</span></button></div>
+    <div class="sidebar-header-row"><div class="sidebar-logo"><div class="sidebar-logo-icon"><img src="img/logo.png" alt="PortfolioIQ Logo" class="sidebar-logo-img"/></div><div><div class="sidebar-logo-text">PortfolioIQ</div></div></div><button type="button" class="sidebar-retract-btn" id="sidebar-retract-btn" title="Toggle Sidebar Shelf" aria-label="Toggle sidebar shelf"><span class="material-symbols-outlined">chevron_left</span></button></div>
   </div>
   <div class="nav-label">Main</div>
   <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="material-symbols-outlined nav-icon">dashboard</span> <span>Dashboard</span></a>
@@ -46,7 +46,7 @@
 <main class="main fade-in" role="main">
   <div class="page-header">
     <div>
-      <h1 class="page-title">Market <span>Scanner</span></h1>
+      <h1 class="page-title">Market Scanner</h1>
       <p class="page-subtitle">NIFTY 500 ranked on price signals that held up out of sample, after charges. A measured tilt, not a prediction.</p>
     </div>
     <div class="page-actions">
@@ -73,7 +73,7 @@
   <div id="ranking-area" class="mt-sm"></div>
   <p class="text-xs text-dim mt-sm">Prices from Yahoo Finance, members from NSE's NIFTY 500 list. Fundamentals refresh on Saturdays and are shown for context only: free data has no history of them, so they can't be tested. Headlines are counted for your holdings and the top 20. Nothing here places an order.</p>
 </main>
-<div class="dry-run-notice"><div class="dry-run-dot"></div>DRY RUN — No real orders</div>
+<div class="dry-run-notice"><div class="dry-run-dot"></div>Dry run: orders are simulated</div>
 <!-- ── Bottom Mobile Navigation ───────────────────────────── -->
 <nav class="bottom-nav" aria-label="Mobile Navigation">
   <a class="bottom-nav-item" href="index.html">
@@ -102,7 +102,6 @@
 <script src="js/export.js"></script>
 <script src="js/alerts.js"></script>
 <script src="js/api.js"></script>
-<script src="js/glass.js" defer></script>
 <script>
 setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " IST"; }, 1000);
 

@@ -5,7 +5,7 @@
   <meta name="view-transition" content="same-origin"/>
   <title>PortfolioIQ — Rebalance Engine</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
   <link rel="stylesheet" href="css/main.css"/>
   <link rel="stylesheet" href="css/glass.css"/>
@@ -13,7 +13,7 @@
 <body>
 <nav class="sidebar" id="main-sidebar" aria-label="Main Navigation">
   <div class="sidebar-header">
-    <div class="sidebar-header-row"><div class="sidebar-logo"><div class="sidebar-logo-icon"><img src="img/logo.png" alt="PortfolioIQ Logo" class="sidebar-logo-img"/></div><div><div class="sidebar-logo-text">PortfolioIQ</div><div class="sidebar-badge">v3.0 LIVE</div></div></div><button type="button" class="sidebar-retract-btn" id="sidebar-retract-btn" title="Toggle Sidebar Shelf" aria-label="Toggle sidebar shelf"><span class="material-symbols-outlined">chevron_left</span></button></div>
+    <div class="sidebar-header-row"><div class="sidebar-logo"><div class="sidebar-logo-icon"><img src="img/logo.png" alt="PortfolioIQ Logo" class="sidebar-logo-img"/></div><div><div class="sidebar-logo-text">PortfolioIQ</div></div></div><button type="button" class="sidebar-retract-btn" id="sidebar-retract-btn" title="Toggle Sidebar Shelf" aria-label="Toggle sidebar shelf"><span class="material-symbols-outlined">chevron_left</span></button></div>
   </div>
   <div class="nav-label">Main</div>
   <a class="nav-item" href="index.html" data-tooltip="Dashboard"><span class="material-symbols-outlined nav-icon">dashboard</span> <span>Dashboard</span></a>
@@ -45,8 +45,8 @@
 <main class="main fade-in" role="main">
   <div class="page-header">
     <div>
-      <h1 class="page-title">Rebalance <span>Engine</span></h1>
-      <p class="page-subtitle">Drift detection · CNC order generation · Tax-aware recommendations</p>
+      <h1 class="page-title">Rebalance Engine</h1>
+      <p class="page-subtitle">See where your holdings have drifted from target and the delivery orders that bring them back, with tax in mind.</p>
     </div>
     <div class="page-actions">
       <button class="btn" onclick="loadPage()"><span class="material-symbols-outlined spin-icon" style="font-size:16px;vertical-align:middle;margin-right:4px;">sync</span> Refresh</button>
@@ -101,7 +101,7 @@
     </div>
   </div>
 </main>
-<div class="dry-run-notice"><div class="dry-run-dot"></div>DRY RUN — No real orders</div>
+<div class="dry-run-notice"><div class="dry-run-dot"></div>Dry run: orders are simulated</div>
 <!-- ── Bottom Mobile Navigation ───────────────────────────── -->
 <nav class="bottom-nav" aria-label="Mobile Navigation">
   <a class="bottom-nav-item" href="index.html">
@@ -130,7 +130,6 @@
 <script src="js/export.js"></script>
 <script src="js/alerts.js"></script>
 <script src="js/api.js"></script>
-<script src="js/glass.js" defer></script>
 <script>
 setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " IST"; }, 1000);
 
@@ -145,7 +144,7 @@ async function loadPage() {
     if ((drift.actionable_signals||0) > 0) {
       ba.innerHTML = `<div class="banner banner-warn fade-in"><div class="banner-emoji"><span class="material-symbols-outlined" style="color:var(--yellow);font-size:28px;">warning</span></div><div class="banner-content"><div class="banner-title">${drift.actionable_signals} Actionable Drift Signal${drift.actionable_signals!==1?"s":""} Detected</div><div class="banner-body">Portfolio weights have breached thresholds. Rebalance orders generated below. Review carefully before enabling live execution.</div></div></div>`;
     } else {
-      ba.innerHTML = `<div class="banner banner-ok fade-in"><div class="banner-emoji"><span class="material-symbols-outlined" style="color:var(--green);font-size:28px;">check_circle</span></div><div class="banner-content"><div class="banner-title">Portfolio is Well Balanced</div><div class="banner-body">All holding weights are within target thresholds. No rebalancing action required today.</div></div></div>`;
+      ba.innerHTML = `<div class="banner banner-ok fade-in"><div class="banner-emoji"><span class="material-symbols-outlined" style="color:var(--green);font-size:28px;">check_circle</span></div><div class="banner-content"><div class="banner-title">Portfolio is on target</div><div class="banner-body">All holding weights are within target thresholds. No rebalancing action required today.</div></div></div>`;
     }
 
     // KPIs

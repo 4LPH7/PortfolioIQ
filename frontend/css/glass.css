@@ -1,289 +1,222 @@
-/* PortfolioIQ — liquid glass theme.
-   Loaded after main.css, so it overrides the ledger palette without touching page markup.
-   Dark ground with soft coloured light behind the panels: glass only reads on colour.
-   Text stays above 4.5:1 on the lightest glass; green/red and the chart hue are tuned for dark. */
+/* PortfolioIQ — liquid glass, done the way macOS does it.
+   Loaded after main.css. One idea: a window of tinted glass over a deep-navy wallpaper with two
+   calm lights in it. The glass is flat and tinted (Apple's materials are not gradients), edges
+   are one bright hairline, and only things you can act on move.
+
+   Palette  Night #0A1020 ground · Lagoon #2C7A92 and Iris #4B4AA8 lights · Glass panels
+            Ink #EEF2F8 text · Mist #A7B3C7 secondary · System blue #2A6AE0 for the one primary action
+   Type     Manrope throughout, tabular figures for numbers
+   Radius   panel 16 · control 10 · chip full */
 
 :root {
-  --ground: #05070b;
-  --surface: rgba(255, 255, 255, 0.06);   /* glass panel: a light tint, so colour shows through */
-  --surface-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02) 42%, rgba(255, 255, 255, 0.05));
-  --raised: rgba(255, 255, 255, 0.07);   /* filled wells, hover rows */
-  --active: rgba(255, 255, 255, 0.14);   /* active nav pill, selected segment */
-  --border: rgba(255, 255, 255, 0.12);   /* panel edge: a bright hairline catches the light */
-  --rule: rgba(255, 255, 255, 0.08);
-  --control: rgba(255, 255, 255, 0.22);
-  --text: #f5f7fb;
-  --muted: #b3bac9;                      /* was #5f6368: too dark on glass */
-  --faint: #9aa3b6;                      /* was #6b6b6b: now clears 4.5:1 on the lightest glass */
-  --primary: #f5f7fb;  --primary-ink: #0b0d12;
-  --hue: #7fb0ff;                        /* the chart hue, lifted for a dark ground */
-  --positive: #34d399; --negative: #f87171; --warning: #fbbf24;
-  --pill-positive-bg: rgba(52, 211, 153, 0.16); --pill-positive-ink: #a7f3d0;
-  --pill-negative-bg: rgba(248, 113, 113, 0.16); --pill-negative-ink: #fecaca;
-  --pill-warning-bg: rgba(251, 191, 36, 0.14);  --pill-warning-ink: #fde68a; --pill-warning-line: rgba(251, 191, 36, 0.35);
-  --pill-neutral-bg: rgba(255, 255, 255, 0.1);  --pill-neutral-ink: #d7dce6;
-  --grid: rgba(255, 255, 255, 0.08);
-  --glass-blur: 30px;
-  --spring: cubic-bezier(0.34, 1.4, 0.64, 1);  /* a small overshoot on press and lift */
-  --glow-x: 50%; --glow-y: 0%;               /* the cursor's position on the card, set by glass.js */
-  --glass-sat: 180%;
-  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.32), inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-  --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
-  --radius: 18px; --radius-sm: 12px; --radius-xs: 8px;
-  --shadow-card: var(--glass-shadow);
+  --ground: #0a1020;
+  --surface: rgba(16, 24, 42, 0.56);       /* the glass material */
+  --surface-strong: rgba(14, 21, 38, 0.82); /* dialogs, menus: glass that must hide what is behind */
+  --raised: rgba(255, 255, 255, 0.05);     /* wells, hovered rows */
+  --active: rgba(255, 255, 255, 0.1);      /* selected nav item */
+  --border: rgba(255, 255, 255, 0.09);     /* panel edge */
+  --rule: rgba(255, 255, 255, 0.06);       /* row rules, dividers */
+  --control: rgba(255, 255, 255, 0.14);    /* input and secondary-button edge */
+  --text: #eef2f8;
+  --muted: #a7b3c7;
+  --faint: #8b97ad;
+  --primary: #2a6ae0; --primary-ink: #ffffff;
+  --hue: #7cb4ff;                          /* the chart hue on navy */
+  --positive: #3ecf8e; --negative: #ff7a7a; --warning: #f5c451;
+  --pill-positive-bg: rgba(62, 207, 142, 0.14); --pill-positive-ink: #9ff0c9;
+  --pill-negative-bg: rgba(255, 122, 122, 0.14); --pill-negative-ink: #ffc4c4;
+  --pill-warning-bg: rgba(245, 196, 81, 0.13);  --pill-warning-ink: #ffe3a1; --pill-warning-line: rgba(245, 196, 81, 0.32);
+  --pill-neutral-bg: rgba(255, 255, 255, 0.08); --pill-neutral-ink: #d4dbe7;
+  --grid: rgba(255, 255, 255, 0.07);
+
+  --font: "Manrope", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fs-title: 28px; --fs-section: 17px; --fs-kpi: 26px; --fs-lead: 34px; --fs-body: 14px; --fs-small: 12px;
+  --radius: 16px; --radius-sm: 10px; --radius-xs: 8px;
+  --gap: 16px; --card-pad: 20px;
+
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --depth: 0 1px 2px rgba(0, 0, 0, 0.28), 0 14px 34px rgba(0, 0, 0, 0.26);
+  --blur: blur(24px) saturate(160%);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --shadow-card: var(--depth);
 }
 
-/* ── Background: fluid light that drifts behind the glass ──
-   Two fixed layers of blurred colour move slowly on transform only, so they cost no layout or paint
-   on the page. The glass refracts whatever moves behind it. */
-html, body { background: var(--ground); }
-body { color: var(--text); background-color: var(--ground); position: relative; }
+/* ── Wallpaper: deep navy with two slow lights. The glass needs colour behind it to read. ── */
+/* The wallpaper sits on html so the lights (z-index -1 on body) paint above it, not under body */
+html { background: linear-gradient(165deg, #0e1a33 0%, #0a1020 48%, #0b1022 100%) fixed, var(--ground); }
+body { background: transparent; color: var(--text); font-feature-settings: "tnum" 1; }
 body::before, body::after {
   content: ""; position: fixed; z-index: -1; pointer-events: none;
-  border-radius: 50%; filter: blur(70px); opacity: 0.85; will-change: transform;
+  border-radius: 50%; filter: blur(80px); will-change: transform;
 }
 body::before {
-  width: 70vmax; height: 70vmax; left: -18vmax; top: -22vmax;
-  background: radial-gradient(circle, rgba(56, 120, 255, 0.55), rgba(56, 120, 255, 0) 65%);
-  animation: drift-a 26s ease-in-out infinite alternate;
+  width: 62vmax; height: 62vmax; left: -16vmax; top: -24vmax;
+  background: radial-gradient(circle, rgba(44, 122, 146, 0.62), rgba(44, 122, 146, 0) 66%);
+  animation: lagoon 48s ease-in-out infinite alternate;
 }
 body::after {
-  width: 64vmax; height: 64vmax; right: -20vmax; bottom: -24vmax;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.5), rgba(20, 184, 166, 0.22) 55%, rgba(0, 0, 0, 0) 70%);
-  animation: drift-b 32s ease-in-out infinite alternate;
+  width: 58vmax; height: 58vmax; right: -18vmax; bottom: -26vmax;
+  background: radial-gradient(circle, rgba(75, 74, 168, 0.6), rgba(75, 74, 168, 0) 66%);
+  animation: iris 56s ease-in-out infinite alternate;
 }
-@keyframes drift-a {
-  0%   { transform: translate3d(0, 0, 0) scale(1); }
-  50%  { transform: translate3d(14vmax, 8vmax, 0) scale(1.12); }
-  100% { transform: translate3d(4vmax, 18vmax, 0) scale(0.94); }
-}
-@keyframes drift-b {
-  0%   { transform: translate3d(0, 0, 0) scale(1); }
-  50%  { transform: translate3d(-12vmax, -10vmax, 0) scale(1.1); }
-  100% { transform: translate3d(-4vmax, -20vmax, 0) scale(0.96); }
-}
-/* A third, warm light that the drift brings past the cards now and then */
-.fluid-warm { display: none; }
+@keyframes lagoon { to { transform: translate3d(10vmax, 9vmax, 0) scale(1.08); } }
+@keyframes iris   { to { transform: translate3d(-9vmax, -11vmax, 0) scale(1.06); } }
 
-/* ── Glass material, shared by every surface ── */
-.sidebar,
-.topbar,
-.card,
-.kpi-card,
-.table-wrap,
-.alert,
-.empty-state,
-.dry-run-notice,
-.bottom-nav,
-.metric-sm,
-.chart-box,
-.loading-wrap,
-.drawer-panel,
-.alert-card,
-.session-dialog,
-.abstract-card,
-.guard-row {
-  background: var(--surface-sheen), var(--surface);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-  border-color: var(--border);
+/* ── The glass material, one definition ── */
+.sidebar, .card, .kpi-grid, .table-wrap, .alert, .banner, .metric-sm, .chart-box,
+.abstract-card, .bottom-nav, .drawer-panel, .alert-card {
+  background: var(--surface);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--border);
+  box-shadow: var(--edge), var(--depth);
 }
-.card, .kpi-card, .table-wrap, .alert, .metric-sm, .abstract-card {
-  border-radius: var(--radius);
-  box-shadow: var(--glass-edge), var(--glass-shadow);
-}
-.card { padding: var(--card-pad); }
+.card, .kpi-grid, .table-wrap, .alert, .banner, .abstract-card { border-radius: var(--radius); }
+.metric-sm, .chart-box { border-radius: var(--radius-sm); box-shadow: var(--edge); }
 
-/* Sidebar and topbar float as glass over the light, with a bright top edge */
+/* Nothing nests glass in glass: an inner panel is a quiet well instead */
+.card .table-wrap, .card .metric-sm, .card .chart-box, .card .alert, .card .card, .abstract-card .card {
+  background: var(--raised); box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.kpi-grid > .kpi-card { background: transparent; border: 0; box-shadow: none; }
+.kpi-grid > .kpi-card + .kpi-card { border-left: 1px solid var(--rule); }
+
+/* ── Window chrome ── */
 .sidebar {
-  top: 12px; bottom: 12px; left: 12px;
-  height: auto;
-  border-radius: 22px;
-  border: 1px solid var(--border);
-  box-shadow: var(--glass-edge), var(--glass-shadow);
+  top: 10px; bottom: 10px; left: 10px; height: auto;
+  width: calc(var(--sidebar-w) - 10px);
+  border-radius: var(--radius);
 }
-.topbar {
-  margin: 12px 12px 0 calc(var(--sidebar-w) + 24px);
-  border-radius: 18px;
-  border: 1px solid var(--border);
-  box-shadow: var(--glass-edge), var(--glass-shadow);
-}
-
-/* Nav pills read as glass chips */
+.sidebar-logo-text { font-weight: 700; letter-spacing: -0.02em; }
+.sidebar-badge { display: none; }                  /* a version stamp is not navigation */
+.nav-label { color: var(--faint); font-weight: 600; letter-spacing: 0; }
+.nav-item { border-radius: var(--radius-xs); color: var(--muted); font-weight: 500; transition: background-color 160ms var(--ease), color 160ms var(--ease); }
 .nav-item:hover { background: var(--raised); color: var(--text); }
-.nav-item.active {
-  background: rgba(255, 255, 255, 0.14);
-  box-shadow: var(--glass-edge);
-  color: var(--text);
-}
+.nav-item.active { background: var(--active); color: var(--text); box-shadow: var(--edge); }
+.nav-item.active .nav-icon { color: var(--hue); }
 .sidebar-divider { border-top-color: var(--rule); }
-.nav-item { transition: background-color 180ms var(--ease), color 180ms var(--ease), transform 220ms var(--spring); }
-.nav-item:hover { transform: translateX(3px); }
-.nav-item:active { transform: translateX(3px) scale(0.97); }
+.status-pill:hover { background: var(--raised); }
 
-/* Buttons: a bright glass pill for primary, frosted for the rest */
+/* The toolbar belongs to the window, not floating over it */
+.topbar { background: transparent; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.topbar-breadcrumb, .topbar-time { color: var(--faint); }
+.topbar-breadcrumb .crumb-current { color: var(--muted); }
+
+/* ── Type ── */
+.page-header { margin-bottom: 28px; }
+.page-title { font-size: var(--fs-title); line-height: 34px; font-weight: 700; letter-spacing: -0.025em; color: var(--text); }
+.page-title span { color: inherit; }               /* one voice: no single accented word */
+.page-subtitle { margin-top: 6px; color: var(--muted); max-width: 70ch; }
+.section-header { font-size: var(--fs-section); font-weight: 700; letter-spacing: -0.01em; margin: 36px 0 12px; }
+.section-row { margin: 36px 0 12px; }
+.section-row .section-header { margin: 0; }
+.kpi-label { color: var(--muted); font-weight: 500; }
+.kpi-value { font-weight: 700; letter-spacing: -0.02em; }
+.kpi-value.zero { color: var(--faint); }
+.td-mono, .kpi-value, .num { font-variant-numeric: tabular-nums; }
+
+/* ── Controls ── */
 .btn {
-  border-radius: 999px;
-  border-color: var(--border);
-  background: rgba(255, 255, 255, 0.08);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
-  backdrop-filter: blur(16px) saturate(160%);
-  box-shadow: var(--glass-edge);
-  transition: background-color var(--t-fast) ease, transform var(--t-fast) var(--ease);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--control);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text); font-weight: 600;
+  box-shadow: var(--edge);
+  transition: background-color 140ms var(--ease), border-color 140ms var(--ease), transform 120ms var(--ease);
 }
-.btn:hover { background: rgba(255, 255, 255, 0.14); transform: translateY(-1px); }
-.btn:active { transform: translateY(0) scale(0.98); }
+.btn:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+.btn:active { transform: scale(0.97); }
 .btn-primary, .btn-success {
-  background: linear-gradient(180deg, #ffffff, #dfe6f3);
-  border-color: transparent;
-  color: var(--primary-ink) !important;
-  box-shadow: 0 6px 18px rgba(127, 176, 255, 0.35), inset 0 1px 0 #fff;
+  background: var(--primary); border-color: transparent; color: var(--primary-ink) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 6px 16px rgba(42, 106, 224, 0.3);
 }
-.btn-primary:hover, .btn-success:hover { background: linear-gradient(180deg, #ffffff, #e9eef8); }
+.btn-primary:hover, .btn-success:hover { background: #3a78ec; }
+.btn-ghost { background: transparent; border-color: transparent; box-shadow: none; }
+.btn-ghost:hover { background: var(--raised); border-color: transparent; }
 
-/* Inputs: inset glass wells */
 input, select, textarea {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--border);
+  background: rgba(4, 8, 18, 0.45);
+  border: 1px solid var(--control);
   border-radius: var(--radius-sm);
   color: var(--text);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
 }
-input:focus, select:focus, textarea:focus { border-color: rgba(127, 176, 255, 0.7); }
-select option { background: #151923; color: var(--text); }
+input::placeholder, textarea::placeholder { color: var(--faint); text-transform: none; }
+input:hover, select:hover, textarea:hover { border-color: rgba(255, 255, 255, 0.22); }
+input:focus, select:focus, textarea:focus { border-color: var(--hue); box-shadow: 0 0 0 3px rgba(124, 180, 255, 0.2); outline: none; }
+select option { background: #121a2e; color: var(--text); }
+input[type="checkbox"] { accent-color: var(--primary); }
 
-/* Tables sit inside the glass panel; rows rule softly */
-table thead th { color: var(--muted); }
-tbody tr:hover td { background: rgba(255, 255, 255, 0.04); }
+/* ── Tables ── */
+table thead th { color: var(--faint); font-weight: 600; }
+tbody td { border-bottom-color: var(--rule); }
+tbody tr { transition: background-color 120ms var(--ease); }
+tbody tr:hover td { background: var(--raised); }
 
-/* Headings keep the hierarchy; the glass gets the weight, not the type */
-.page-title { color: var(--text); }
-.page-title span { color: var(--hue); }
-.page-subtitle { color: var(--muted); }
+/* ── Feedback ── */
+.alert, .banner { padding: 14px 16px; }
+.alert-warn, .banner-warn { background: var(--surface); border-color: var(--pill-warning-line); color: var(--text); }
+.alert-err, .alert-error, .banner-err { background: var(--surface); border-color: rgba(255, 122, 122, 0.36); color: var(--text); }
+.alert-info, .banner-info, .alert-ok, .banner-ok, .alert-success { background: var(--surface); border-color: var(--border); color: var(--text); }
+.alert-warn .alert-icon, .alert-warn .alert-title, .banner-warn .banner-title { color: var(--pill-warning-ink); }
+.alert-err .alert-icon, .alert-err .alert-title, .banner-err .banner-title { color: var(--pill-negative-ink); }
+.banner-ok .banner-title, .alert-ok .alert-icon, .alert-ok .alert-title, .alert-success .alert-icon, .alert-success .alert-title { color: var(--pill-positive-ink); }
+.alert-text, .banner-body { color: var(--muted); }
 
-/* Status: keep the meaning in text and dots, not colour alone */
+/* An empty state is a sentence in the panel, not a dashed box */
+.empty-state { border: 0; background: transparent; box-shadow: none; padding: 28px 16px; }
+.empty-title { color: var(--text); font-weight: 600; }
+.empty-desc { color: var(--muted); max-width: 52ch; }
+
+.badge { border-radius: 999px; font-weight: 600; letter-spacing: 0; text-transform: none; }
 .badge-buy { background: var(--pill-positive-bg); color: var(--pill-positive-ink); }
 .badge-sell, .badge-strong-sell { background: var(--pill-negative-bg); color: var(--pill-negative-ink); }
 .badge-hold { background: var(--pill-neutral-bg); color: var(--pill-neutral-ink); }
 
-/* Dialogs and drawers: a deeper glass with a visible edge over the scrim */
-dialog::backdrop, .sidebar-backdrop { background: rgba(4, 6, 12, 0.5); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
-.session-dialog { background: rgba(22, 26, 36, 0.78); }
+.dry-run-notice { background: var(--surface-strong); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; box-shadow: var(--depth); }
 
-/* Motion: the glass lifts on hover, reduced for people who ask for less motion */
-.kpi-card, .metric-sm, .card[data-lift] { transition: transform var(--t-mid) var(--ease), box-shadow var(--t-mid) var(--ease); }
-.kpi-card:hover, .metric-sm:hover { transform: translateY(-2px); }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
-  .kpi-card:hover, .metric-sm:hover, .btn:hover, .btn:active { transform: none; }
-}
+/* Dialogs and menus: stronger glass over a dimmed, blurred page */
+dialog::backdrop, .sidebar-backdrop { background: rgba(4, 7, 15, 0.55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.session-dialog, .drawer-panel { background: var(--surface-strong); }
 
-/* Older browsers without backdrop-filter: a solid panel keeps the text readable */
-@supports not (backdrop-filter: blur(1px)) {
-  .sidebar, .topbar, .card, .kpi-card, .table-wrap, .alert, .metric-sm { background: rgba(22, 26, 36, 0.92); }
-}
-
-/* Sidebar dry-run note: a quiet glass chip, the warning colour only on its dot */
-.sidebar .dry-run-notice, .sidebar [class*="dry-run"] {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: var(--border);
-  color: var(--muted);
-}
-
-/* Alerts stay on the glass: the colour lives in the icon and a thin edge, not a filled block */
-.alert { background: var(--surface-sheen), var(--surface); }
-.alert-warn, .alert-err, .alert-info, .alert-ok {
-  background: var(--surface-sheen), var(--surface);
-}
-.alert-warn { border-color: rgba(251, 191, 36, 0.35); }
-.alert-err { border-color: rgba(248, 113, 113, 0.4); }
-.alert-info { border-color: rgba(127, 176, 255, 0.35); }
-.alert-warn .alert-title, .alert-warn .alert-icon { color: #fde68a; }
-
-/* Phone: the sidebar folds into a glass sheet again, and the topbar and content use the full width */
-@media (max-width: 768px) {
-  .sidebar {
-    top: 0 !important; bottom: 0 !important; left: 0 !important;
-    border-radius: 0 22px 22px 0;
-    height: auto !important;
-    transform: translateX(-100%) !important;
-    background: var(--surface) !important;
-    box-shadow: var(--glass-shadow) !important;
-  }
-  .sidebar.open { transform: none !important; }
-  .topbar {
-    margin: 0 !important; border-radius: 0 0 18px 18px;
-    left: 0 !important; width: 100% !important;
-  }
-}
-
-
-/* ── Interaction: every surface answers the pointer ──
-   glass.js writes --glow-x / --glow-y from the pointer, so the sheen follows the cursor.
-   Only on fine pointers (a mouse or trackpad): touch screens skip the hover effects. */
-.card, .kpi-card, .metric-sm, .table-wrap, .abstract-card, .alert {
-  position: relative; isolation: isolate;
-  transition: transform 260ms var(--ease), box-shadow 260ms var(--ease), border-color 260ms var(--ease);
-}
-.card::after, .kpi-card::after, .metric-sm::after, .abstract-card::after {
-  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background: radial-gradient(420px circle at var(--glow-x) var(--glow-y), rgba(255, 255, 255, 0.10), transparent 55%);
-  opacity: 0; transition: opacity 320ms var(--ease); z-index: 0;
-}
-@media (hover: hover) and (pointer: fine) {
-  .card:hover, .kpi-card:hover, .metric-sm:hover, .abstract-card:hover {
-    transform: translateY(-3px);
-    border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: var(--glass-edge), 0 22px 48px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.35);
-  }
-  .card:hover::after, .kpi-card:hover::after, .metric-sm:hover::after, .abstract-card:hover::after { opacity: 1; }
-  .table-wrap:hover { border-color: rgba(255, 255, 255, 0.18); }
-  .btn:hover { transform: translateY(-2px); box-shadow: var(--glass-edge), 0 10px 22px rgba(0, 0, 0, 0.4); }
-  .btn-primary:hover, .btn-success:hover { box-shadow: 0 10px 26px rgba(127, 176, 255, 0.45), inset 0 1px 0 #fff; }
-}
-.btn { transition: transform 220ms var(--spring), background-color 180ms var(--ease), box-shadow 220ms var(--ease); }
-.btn:active { transform: scale(0.96) !important; transition-duration: 90ms; }
-.nav-item:focus-visible, .btn:focus-visible { outline-offset: 3px; }
-.card > *, .kpi-card > *, .metric-sm > * { position: relative; z-index: 1; }
-
-/* Page entrance: content rises in softly, then the cards stagger */
-.main > * { animation: rise 520ms var(--ease) both; }
-.main > *:nth-child(2) { animation-delay: 60ms; }
-.main > *:nth-child(3) { animation-delay: 120ms; }
-.main > *:nth-child(4) { animation-delay: 180ms; }
-.main > *:nth-child(n+5) { animation-delay: 240ms; }
-@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-
-/* Reduced motion: stop the drift and the sheen, keep the layout and the colour */
-@media (prefers-reduced-motion: reduce) {
-  body::before, body::after { animation: none; }
-  .main > * { animation: none; }
-  .card::after, .kpi-card::after, .metric-sm::after, .abstract-card::after { display: none; }
-  .card:hover, .kpi-card:hover, .metric-sm:hover, .btn:hover, .nav-item:hover, .btn:active, .nav-item:active { transform: none !important; }
-}
-
-/* ── FluidGlass: a liquid lens in the Dashboard header ── */
-.fluid-glass {
-  position: relative; flex: none; border-radius: 50%;
-  touch-action: none; user-select: none; cursor: grab;
-  transition: filter 300ms var(--ease);
-}
-.fluid-glass:hover { filter: brightness(1.06); }
+/* ── The one moving thing on the Dashboard: the FluidGlass lens ── */
+.fluid-glass { position: relative; flex: none; border-radius: 50%; touch-action: none; user-select: none; cursor: grab; }
 .fluid-glass.is-grabbing { cursor: grabbing; }
 .fluid-glass canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-/* No WebGL2, or reduced motion without a canvas: a static glass disc with the same edge */
 .fluid-glass--css {
   border-radius: 50%; cursor: default;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.03) 55%, rgba(255, 255, 255, 0.1));
+  background: rgba(255, 255, 255, 0.06);
   -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -10px 22px rgba(0, 0, 0, 0.18), 0 14px 36px rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.16); box-shadow: var(--edge), var(--depth);
 }
 .fluid-slot { display: flex; align-items: center; }
-@media (max-width: 768px) { .fluid-slot { display: none; } }
-@media (prefers-reduced-motion: reduce) { .fluid-glass { transition: none; } }
-/* On desktop the Dashboard header stays one row: the lens sits beside the title */
 @media (min-width: 1100px) {
   .page-header:has(.fluid-slot) { flex-wrap: nowrap; }
   .page-header:has(.fluid-slot) > div:first-child { flex: 1 1 auto; }
+}
+
+/* ── Phone: the sidebar is a sheet again, everything full width ── */
+@media (max-width: 768px) {
+  .sidebar {
+    top: 0 !important; bottom: 0 !important; left: 0 !important; height: auto !important;
+    width: min(300px, 86vw) !important; border-radius: 0 var(--radius) var(--radius) 0;
+    background: var(--surface-strong) !important;
+    transform: translateX(-100%) !important;
+  }
+  .sidebar.open { transform: none !important; }
+  .topbar { left: 0 !important; width: 100% !important; margin: 0 !important; }
+  .fluid-slot { display: none; }
+  .page-title { font-size: 24px; line-height: 30px; }
+}
+
+/* ── Reduced motion: the wallpaper stands still ── */
+@media (prefers-reduced-motion: reduce) {
+  body::before, body::after { animation: none; }
+  .btn:active { transform: none; }
+}
+
+/* No backdrop-filter: solid panels keep every figure readable */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .sidebar, .card, .kpi-grid, .table-wrap, .alert, .metric-sm, .abstract-card { background: #121a2e; }
 }
