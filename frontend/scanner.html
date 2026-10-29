@@ -181,7 +181,7 @@ function renderEvidence(s, run) {
   const caveats = [
     s.short_history ? `Only ${b.months} months could be tested, a short record in which luck plays a big part.` : "",
     b.idle_months ? `In ${b.idle_months} of those months no signal had passed yet, so the model held the whole index (equal weight); it picked stocks in the other ${b.active_months}.` : "",
-    "It was tested on today's NIFTY 500 members; stocks that fell out of the index are missing, which flatters the past.",
+    "It was tested on today's NIFTY 500 members; stocks that fell out of the index are missing, which flatters the past." + universeNote(s.universes),
     `Costs assume ₹${s.position_inr.toLocaleString("en-IN")} per stock with delivery charges and ${s.slippage_bps} bps slippage.`,
   ].filter(Boolean).map(t => `<li>${t}</li>`).join("");
   const metric = (label, val, sub = "") => `<div class="metric-sm"><div class="metric-sm-label">${label}</div><div class="metric-sm-val">${val}</div>${sub ? `<div class="td-dim" style="font-size:12px;margin-top:2px">${sub}</div>` : ""}</div>`;
@@ -221,6 +221,15 @@ function renderEvidence(s, run) {
       { type: "scatter", x: xs, y: univ, name: "Whole index, equal weight", line: { color: CHART.muted, width: 1.5, dash: "dot" } },
     ], { ...PLOTLY_LAYOUT, height: 260, yaxis: { ...PLOTLY_LAYOUT.yaxis, title: { text: "Growth of ₹1", font: { size: 12 } } }, legend: { ...PLOTLY_LAYOUT.legend, orientation: "h", y: 1.12 } }, PLOTLY_CONFIG);
   }
+}
+
+// Survivorship check: the same test on a point-in-time liquidity universe, and the gap between them
+function universeNote(u) {
+  const pit = u && u.point_in_time_liquidity;
+  if (!pit || pit.cagr_gap_pct == null) return "";
+  const b = pit.backtest;
+  const gap = pit.cagr_gap_pct;
+  return ` Re-tested on the top ${pit.top_n} stocks by trailing traded value at each month end (no later data used): ${num(b.cagr_pct, 1, "%")} a year against ${num(u.members_today.backtest.cagr_pct, 1, "%")} on today's members, a gap of ${gap >= 0 ? "" : "−"}${num(Math.abs(gap), 1, " points")}. Stocks that became liquid later and delisted names are still not covered.`;
 }
 
 function excludedBlock(list) {

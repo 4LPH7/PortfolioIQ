@@ -214,20 +214,46 @@ def backtest(sigs: dict, monthly: pd.DataFrame, ics: pd.DataFrame, cost_rate: fl
     }
 
 
-def compute_scan(prices: pd.DataFrame) -> dict:
-    """Evidence and today's ranking from an adjusted price matrix (dates × symbols)."""
-    if prices.shape[1] < MIN_STOCKS:
-        raise ValueError(f"Only {prices.shape[1]} stocks have a year of prices")
-    sigs = compute_signals(prices)
-    ends = month_ends(prices.index)
-    monthly = prices.loc[ends]
+LIQUIDITY_TOP_N = 300
+LIQUIDITY_LOOKBACK = 126  # about six months of trading days
+
+
+def liquidity_universe(traded: pd.DataFrame, top_n: int, lookback: int) -> pd.DataFrame:
+    """Each month end, a mask of the top_n stocks by trailing traded value. Only data up to that
+    month end is used, so a stock that became liquid later is not in earlier months."""
+    trailing = traded.rolling(lookback, min_periods=lookback // 2).mean()
+    ends = month_ends(traded.index)
+    mask = pd.DataFrame(False, index=ends, columns=traded.columns)
+    for d in ends:
+        row = trailing.loc[d].dropna()
+        mask.loc[d, row.nlargest(top_n).index] = True
+    return mask
+
+
+def _evidence(prices: pd.DataFrame, sigs: dict, ends, monthly, members=None) -> tuple[dict, dict]:
+    """Backtest and the per-month signal record. `members`: optional mask of stocks eligible each
+    month, so a backtest can use a point-in-time universe instead of today's members."""
+    if members is not None:
+        monthly = monthly.where(members.reindex(monthly.index).fillna(False))
     fwd = monthly.shift(-1) / monthly - 1
     ics = pd.DataFrame(
         {k: [rank_ic(sigs[k].loc[d], fwd.loc[d]) for d in ends] for k in SIGNALS},
         index=ends,
         dtype=float,
     )
-    bt = backtest(sigs, monthly, ics, _cost_rate())
+    return backtest(sigs, monthly, ics, _cost_rate()), ics
+
+
+def compute_scan(prices: pd.DataFrame, traded: pd.DataFrame | None = None) -> dict:
+    """Evidence and today's ranking from an adjusted price matrix (dates × symbols).
+    With `traded` (close × volume), the same test also runs on a point-in-time liquidity universe,
+    and the gap between the two is reported as an estimate of survivorship bias."""
+    if prices.shape[1] < MIN_STOCKS:
+        raise ValueError(f"Only {prices.shape[1]} stocks have a year of prices")
+    sigs = compute_signals(prices)
+    ends = month_ends(prices.index)
+    monthly = prices.loc[ends]
+    bt, ics = _evidence(prices, sigs, ends, monthly)
     now = select_signals(ics)  # every month with a known next-month return
     if bt["months"] < MIN_IC_MONTHS:
         status = "insufficient_data"
@@ -276,7 +302,25 @@ def compute_scan(prices: pd.DataFrame) -> dict:
                 "last_price": round(float(prices[sym].iloc[-1]), 2),
             }
         )
+    universes = {"members_today": {"backtest": bt}}
+    if traded is not None and not traded.empty:
+        mask = liquidity_universe(
+            traded.reindex(columns=prices.columns), LIQUIDITY_TOP_N, LIQUIDITY_LOOKBACK
+        )
+        pit_bt, _ = _evidence(prices, sigs, ends, monthly, members=mask)
+        gap = (
+            round(bt["cagr_pct"] - pit_bt["cagr_pct"], 2)
+            if bt.get("months") and pit_bt.get("months")
+            else None
+        )
+        universes["point_in_time_liquidity"] = {
+            "top_n": LIQUIDITY_TOP_N,
+            "lookback_days": LIQUIDITY_LOOKBACK,
+            "backtest": pit_bt,
+            "cagr_gap_pct": gap,
+        }
     return {
+        "universes": universes,
         "as_of": str(latest.date()),
         "status": status,
         "short_history": bt["months"] < SHORT_HISTORY_MONTHS,
@@ -415,6 +459,21 @@ def load_prices(symbols: list[str], years: int = 10) -> tuple[pd.DataFrame, list
     return prices[keep].ffill(limit=5), excluded
 
 
+def load_traded_value(symbols: list[str], years: int = 10) -> pd.DataFrame:
+    """Daily traded value (traded close x volume), one column per symbol, for the liquidity test."""
+    rows = execute_sql(
+        """SELECT tradingsymbol AS s, bar_date AS d, (close * volume)::float AS v
+           FROM historical_daily_bars WHERE tradingsymbol = ANY(:syms) AND bar_date >= :since""",
+        {"syms": symbols, "since": datetime.now(UTC).date() - timedelta(days=365 * years)},
+    )
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows, columns=["s", "d", "v"])
+    traded = df.pivot(index="d", columns="s", values="v").sort_index()
+    traded.index = pd.to_datetime(traded.index)
+    return traded
+
+
 def _enrich(result: dict, universe: list[dict], held: set[str]) -> None:
     from src.research.fundamentals import latest_fundamentals_many
 
@@ -520,7 +579,8 @@ def run_scan(run_id: int) -> None:
         failed = deep_sync_prices(symbols)
         failed += [s for s in sync_prices(symbols) if s not in failed]
         prices, excluded = load_prices(symbols)
-        result = compute_scan(prices)
+        traded = load_traded_value(list(prices.columns))
+        result = compute_scan(prices, traded=traded)
         _enrich(result, universe, held)
         result["sync_failed"] = failed
         result["excluded"] = excluded

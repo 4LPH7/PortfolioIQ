@@ -346,3 +346,74 @@ def test_scanner_loads_ten_years_by_default():
     import inspect
 
     assert inspect.signature(sc.load_prices).parameters["years"].default == 10
+
+
+# ── Point-in-time liquidity universe (Phase G) ──
+
+
+def test_liquidity_universe_picks_the_top_names_by_trailing_traded_value_each_month():
+    idx = pd.bdate_range("2021-01-01", periods=400)
+    # LATE trades very little until mid-2022, then becomes the most liquid name
+    traded = pd.DataFrame(1e6, index=idx, columns=["A", "B", "LATE"])
+    traded.loc[: pd.Timestamp("2022-06-30"), "LATE"] = 1e3
+    traded.loc[pd.Timestamp("2022-07-01") :, "LATE"] = 1e9
+    members = sc.liquidity_universe(traded, top_n=2, lookback=126)
+    early = pd.Timestamp("2022-03-31")
+    late = pd.Timestamp("2022-07-14")  # first month end after LATE becomes liquid
+    assert not members.loc[early, "LATE"]
+    assert members.loc[early].sum() == 2
+    assert members.loc[late, "LATE"]
+
+
+def test_liquidity_universe_never_uses_later_volume():
+    idx = pd.bdate_range("2021-01-01", periods=400)
+    traded = pd.DataFrame(1e6, index=idx, columns=["A", "B", "C"])
+    spike = traded.copy()
+    spike.loc[pd.Timestamp("2023-01-01") :, "C"] = 1e12  # future spike must not change past months
+    early = pd.Timestamp("2021-12-31")
+    assert (
+        sc.liquidity_universe(traded, 2, 126)
+        .loc[early]
+        .equals(sc.liquidity_universe(spike, 2, 126).loc[early])
+    )
+
+
+def test_compute_scan_reports_both_universes_and_the_gap():
+    prices = _market(n_stocks=120, days=1100)
+    traded = pd.DataFrame(1e6, index=prices.index, columns=prices.columns)
+    out = sc.compute_scan(prices, traded=traded)
+    assert out["universes"]["members_today"]["backtest"]["months"] > 0
+    pit = out["universes"]["point_in_time_liquidity"]["backtest"]
+    assert pit["months"] > 0
+    assert "cagr_gap_pct" in out["universes"]["point_in_time_liquidity"]
+    assert (
+        out["backtest"] is out["universes"]["members_today"]["backtest"]
+    )  # headline stays unchanged
+
+
+def test_empty_volume_data_reports_only_today_members():
+    out = sc.compute_scan(_market(n_stocks=120, days=1100), traded=pd.DataFrame())
+    assert "point_in_time_liquidity" not in out["universes"]
+
+
+def test_without_volume_only_today_members_are_reported():
+    out = sc.compute_scan(_market(n_stocks=120, days=1100))
+    assert "point_in_time_liquidity" not in out["universes"]
+    assert out["universes"]["members_today"]["backtest"]["months"] > 0
+
+
+@pytest.mark.postgres
+def test_load_traded_value_multiplies_close_by_volume(db_session):
+    today = pd.Timestamp(date.today())
+    days = pd.bdate_range(end=today, periods=5)
+    rows = [{"s": "ZZVOL", "d": d.date(), "c": 100.0, "v": 2000} for d in days]
+    db_session.execute(
+        text(
+            """INSERT INTO historical_daily_bars
+               (tradingsymbol, bar_date, open, high, low, close, volume, adj_close)
+               VALUES (:s, :d, :c, :c, :c, :c, :v, :c)"""
+        ),
+        rows,
+    )
+    traded = sc.load_traded_value(["ZZVOL"])
+    assert traded["ZZVOL"].dropna().eq(200_000).all()
