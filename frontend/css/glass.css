@@ -52,12 +52,12 @@ body::before, body::after {
 body::before {
   width: 62vmax; height: 62vmax; left: -16vmax; top: -24vmax;
   background: radial-gradient(circle, rgba(70, 90, 120, 0.22), rgba(70, 90, 120, 0) 66%);
-  animation: lagoon 48s ease-in-out infinite alternate;
+  animation: lagoon 48s ease-in-out var(--drift-a, 0s) infinite alternate;
 }
 body::after {
   width: 58vmax; height: 58vmax; right: -18vmax; bottom: -26vmax;
   background: radial-gradient(circle, rgba(80, 80, 110, 0.16), rgba(80, 80, 110, 0) 66%);
-  animation: iris 56s ease-in-out infinite alternate;
+  animation: iris 56s ease-in-out var(--drift-b, 0s) infinite alternate;
 }
 @keyframes lagoon { to { transform: translate3d(10vmax, 9vmax, 0) scale(1.08); } }
 @keyframes iris   { to { transform: translate3d(-9vmax, -11vmax, 0) scale(1.06); } }
@@ -193,10 +193,61 @@ dialog::backdrop, .sidebar-backdrop { background: rgba(0, 0, 0, 0.6); -webkit-ba
   .page-title { font-size: 24px; line-height: 30px; }
 }
 
+/* ── The mark: white on the dark glass, with a soft light behind it ── */
+.sidebar-logo-icon { position: relative; isolation: isolate; }
+.sidebar-logo-img { filter: none; }
+.sidebar-logo-icon::before {
+  content: ""; position: absolute; inset: -12px; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(190, 210, 255, 0.55) 0%, rgba(190, 210, 255, 0.16) 45%, rgba(190, 210, 255, 0) 72%);
+  filter: blur(6px);
+}
+
+/* ── Motion, the macOS way: things answer the hand, windows keep their place ──
+   Every hidden or travelling state lives inside no-preference, so reduced motion is the finished page. */
+.nav-item:active, .topbar-refresh:active, .drawer-tab-btn:active { transform: scale(0.98); }
+a { transition: color 180ms ease; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Page to page: the sidebar and toolbar stay put, the selection glides to the new item,
+     the content cross-fades with a short rise. */
+  @view-transition { navigation: auto; }
+  .sidebar { view-transition-name: sidebar; }
+  .topbar { view-transition-name: toolbar; }
+  .nav-item.active { view-transition-name: nav-selection; }
+  ::view-transition-group(nav-selection) { animation-duration: 420ms; animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1); }
+  ::view-transition-old(nav-selection), ::view-transition-new(nav-selection) { height: 100%; animation-duration: 420ms; }
+  ::view-transition-old(root) { animation: vt-leave 180ms cubic-bezier(0.55, 0.055, 0.675, 0.19) both; }
+  ::view-transition-new(root) { animation: vt-arrive 360ms var(--ease) 60ms both; }
+  ::view-transition-group(sidebar), ::view-transition-group(toolbar) { animation: none; }
+  ::view-transition-old(sidebar), ::view-transition-new(sidebar),
+  ::view-transition-old(toolbar), ::view-transition-new(toolbar) { animation-duration: 200ms; }
+
+  /* Data that arrives after load settles in rather than popping */
+  tbody tr, .empty-state, .js-plotly-plot {
+    transition: background-color 120ms var(--ease), opacity 280ms var(--ease);
+    @starting-style { opacity: 0; }
+  }
+
+  /* Sheets and dialogs open from their centre, a little under full size */
+  .session-dialog { transform: scale(0.96); transition-duration: 260ms; }
+  dialog[open].session-dialog { transform: none; @starting-style { opacity: 0; transform: scale(0.96); } }
+  .notification-drawer, #notification-drawer { transition: transform 360ms cubic-bezier(0.32, 0.72, 0, 1); }
+
+  /* Disclosures open to their real height */
+  :root { interpolate-size: allow-keywords; }
+  details::details-content {
+    block-size: 0; overflow-y: clip;
+    transition: block-size 320ms var(--ease), content-visibility 320ms allow-discrete;
+  }
+  details[open]::details-content { block-size: auto; }
+}
+@keyframes vt-leave { to { opacity: 0; } }
+@keyframes vt-arrive { from { opacity: 0; transform: translateY(10px); } }
+
 /* ── Reduced motion: the wallpaper stands still ── */
 @media (prefers-reduced-motion: reduce) {
   body::before, body::after { animation: none; }
-  .btn:active { transform: none; }
+  .btn:active, .nav-item:active, .topbar-refresh:active, .drawer-tab-btn:active { transform: none; }
 }
 
 /* No backdrop-filter: solid panels keep every figure readable */

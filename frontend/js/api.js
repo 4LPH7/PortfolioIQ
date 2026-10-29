@@ -3,6 +3,14 @@
  * Thin wrapper around fetch() that talks to the local Flask backend.
  */
 
+// The wallpaper lights carry on from where they were on the last page instead of restarting.
+// Each runs alternate, so its full cycle is twice its duration (48s and 56s in glass.css).
+(() => {
+  const t = Date.now() / 1000;
+  document.documentElement.style.setProperty("--drift-a", `${-(t % 96)}s`);
+  document.documentElement.style.setProperty("--drift-b", `${-(t % 112)}s`);
+})();
+
 function getApiBase() {
   if (window.location.protocol === "file:") {
     return "http://localhost:5000/api/v1";
