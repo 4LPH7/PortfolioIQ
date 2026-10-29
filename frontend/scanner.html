@@ -280,7 +280,9 @@ async function askCommittee(encoded) {
   const key = crypto.randomUUID ? crypto.randomUUID() : `k${Date.now()}${Math.random().toString(36).slice(2)}`;
   const res = await apiPost("/api/research/runs", { symbol: sym, idempotency_key: key });
   if (!res.ok) { showToast(res.error_message || "Could not start the committee", "error"); return; }
-  showToast(`Committee started for ${sym}. Opening the Analyzer…`, "success");
+  const pr = (await apiGet("/api/research/scorecard")).data?.progress;
+  const track = pr && !pr.ready ? ` Track record: ${pr.settled} of ${pr.needed} settled runs so far.` : "";
+  showToast(`Committee started for ${sym}. Opening the Analyzer…${track}`, "success");
   setTimeout(() => { location.href = `analyzer.html?sym=${encodeURIComponent(sym)}`; }, 900);
 }
 

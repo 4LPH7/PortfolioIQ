@@ -619,10 +619,12 @@ async function loadScorecard() {
   const res = await apiGet("/api/research/scorecard");
   const el = document.getElementById("committee-score");
   if (!res.ok || !el) return;
-  const ic = res.data.conviction_ic_20d;
+  const ic = res.data.conviction_ic_20d, pr = res.data.progress;
   el.textContent = ic.status === "ok"
     ? `Track record: rank correlation between signed conviction and 20-day alpha is ${ic.value} over ${ic.n_obs} settled runs (p = ${ic.p_value}).`
-    : `Track record: ${res.data.settled_runs} runs settled so far. A score needs at least 15 runs with 20 trading days of returns after them.`;
+    : `Track record: ${pr.settled} of ${pr.needed} settled runs. ${pr.remaining} more needed` +
+      (pr.pending ? `; ${pr.pending} waiting, the next settles in about ${pr.next_settles_in_days} trading days.` : ".") +
+      " No score is shown until there are enough settled runs.";
 }
 
 runWhenUnlocked(loadCommittee);

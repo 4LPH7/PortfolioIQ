@@ -19,6 +19,7 @@ from src.db.connection import execute_sql, get_db_session
 
 CALL_TIMEOUT_SEC = 180.0
 MIN_SCORED = 15  # compute_spearman_ic's own minimum
+HORIZON_DAYS = 20  # the scorecard's alpha horizon, in trading days
 MIN_TRACK_RECORD = 20  # settled runs on a stock before its record goes into the snapshot
 SUMMARY_COLS = """id, tradingsymbol, status, run_date, data_as_of, cost_usd::float AS cost_usd,
     budget_usd::float AS budget_usd, error, decision->>'rating' AS rating,
@@ -394,6 +395,42 @@ def track_record(user_id: str, symbol: str, as_of: date) -> dict | None:
     return out
 
 
+def progress(settled: int, days_to_next: int | None, pending: int = 0) -> dict:
+    """How far the track record is from a readable score. `days_to_next` is the trading-day
+    gap until the next run's 20-day window closes, or None when no run is pending."""
+    remaining = max(MIN_SCORED - settled, 0)
+    return {
+        "settled": settled,
+        "needed": MIN_SCORED,
+        "remaining": remaining,
+        "pending": pending,
+        "next_settles_in_days": days_to_next if pending else None,
+        "ready": remaining == 0,
+    }
+
+
+def _next_settlement(user_id: str) -> tuple[int, int | None]:
+    """(runs still waiting for their 20-day window, trading days until the earliest one settles)."""
+    rows = execute_sql(
+        """SELECT data_as_of FROM research_runs
+           WHERE user_id = :u AND status = 'completed' AND alpha_20d IS NULL
+             AND data_as_of IS NOT NULL ORDER BY data_as_of""",
+        {"u": user_id},
+    )
+    if not rows:
+        return 0, None
+    from src.ingestion.market_hours import is_market_day, today_ist
+
+    earliest = rows[0]["data_as_of"]
+    horizon = earliest
+    days = 0
+    while days < HORIZON_DAYS:
+        horizon = horizon + timedelta(days=1)
+        if is_market_day(horizon):
+            days += 1
+    return len(rows), max((horizon - today_ist()).days, 0)
+
+
 def scorecard(user_id: str) -> dict:
     """Average 20-day alpha by rating, and whether signed conviction ranks forward alpha."""
     from src.analytics.indicator_evaluator import compute_spearman_ic
@@ -415,4 +452,10 @@ def scorecard(user_id: str) -> dict:
         signed = df["rating"].map(SIGN).fillna(0) * df["conviction"]
         value, p = compute_spearman_ic(signed, df["alpha"])
         ic.update(value=round(value, 3), p_value=round(p, 4), status="ok")
-    return {"settled_runs": len(df), "by_rating": by_rating, "conviction_ic_20d": ic}
+    pending, days = _next_settlement(user_id)
+    return {
+        "settled_runs": len(df),
+        "by_rating": by_rating,
+        "conviction_ic_20d": ic,
+        "progress": progress(len(df), days, pending),
+    }

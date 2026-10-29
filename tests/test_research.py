@@ -691,3 +691,37 @@ def test_track_record_needs_twenty_runs_settled_before_as_of(db_session):
     }
     # A day earlier the newest qualifying run is still inside its window: 19 < 20
     assert runs.track_record("default", "ZZTR", as_of - timedelta(days=1)) is None
+
+
+def test_progress_says_how_many_runs_remain_and_when_one_settles():
+    from src.research.runs import progress
+
+    assert progress(0, None) == {
+        "settled": 0,
+        "needed": 15,
+        "remaining": 15,
+        "pending": 0,
+        "next_settles_in_days": None,
+        "ready": False,
+    }
+    p = progress(12, 3, pending=2)
+    assert p["remaining"] == 3 and p["ready"] is False
+    assert p["next_settles_in_days"] == 3
+    assert progress(15, 0)["ready"] is True
+
+
+@pytest.mark.postgres
+def test_next_settlement_counts_trading_days_not_calendar_days(db_session):
+    from src.research.runs import _next_settlement
+
+    # Monday 2026-10-26 + 20 trading days: 10/26 is a Monday, no NSE holidays inside the window
+    db_session.execute(
+        text(
+            """INSERT INTO research_runs (user_id, idempotency_key, tradingsymbol, run_date,
+                   status, data_as_of)
+               VALUES ('t-progress', 'prog-key-1', 'ZZPROG', CURRENT_DATE, 'completed', '2026-10-26')"""
+        )
+    )
+    pending, days = _next_settlement("t-progress")
+    assert pending == 1
+    assert days is not None and days >= 0
