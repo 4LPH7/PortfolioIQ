@@ -29,13 +29,13 @@
   uniform float uSplit;  // colour dispersion at the edge
   out vec4 fragColor;
 
-  // The light behind the glass: the page's navy wallpaper with its Lagoon and Iris lights,
+  // The light behind the glass: the page's near-black wallpaper with its two faint slate lights,
   // drawn tighter than the page's so the bending of their edges shows through the lens.
   vec3 backdrop(vec2 q) {
-    vec3 c = vec3(0.039, 0.063, 0.125);
-    vec2 a = q - vec2(-0.5, 0.42);  c += vec3(0.24, 0.62, 0.72) * exp(-dot(a, a) * 3.0) * 0.9;
-    vec2 b = q - vec2( 0.55, -0.3); c += vec3(0.42, 0.41, 0.92) * exp(-dot(b, b) * 2.6) * 0.85;
-    vec2 d = q - vec2( 0.1, 0.72);  c += vec3(0.49, 0.71, 1.00) * exp(-dot(d, d) * 6.0) * 0.45;
+    vec3 c = vec3(0.02, 0.024, 0.031);
+    vec2 a = q - vec2(-0.5, 0.42);  c += vec3(0.36, 0.42, 0.52) * exp(-dot(a, a) * 3.0) * 0.7;
+    vec2 b = q - vec2( 0.55, -0.3); c += vec3(0.34, 0.34, 0.44) * exp(-dot(b, b) * 2.6) * 0.6;
+    vec2 d = q - vec2( 0.1, 0.72);  c += vec3(0.75, 0.78, 0.85) * exp(-dot(d, d) * 6.0) * 0.35;
     return c;
   }
 

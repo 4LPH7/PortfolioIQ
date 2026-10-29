@@ -1,32 +1,32 @@
 /* PortfolioIQ — liquid glass, done the way macOS does it.
-   Loaded after main.css. One idea: a window of tinted glass over a deep-navy wallpaper with two
+   Loaded after main.css. One idea: a window of tinted glass over a near-black wallpaper with two
    calm lights in it. The glass is flat and tinted (Apple's materials are not gradients), edges
    are one bright hairline, and only things you can act on move.
 
-   Palette  Night #0A1020 ground · Lagoon #2C7A92 and Iris #4B4AA8 lights · Glass panels
-            Ink #EEF2F8 text · Mist #A7B3C7 secondary · System blue #2A6AE0 for the one primary action
+   Palette  Ink-black #050608 ground · two faint slate lights · graphite glass panels
+            Text #EDEDEF · secondary #A2A6AE · one muted blue #2F63C4 for the primary action
    Type     Manrope throughout, tabular figures for numbers
    Radius   panel 16 · control 10 · chip full */
 
 :root {
-  --ground: #0a1020;
-  --surface: rgba(16, 24, 42, 0.56);       /* the glass material */
-  --surface-strong: rgba(14, 21, 38, 0.82); /* dialogs, menus: glass that must hide what is behind */
+  --ground: #050608;
+  --surface: rgba(18, 20, 24, 0.62);       /* the glass material */
+  --surface-strong: rgba(14, 15, 18, 0.9); /* dialogs, menus: glass that must hide what is behind */
   --raised: rgba(255, 255, 255, 0.05);     /* wells, hovered rows */
   --active: rgba(255, 255, 255, 0.1);      /* selected nav item */
   --border: rgba(255, 255, 255, 0.09);     /* panel edge */
   --rule: rgba(255, 255, 255, 0.06);       /* row rules, dividers */
   --control: rgba(255, 255, 255, 0.14);    /* input and secondary-button edge */
-  --text: #eef2f8;
-  --muted: #a7b3c7;
-  --faint: #8b97ad;
-  --primary: #2a6ae0; --primary-ink: #ffffff;
-  --hue: #7cb4ff;                          /* the chart hue on navy */
+  --text: #ededef;
+  --muted: #a2a6ae;
+  --faint: #858a93;
+  --primary: #2f63c4; --primary-ink: #ffffff;
+  --hue: #8fb4f0;                          /* the one chart hue */
   --positive: #3ecf8e; --negative: #ff7a7a; --warning: #f5c451;
   --pill-positive-bg: rgba(62, 207, 142, 0.14); --pill-positive-ink: #9ff0c9;
   --pill-negative-bg: rgba(255, 122, 122, 0.14); --pill-negative-ink: #ffc4c4;
   --pill-warning-bg: rgba(245, 196, 81, 0.13);  --pill-warning-ink: #ffe3a1; --pill-warning-line: rgba(245, 196, 81, 0.32);
-  --pill-neutral-bg: rgba(255, 255, 255, 0.08); --pill-neutral-ink: #d4dbe7;
+  --pill-neutral-bg: rgba(255, 255, 255, 0.08); --pill-neutral-ink: #d6d8dc;
   --grid: rgba(255, 255, 255, 0.07);
 
   --font: "Manrope", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -36,14 +36,14 @@
 
   --edge: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --depth: 0 1px 2px rgba(0, 0, 0, 0.28), 0 14px 34px rgba(0, 0, 0, 0.26);
-  --blur: blur(24px) saturate(160%);
+  --blur: blur(24px) saturate(115%);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --shadow-card: var(--depth);
 }
 
-/* ── Wallpaper: deep navy with two slow lights. The glass needs colour behind it to read. ── */
+/* ── Wallpaper: near-black with two faint, slow lights, just enough for the glass to read. ── */
 /* The wallpaper sits on html so the lights (z-index -1 on body) paint above it, not under body */
-html { background: linear-gradient(165deg, #0e1a33 0%, #0a1020 48%, #0b1022 100%) fixed, var(--ground); }
+html { background: linear-gradient(165deg, #0b0c10 0%, #050608 55%, #060709 100%) fixed, var(--ground); }
 body { background: transparent; color: var(--text); font-feature-settings: "tnum" 1; }
 body::before, body::after {
   content: ""; position: fixed; z-index: -1; pointer-events: none;
@@ -51,12 +51,12 @@ body::before, body::after {
 }
 body::before {
   width: 62vmax; height: 62vmax; left: -16vmax; top: -24vmax;
-  background: radial-gradient(circle, rgba(44, 122, 146, 0.62), rgba(44, 122, 146, 0) 66%);
+  background: radial-gradient(circle, rgba(70, 90, 120, 0.22), rgba(70, 90, 120, 0) 66%);
   animation: lagoon 48s ease-in-out infinite alternate;
 }
 body::after {
   width: 58vmax; height: 58vmax; right: -18vmax; bottom: -26vmax;
-  background: radial-gradient(circle, rgba(75, 74, 168, 0.6), rgba(75, 74, 168, 0) 66%);
+  background: radial-gradient(circle, rgba(80, 80, 110, 0.16), rgba(80, 80, 110, 0) 66%);
   animation: iris 56s ease-in-out infinite alternate;
 }
 @keyframes lagoon { to { transform: translate3d(10vmax, 9vmax, 0) scale(1.08); } }
@@ -94,7 +94,7 @@ body::after {
 .nav-item { border-radius: var(--radius-xs); color: var(--muted); font-weight: 500; transition: background-color 160ms var(--ease), color 160ms var(--ease); }
 .nav-item:hover { background: var(--raised); color: var(--text); }
 .nav-item.active { background: var(--active); color: var(--text); box-shadow: var(--edge); }
-.nav-item.active .nav-icon { color: var(--hue); }
+.nav-item.active .nav-icon { color: var(--text); }
 .sidebar-divider { border-top-color: var(--rule); }
 .status-pill:hover { background: var(--raised); }
 
@@ -129,14 +129,14 @@ body::after {
 .btn:active { transform: scale(0.97); }
 .btn-primary, .btn-success {
   background: var(--primary); border-color: transparent; color: var(--primary-ink) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 6px 16px rgba(42, 106, 224, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 12px rgba(0, 0, 0, 0.35);
 }
-.btn-primary:hover, .btn-success:hover { background: #3a78ec; }
+.btn-primary:hover, .btn-success:hover { background: #3a6fd2; }
 .btn-ghost { background: transparent; border-color: transparent; box-shadow: none; }
 .btn-ghost:hover { background: var(--raised); border-color: transparent; }
 
 input, select, textarea {
-  background: rgba(4, 8, 18, 0.45);
+  background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--control);
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -144,8 +144,8 @@ input, select, textarea {
 }
 input::placeholder, textarea::placeholder { color: var(--faint); text-transform: none; }
 input:hover, select:hover, textarea:hover { border-color: rgba(255, 255, 255, 0.22); }
-input:focus, select:focus, textarea:focus { border-color: var(--hue); box-shadow: 0 0 0 3px rgba(124, 180, 255, 0.2); outline: none; }
-select option { background: #121a2e; color: var(--text); }
+input:focus, select:focus, textarea:focus { border-color: var(--hue); box-shadow: 0 0 0 3px rgba(143, 180, 240, 0.18); outline: none; }
+select option { background: #141518; color: var(--text); }
 input[type="checkbox"] { accent-color: var(--primary); }
 
 /* ── Tables ── */
@@ -177,7 +177,7 @@ tbody tr:hover td { background: var(--raised); }
 .dry-run-notice { background: var(--surface-strong); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; box-shadow: var(--depth); }
 
 /* Dialogs and menus: stronger glass over a dimmed, blurred page */
-dialog::backdrop, .sidebar-backdrop { background: rgba(4, 7, 15, 0.55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+dialog::backdrop, .sidebar-backdrop { background: rgba(0, 0, 0, 0.6); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .session-dialog, .drawer-panel { background: var(--surface-strong); }
 
 /* ── The one moving thing on the Dashboard: the FluidGlass lens ── */
@@ -218,5 +218,5 @@ dialog::backdrop, .sidebar-backdrop { background: rgba(4, 7, 15, 0.55); -webkit-
 
 /* No backdrop-filter: solid panels keep every figure readable */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .sidebar, .card, .kpi-grid, .table-wrap, .alert, .metric-sm, .abstract-card { background: #121a2e; }
+  .sidebar, .card, .kpi-grid, .table-wrap, .alert, .metric-sm, .abstract-card { background: #121316; }
 }
