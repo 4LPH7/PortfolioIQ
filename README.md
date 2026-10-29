@@ -26,7 +26,7 @@ Four ideas shape it:
 |---|---|
 | **Private** | One command starts Postgres, the API and the web app locally. No cloud account. |
 | **Evidence first** | A signal is used only if it held up out of sample, after Indian delivery charges. The app says plainly when something has *no* tested edge. |
-| **Safe by default** | Orders are simulated until you turn that off yourself, and every real order passes seven pre-trade checks. |
+| **Safe by default** | Orders are simulated until you turn that off yourself, and every real order passes eight pre-trade checks, including sector and drawdown limits. |
 | **Advisory AI** | The optional Claude research committee writes text for you to read. It has no tools and no path to an order. |
 
 ## Quick start

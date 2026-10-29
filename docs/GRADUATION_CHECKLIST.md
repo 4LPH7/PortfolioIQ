@@ -100,3 +100,7 @@ To activate live trading:
 | **System Operator** | ____________________ | ____________________ | ____-__-__ __:__ IST |
 
 *(Do not proceed with live money deployment until signed by the System Operator)*
+
+## Portfolio limits (migration 032)
+- [ ] Live buys are rejected when the portfolio has no equity-curve snapshot from the last 7 days. Dry run only warns. Confirm the nightly snapshot job has run before switching `DRY_RUN_MODE=false`.
+- [ ] `risk_block_max_sector_pct` and `risk_block_max_drawdown_pct` are set to values you accept (defaults 35% and 25%).

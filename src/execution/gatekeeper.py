@@ -35,6 +35,7 @@ from src.db.repository import record_order_attempt, record_validation_check
 from src.execution.validators.concentration_check import validate_concentration
 from src.execution.validators.duplicate_check import validate_no_duplicate
 from src.execution.validators.margin_check import validate_margin
+from src.execution.validators.portfolio_limits_check import validate_portfolio_limits
 from src.execution.validators.price_band_check import validate_price_band
 from src.execution.validators.sellable_check import validate_sellable
 from src.execution.validators.slippage_check import validate_slippage
@@ -98,6 +99,7 @@ def _log_validation(report: ValidationReport) -> None:
         "PRICE_BAND": "PRICE_BAND_CHECK",
         "SLIPPAGE": "SLIPPAGE_CHECK",
         "CONCENTRATION": "CONCENTRATION_CHECK",
+        "PORTFOLIO_LIMITS": "PORTFOLIO_LIMITS_CHECK",
         "DUPLICATE": "DUPLICATE_CHECK",
     }
 
@@ -207,6 +209,17 @@ def validate_order(order: RebalanceOrder, dry_run: bool = True) -> ValidationRep
             _log_validation(report)
             return report
     report.checks_passed.append("CONCENTRATION")
+
+    # Gate 6b: Portfolio limits (sector share, drawdown). Sells are never blocked.
+    limits_ok, limits_msg = validate_portfolio_limits(order, live=not dry_run)
+    if not limits_ok:
+        report.checks_failed.append("PORTFOLIO_LIMITS")
+        report.result = ValidationResult.REJECTED
+        report.failure_reason = limits_msg
+        _log_validation(report)
+        return report
+    report.checks_passed.append("PORTFOLIO_LIMITS")
+    report.check_notes["PORTFOLIO_LIMITS"] = limits_msg
 
     # Gate 7: Duplicate Check
     dup_ok, dup_msg = validate_no_duplicate(order)

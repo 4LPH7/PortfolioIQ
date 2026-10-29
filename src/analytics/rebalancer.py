@@ -92,6 +92,7 @@ class RebalanceOrder:
     scanner_rank: int | None = None
     scanner_status: str | None = None
     scanner_note: str | None = None
+    limits_note: str | None = None
 
     def __post_init__(self):
         self.estimated_value = (self.estimated_price * self.quantity).quantize(
@@ -916,8 +917,14 @@ def generate_rebalance_plan(
             if running_turnover >= turnover_cap:
                 plan.turnover_cap_reached = True
 
+    # Imported here: the validator imports this module, so a top-level import would be circular.
+    from src.execution.validators.portfolio_limits_check import validate_portfolio_limits
+
     for order in plan.orders:
         annotate_scanner(order, scanner_lookup)
+        if order.side is OrderSide.BUY:
+            # Read-only preview of the portfolio limits; the gatekeeper enforces them at order time
+            _, order.limits_note = validate_portfolio_limits(order, live=False)
 
     logger.success(
         "Rebalance plan complete: {} orders ({} sells, {} buys), "
@@ -986,6 +993,7 @@ def get_rebalance_summary(user_id: str = "default", **kwargs: Any) -> dict[str, 
                 "scanner_rank": o.scanner_rank,
                 "scanner_status": o.scanner_status,
                 "scanner_note": o.scanner_note,
+                "limits_note": o.limits_note,
                 "tax_warnings": [
                     {"type": w.warning_type, "message": w.message, "severity": w.severity}
                     for w in o.tax_warnings

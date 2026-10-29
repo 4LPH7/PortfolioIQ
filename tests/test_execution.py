@@ -501,6 +501,7 @@ class TestGatekeeperPipeline:
     @patch("src.execution.gatekeeper._log_validation")
     @patch("src.execution.gatekeeper.is_dry_run_enabled", return_value=False)
     @patch("src.execution.gatekeeper.validate_no_duplicate", return_value=(True, "OK"))
+    @patch("src.execution.gatekeeper.validate_portfolio_limits", return_value=(True, "OK"))
     @patch("src.execution.gatekeeper.validate_concentration", return_value=(True, "OK"))
     @patch("src.execution.gatekeeper.validate_slippage", return_value=(True, "OK"))
     @patch("src.execution.gatekeeper.validate_margin", return_value=(True, "OK"))
@@ -511,6 +512,7 @@ class TestGatekeeperPipeline:
         mock_margin,
         mock_slippage,
         mock_conc,
+        mock_limits,
         mock_dup,
         mock_is_dry_run,
         mock_log_val,

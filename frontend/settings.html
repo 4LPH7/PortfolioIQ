@@ -551,6 +551,8 @@ const SAFEGUARDS = [
   { key: "risk_max_holding_loss_pct", label: "Alert when a holding is below cost by", kind: "number", unit: "%" },
   { key: "risk_trailing_stop_pct", label: "Alert when off the 60-day high by", kind: "number", unit: "%" },
   { key: "risk_max_sector_pct", label: "Alert when one sector exceeds", kind: "number", unit: "%" },
+  { key: "risk_block_max_sector_pct", label: "Block a live buy that takes one sector above", kind: "number", unit: "%" },
+  { key: "risk_block_max_drawdown_pct", label: "Block live buys while the portfolio is down more than", kind: "number", unit: "%" },
 ];
 const MODEL_OPTIONS = [["claude-opus-5-5", "Claude Opus 5.5"], ["claude-sonnet-5-5", "Claude Sonnet 5.5 (cheaper)"]];
 const RESEARCH_SETTINGS = [

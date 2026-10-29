@@ -104,6 +104,7 @@ class ValidationCheckDTO(BaseDTO):
         "TAX_WARNING",
         "SELLABLE_CHECK",  # migration 025
         "PRICE_BAND_CHECK",
+        "PORTFOLIO_LIMITS_CHECK",
     ]
     passed: bool
     expected_value: str | None = None
