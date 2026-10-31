@@ -198,7 +198,8 @@ def test_load_prices_adjusts_and_reports_every_exclusion(db_session):
     np.testing.assert_allclose(prices["ZZLONG"].dropna().to_numpy(), np.array(wave), atol=0.01)
     assert {e["symbol"]: e["reason"] for e in excluded} == {
         "ZZSHORT": "only 100 days of history (needs 260)",
-        "ZZSTALE": "last price is 30 days old",
+        # measured from the freshest bar in the batch, so a weekend run gives 29 rather than 30
+        "ZZSTALE": f"last price is {(fresh[-1] - old[-1]).days} days old",
         "ZZNONE": "no price history",
     }
 
