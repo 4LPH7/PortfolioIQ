@@ -74,12 +74,12 @@
       <h1 class="page-title">Portfolio Timeline</h1>
       <p class="page-subtitle" id="timeline-subtitle">Cumulative NAV progression, benchmark comparison, and portfolio events.</p>
     </div>
-    <div class="page-actions flex items-center gap-xs">
-      <button type="button" class="btn btn-xs btn-ghost range-btn" id="btn-range-1m" onclick="setRange('1M')">1M</button>
-      <button type="button" class="btn btn-xs btn-ghost range-btn" id="btn-range-3m" onclick="setRange('3M')">3M</button>
-      <button type="button" class="btn btn-xs btn-ghost range-btn" id="btn-range-6m" onclick="setRange('6M')">6M</button>
-      <button type="button" class="btn btn-xs btn-primary range-btn" id="btn-range-1y" onclick="setRange('1Y')">1Y</button>
-      <button type="button" class="btn btn-xs btn-ghost range-btn" id="btn-range-all" onclick="setRange('ALL')">All</button>
+    <div class="page-actions segmented" role="group" aria-label="Date range">
+      <button type="button" class="btn btn-xs btn-ghost range-btn" id="btn-range-1m" aria-pressed="false" onclick="setRange('1M')">1M</button>
+      <button type="button" class="btn btn-xs btn-ghost range-btn" id="btn-range-3m" aria-pressed="false" onclick="setRange('3M')">3M</button>
+      <button type="button" class="btn btn-xs btn-ghost range-btn" id="btn-range-6m" aria-pressed="false" onclick="setRange('6M')">6M</button>
+      <button type="button" class="btn btn-xs btn-primary range-btn" id="btn-range-1y" aria-pressed="true" onclick="setRange('1Y')">1Y</button>
+      <button type="button" class="btn btn-xs btn-ghost range-btn" id="btn-range-all" aria-pressed="false" onclick="setRange('ALL')">All</button>
     </div>
   </div>
 
@@ -247,6 +247,7 @@
     document.querySelectorAll(".range-btn").forEach(btn => {
       btn.classList.toggle("btn-primary", btn.id === `btn-range-${range.toLowerCase()}`);
       btn.classList.toggle("btn-ghost", btn.id !== `btn-range-${range.toLowerCase()}`);
+      btn.setAttribute("aria-pressed", String(btn.id === `btn-range-${range.toLowerCase()}`));
     });
     renderViews();
   };

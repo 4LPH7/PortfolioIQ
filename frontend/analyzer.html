@@ -134,7 +134,7 @@
         <select id="alert-kind"><option value="above">Rises to</option><option value="below">Falls to</option><option value="pct_move">Moves in a day by</option></select></div>
       <div class="form-group"><label class="form-label" for="alert-value" id="alert-value-label">Price (₹)</label><input type="number" id="alert-value" min="0" step="0.05"></div>
       <div class="form-group"><label class="form-label" for="alert-note">Note</label><input type="text" id="alert-note" maxlength="120" placeholder="Optional"></div>
-      <label class="check-row"><input type="checkbox" id="alert-rearm"> Ring again after it crosses back</label>
+      <label class="check-row"><input type="checkbox" class="switch" id="alert-rearm"> Ring again after it crosses back</label>
       <button type="button" class="btn" onclick="addPriceAlert()">Add alert</button>
     </div>
     <div id="alerts-area"></div>
