@@ -1,8 +1,9 @@
-<div align="center">
+ <div align="center">
 
 # PortfolioIQ
 
 **Your Indian equity portfolio, analysed on your own machine.**
+
 Tax-aware rebalancing, tested signals and a market scanner, with every claim measured and every order guarded.
 
 [![CI](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml/badge.svg)](https://github.com/4LPH7/PortfolioIQ/actions/workflows/ci.yml)
@@ -15,6 +16,18 @@ Tax-aware rebalancing, tested signals and a market scanner, with every claim mea
 [Quick start](#quick-start) · [Full reference](docs/REFERENCE.md) · [What's inside](#whats-inside) · [How it decides](#how-it-decides) · [Safety](#safety) · [Configuration](#configuration) · [Development](#development)
 
 </div>
+
+---
+
+## Application Screenshots
+
+### Dashboard
+
+![PortfolioIQ Dashboard](docs/dashboard.png)
+
+### Rebalance
+
+![PortfolioIQ Rebalance](docs/rebalance.png)
 
 ---
 
@@ -59,10 +72,10 @@ Shortcuts: `start.bat` (Windows), `./start.sh` (macOS/Linux), `docker compose up
 
 | Service | URL |
 | :-- | :-- |
-| Web app | http://localhost:8080 |
-| API and UI from Flask | http://localhost:5000 |
-| Health check | http://localhost:5000/api/v1/health |
-| pgAdmin (optional, localhost only) | http://localhost:5050, via `docker compose --profile tools up -d` |
+| Web app | [http://localhost:8080](http://localhost:8080) |
+| API and UI from Flask | [http://localhost:5000](http://localhost:5000) |
+| Health check | [http://localhost:5000/api/v1/health](http://localhost:5000/api/v1/health) |
+| pgAdmin (optional, localhost only) | [http://localhost:5050](http://localhost:5050), via `docker compose --profile tools up -d` |
 | Postgres | `127.0.0.1:5434` (change with `POSTGRES_PORT`) |
 
 | Symptom | Fix |
@@ -78,7 +91,7 @@ Shortcuts: `start.bat` (Windows), `./start.sh` (macOS/Linux), `docker compose up
 ## What's inside
 
 | Page | What you get |
-| :-- | :-- |
+|---|---|
 | **Dashboard** | Net worth, P&L, allocation, live prices, headlines for your holdings, and notification-bell alerts. |
 | **Stock Analyzer** | Evidence-gated signals (RSI, MACD, Bollinger, momentum) weighted by their out-of-sample record, calibrated Monte Carlo cones, **stop and target odds** from 10,000 replays of a stock's own history, **price alerts**, and the optional **AI research committee**. |
 | **Market Scanner** | The NIFTY 500 ranked each weekday on price signals that passed an out-of-sample test, with the backtest of the top 20 after charges, the stocks left out and why, and fundamentals and headline counts for context. |
@@ -133,7 +146,7 @@ Copy `.env.example` to `.env` (the launcher does this for you).
 <summary><b>Environment variables</b></summary>
 
 | Variable | Default | Purpose |
-| :-- | :-- | :-- |
+|---|---|---|
 | `PORTFOLIOIQ_API_KEY` | generated on first run | Dashboard unlock key, sent as the `X-API-Key` header |
 | `DRY_RUN_MODE` | `true` | When `true`, every order is simulated |
 | `KITE_API_KEY`, `KITE_API_SECRET` | empty | Zerodha Kite Connect credentials (optional with CSV import) |
