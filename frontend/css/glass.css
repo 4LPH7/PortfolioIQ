@@ -1,4 +1,6 @@
 /* PortfolioIQ — liquid glass, done the way macOS does it.
+   Controls follow Glisse (github.com/0kzh/glisse, MIT): pill shapes, a half-pixel rim,
+   presses that change the light at once and fade back, a pointer glow.
    Loaded after main.css. One idea: a window of tinted glass over a near-black wallpaper with two
    calm lights in it. The glass is flat and tinted (Apple's materials are not gradients), edges
    are one bright hairline, and only things you can act on move.
@@ -10,8 +12,11 @@
 
 :root {
   --ground: #050608;
-  --surface: rgba(18, 20, 24, 0.62);       /* the glass material */
-  --surface-strong: rgba(14, 15, 18, 0.9); /* dialogs, menus: glass that must hide what is behind */
+  --surface: rgba(30, 31, 37, 0.5);        /* the panel: translucent glass over the wallpaper */
+  --surface-strong: rgba(26, 27, 32, 0.72); /* dialogs, menus, toasts: glass that floats over content */
+  --glass-fill: rgba(255, 255, 255, 0.07);  /* a control: button, input, pill */
+  --glass-fill-active: rgba(255, 255, 255, 0.14); /* the same control hovered or held */
+  --glass-edge: rgba(255, 255, 255, 0.12);  /* Glisse's half-pixel rim */
   --raised: rgba(255, 255, 255, 0.05);     /* wells, hovered rows */
   --active: rgba(255, 255, 255, 0.1);      /* selected nav item */
   --border: rgba(255, 255, 255, 0.09);     /* panel edge */
@@ -30,46 +35,49 @@
   --grid: rgba(255, 255, 255, 0.07);
 
   --font: "Manrope", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --fs-title: 28px; --fs-section: 17px; --fs-kpi: 26px; --fs-lead: 34px; --fs-body: 14px; --fs-small: 12px;
+  --fs-title: 28px; --fs-section: 17px; --fs-kpi: 24px; --fs-lead: 34px; --fs-body: 14px; --fs-small: 12px;
   --radius: 16px; --radius-sm: 10px; --radius-xs: 8px;
   --gap: 16px; --card-pad: 20px;
 
-  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  --depth: 0 1px 2px rgba(0, 0, 0, 0.28), 0 14px 34px rgba(0, 0, 0, 0.26);
-  --blur: blur(24px) saturate(115%);
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --edge: inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --depth: 0 1px 3px rgba(0, 0, 0, 0.3), 0 14px 34px rgba(0, 0, 0, 0.3);
+  --sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 55%);
+  --blur: blur(22px) saturate(1.6);
+  --blur-strong: blur(22px) saturate(1.9);
+  --float: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 12px 40px rgba(0, 0, 0, 0.5);
+  --primary-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 60%);
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);   /* the one curve: every hover, press, sheet and page */
+  --t-fast: 160ms; --t-mid: 240ms; --t-slow: 360ms;
   --shadow-card: var(--depth);
 }
 
-/* ── Wallpaper: near-black with two faint, slow lights, just enough for the glass to read. ── */
+/* ── Wallpaper: near-black with two faint lights, just enough for the glass to read. ── */
 /* The wallpaper sits on html so the lights (z-index -1 on body) paint above it, not under body */
 html { background: linear-gradient(165deg, #0b0c10 0%, #050608 55%, #060709 100%) fixed, var(--ground); }
 body { background: transparent; color: var(--text); font-feature-settings: "tnum" 1; }
 body::before, body::after {
   content: ""; position: fixed; z-index: -1; pointer-events: none;
-  border-radius: 50%; filter: blur(80px); will-change: transform;
+  border-radius: 50%; filter: blur(80px);
 }
 body::before {
   width: 62vmax; height: 62vmax; left: -16vmax; top: -24vmax;
-  background: radial-gradient(circle, rgba(70, 90, 120, 0.22), rgba(70, 90, 120, 0) 66%);
-  animation: lagoon 48s ease-in-out var(--drift-a, 0s) infinite alternate;
+  background: radial-gradient(circle, rgba(70, 92, 130, 0.34), rgba(70, 92, 130, 0) 66%);
 }
 body::after {
   width: 58vmax; height: 58vmax; right: -18vmax; bottom: -26vmax;
-  background: radial-gradient(circle, rgba(80, 80, 110, 0.16), rgba(80, 80, 110, 0) 66%);
-  animation: iris 56s ease-in-out var(--drift-b, 0s) infinite alternate;
+  background: radial-gradient(circle, rgba(84, 84, 120, 0.26), rgba(84, 84, 120, 0) 66%);
 }
-@keyframes lagoon { to { transform: translate3d(10vmax, 9vmax, 0) scale(1.08); } }
-@keyframes iris   { to { transform: translate3d(-9vmax, -11vmax, 0) scale(1.06); } }
+/* The lights hold still: every glass panel re-blurs whatever moves behind it, so a drifting
+   wallpaper kept the GPU busy on every frame, even on an idle page. */
 
 /* ── The glass material, one definition ── */
 .sidebar, .card, .kpi-grid, .table-wrap, .alert, .banner, .metric-sm, .chart-box,
 .abstract-card, .bottom-nav, .drawer-panel, .alert-card {
-  background: var(--surface);
+  background: var(--sheen), var(--surface);
   -webkit-backdrop-filter: var(--blur);
   backdrop-filter: var(--blur);
-  border: 1px solid var(--border);
-  box-shadow: var(--edge), var(--depth);
+  border: 1px solid transparent;
+  box-shadow: var(--edge);
 }
 .card, .kpi-grid, .table-wrap, .alert, .banner, .abstract-card { border-radius: var(--radius); }
 .metric-sm, .chart-box { border-radius: var(--radius-sm); box-shadow: var(--edge); }
@@ -79,24 +87,45 @@ body::after {
   background: var(--raised); box-shadow: none;
   -webkit-backdrop-filter: none; backdrop-filter: none;
 }
-.kpi-grid > .kpi-card { background: transparent; border: 0; box-shadow: none; }
-.kpi-grid > .kpi-card + .kpi-card { border-left: 1px solid var(--rule); }
+.kpi-grid {
+  gap: 12px; background: transparent; border: 0; box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.kpi-grid > .kpi-card {
+  background: var(--sheen), var(--surface); border: 0; border-radius: var(--radius);
+  box-shadow: var(--edge); padding: 16px;
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+}
+.kpi-grid > .kpi-card + .kpi-card, .kpi-grid > .kpi-card:nth-child(n + 3) { border: 0; }
 
 /* ── Window chrome ── */
 .sidebar {
   top: 10px; bottom: 10px; left: 10px; height: auto;
   width: calc(var(--sidebar-w) - 10px);
-  border-radius: var(--radius);
+  border-radius: 20px;
+  border-color: var(--border); box-shadow: var(--edge), var(--depth);
 }
 .sidebar-logo-text { font-weight: 700; letter-spacing: -0.02em; }
 .sidebar-badge { display: none; }                  /* a version stamp is not navigation */
 .nav-label { color: var(--faint); font-weight: 600; letter-spacing: 0; }
-.nav-item { border-radius: var(--radius-xs); color: var(--muted); font-weight: 500; transition: background-color 160ms var(--ease), color 160ms var(--ease); }
-.nav-item:hover { background: var(--raised); color: var(--text); }
-.nav-item.active { background: var(--active); color: var(--text); box-shadow: var(--edge); }
-.nav-item.active .nav-icon { color: var(--text); }
+.nav-item {
+  position: relative; isolation: isolate; height: 34px; padding: 0 12px;
+  border-radius: 999px; color: var(--muted); font-weight: 500;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.nav-item:active { background: var(--glass-fill-active); transition-duration: 0s; }
+.nav-item.active {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.08));
+  color: #ffffff;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.2),
+              0 7px 11px -4px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.nav-item.active .nav-icon { color: var(--hue); }
+@media (hover: hover) and (pointer: fine) {
+  .nav-item:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
+  .nav-item.active:hover { background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1)); color: #ffffff; }
+}
 .sidebar-divider { border-top-color: var(--rule); }
-.status-pill:hover { background: var(--raised); }
 
 /* The toolbar belongs to the window, not floating over it */
 .topbar { background: transparent; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -112,35 +141,53 @@ body::after {
 .section-row { margin: 36px 0 12px; }
 .section-row .section-header { margin: 0; }
 .kpi-label { color: var(--muted); font-weight: 500; }
-.kpi-value { font-weight: 700; letter-spacing: -0.02em; }
+.kpi-value { font-size: var(--fs-kpi); font-weight: 600; letter-spacing: -0.02em; }
 .kpi-value.zero { color: var(--faint); }
 .td-mono, .kpi-value, .num { font-variant-numeric: tabular-nums; }
 
 /* ── Controls ── */
 .btn {
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--control);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text); font-weight: 600;
-  box-shadow: var(--edge);
-  transition: background-color 140ms var(--ease), border-color 140ms var(--ease), transform 120ms var(--ease);
+  isolation: isolate; border: 0; border-radius: 999px; padding: 0 16px;
+  background: var(--glass-fill); color: var(--text); font-weight: 600;
+  box-shadow: inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
-.btn:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
-.btn:active { transform: scale(0.97); }
+.btn-sm { padding: 0 12px; }
+.btn-xs { padding: 0 10px; }
+.btn:active { background: var(--glass-fill-active); transform: none; transition-duration: 0s; }
+.btn:disabled, .btn[disabled] { opacity: 0.35; }
 .btn-primary, .btn-success {
-  background: var(--primary); border-color: transparent; color: var(--primary-ink) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 12px rgba(0, 0, 0, 0.35);
+  background: var(--primary-sheen), var(--primary); color: var(--primary-ink) !important;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.28),
+              0 1px 3px rgba(0, 0, 0, 0.3), 0 6px 16px -6px rgba(47, 99, 196, 0.55);
 }
-.btn-primary:hover, .btn-success:hover { background: #3a6fd2; }
-.btn-ghost { background: transparent; border-color: transparent; box-shadow: none; }
-.btn-ghost:hover { background: var(--raised); border-color: transparent; }
+.btn-primary:active, .btn-success:active { background: var(--primary-sheen), color-mix(in srgb, var(--primary) 85%, #000); }
+.btn-ghost { background: transparent; box-shadow: none; }
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { background: var(--glass-fill-active); }
+  .btn-primary:hover, .btn-success:hover { background: var(--primary-sheen), color-mix(in srgb, var(--primary) 88%, #fff); }
+  .btn-ghost:hover { background: var(--glass-fill); }
+  .btn-danger:hover { background: var(--pill-negative-bg); }
+}
+
+/* Glisse's pointer light: a soft glow that sits under the label and follows the cursor
+   (session.js feeds --lg-x / --lg-y). It shows on hover and lands at once on press. */
+.btn::before, .nav-item::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(circle 90px at var(--lg-x, 50%) var(--lg-y, 50%), rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0) 70%);
+  opacity: 0; transition: opacity var(--t-mid) var(--ease);
+}
+.btn:active::before, .nav-item:active::before { opacity: 1; transition-duration: 0s; }
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover::before, .nav-item:hover::before { opacity: 1; }
+}
 
 input, select, textarea {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--control);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-edge);
   border-radius: var(--radius-sm);
   color: var(--text);
-  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 input::placeholder, textarea::placeholder { color: var(--faint); text-transform: none; }
 input:hover, select:hover, textarea:hover { border-color: rgba(255, 255, 255, 0.22); }
@@ -151,7 +198,7 @@ input[type="checkbox"] { accent-color: var(--primary); }
 /* ── Tables ── */
 table thead th { color: var(--faint); font-weight: 600; }
 tbody td { border-bottom-color: var(--rule); }
-tbody tr { transition: background-color 120ms var(--ease); }
+tbody tr { transition: background-color var(--t-fast) var(--ease); }
 tbody tr:hover td { background: var(--raised); }
 
 /* ── Feedback ── */
@@ -169,16 +216,20 @@ tbody tr:hover td { background: var(--raised); }
 .empty-title { color: var(--text); font-weight: 600; }
 .empty-desc { color: var(--muted); max-width: 52ch; }
 
-.badge { border-radius: 999px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.badge { border-radius: 6px; padding: 2px 6px; font-weight: 500; letter-spacing: 0; text-transform: none; }
 .badge-buy { background: var(--pill-positive-bg); color: var(--pill-positive-ink); }
 .badge-sell, .badge-strong-sell { background: var(--pill-negative-bg); color: var(--pill-negative-ink); }
 .badge-hold { background: var(--pill-neutral-bg); color: var(--pill-neutral-ink); }
 
-.dry-run-notice { background: var(--surface-strong); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; box-shadow: var(--depth); }
 
 /* Dialogs and menus: stronger glass over a dimmed, blurred page */
-dialog::backdrop, .sidebar-backdrop { background: rgba(0, 0, 0, 0.6); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
-.session-dialog, .drawer-panel { background: var(--surface-strong); }
+dialog::backdrop, .sidebar-backdrop { background: rgba(0, 0, 0, 0.45); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.session-dialog-card, .drawer-panel, .notification-drawer, #notification-drawer {
+  background: var(--sheen), var(--surface-strong);
+  -webkit-backdrop-filter: var(--blur-strong); backdrop-filter: var(--blur-strong);
+  border: 0; border-radius: 20px; box-shadow: var(--float);
+}
+.notification-drawer, #notification-drawer { border-radius: 20px 0 0 20px; }
 
 /* ── Phone: the sidebar is a sheet again, everything full width ── */
 @media (max-width: 768px) {
@@ -200,10 +251,9 @@ input, textarea { caret-color: var(--hue); }
 
 /* ── Toasts float over content, so they are solid enough to read over anything ── */
 .toast {
-  background: var(--surface-strong);
-  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
-  border: 1px solid var(--border);
-  box-shadow: var(--edge), 0 12px 32px rgba(0, 0, 0, 0.5);
+  background: var(--sheen), var(--surface-strong);
+  -webkit-backdrop-filter: var(--blur-strong); backdrop-filter: var(--blur-strong);
+  border: 0; border-radius: 20px; box-shadow: var(--float);
 }
 
 /* ── Dashboard: the two panels share a bottom edge; an empty chart says so in its middle ── */
@@ -235,51 +285,56 @@ input.switch[type="checkbox"] {
   width: 36px; height: 22px;
   background: rgba(255, 255, 255, 0.16);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-  transition: background-color 200ms var(--ease), box-shadow 200ms var(--ease);
+  transition: background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 input.switch[type="checkbox"]::after {
   top: 2px; left: 2px; width: 18px; height: 18px;
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45), 0 0 0 0.5px rgba(0, 0, 0, 0.12);
-  transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform var(--t-mid) var(--ease), background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 input.switch[type="checkbox"]:hover { background: rgba(255, 255, 255, 0.22); }
 input.switch[type="checkbox"]:checked { background: var(--primary); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
 input.switch[type="checkbox"]:checked:hover { background: #3a6fd2; }
 input.switch[type="checkbox"]:checked::after { transform: translateX(14px); }
-input.switch[type="checkbox"]:active::after { transform: translateX(2px) scaleX(1.22); }
-input.switch[type="checkbox"]:checked:active::after { transform: translateX(12px) scaleX(1.22); }
+input.switch[type="checkbox"]:active::after { transform: translateX(2px) scale(1.28, 1.12); }
+input.switch[type="checkbox"]:checked:active::after { transform: translateX(12px) scale(1.28, 1.12); }
+input.switch[type="checkbox"]:active::after {
+  background: rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(2px) saturate(1.5); backdrop-filter: blur(2px) saturate(1.5);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2), inset 0 0 0 1.5px rgba(255, 255, 255, 0.5), inset 0 2px 1px rgba(255, 255, 255, 0.45),
+              inset 2px 7px 24px rgba(0, 0, 0, 0.09), inset -2px -7px 24px rgba(255, 255, 255, 0.16);
+}
 input.switch[type="checkbox"]:disabled { opacity: 0.45; cursor: not-allowed; }
 .check-row { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
 
 /* Segmented control: one recessed track, the chosen segment a raised light tile (no blue fill) */
 .segmented {
   display: inline-flex; align-items: center; gap: 2px; padding: 3px;
-  border-radius: var(--radius-sm); background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border);
+  border-radius: 999px; background: rgba(255, 255, 255, 0.05); border: 0; box-shadow: inset 0 0 0 0.5px var(--glass-edge);
 }
 .segmented .btn {
-  height: 26px; min-width: 40px; padding: 0 10px; border-radius: 7px;
+  height: 26px; min-width: 40px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 500;
   background: transparent; border-color: transparent; box-shadow: none; color: var(--muted);
-  transition: background-color 180ms var(--ease), color 180ms var(--ease), box-shadow 180ms var(--ease);
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
-.segmented .btn:hover { background: var(--raised); color: var(--text); }
+.segmented .btn:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
 .segmented .btn.btn-primary, .segmented .btn.btn-primary:hover, .segmented .btn[aria-pressed="true"] {
-  background: rgba(255, 255, 255, 0.13); color: var(--text) !important;
-  box-shadow: var(--edge), 0 1px 2px rgba(0, 0, 0, 0.35);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.09)); color: var(--text) !important;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 /* Tabs: the underline grows in from its centre instead of appearing */
 .abs-tab-btn::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px;
   background: var(--text); transform: scaleX(0); opacity: 0;
-  transition: transform 240ms var(--ease), opacity 160ms ease;
+  transition: transform var(--t-mid) var(--ease), opacity var(--t-fast) var(--ease);
 }
 .abs-tab-btn.active::after { transform: scaleX(1); opacity: 1; }
 
 /* ── Motion, the macOS way: things answer the hand, windows keep their place ──
    Every hidden or travelling state lives inside no-preference, so reduced motion is the finished page. */
-.nav-item:active, .topbar-refresh:active, .drawer-tab-btn:active { transform: scale(0.98); }
-a { transition: color 180ms ease; }
+a { transition: color var(--t-fast) var(--ease); }
 
 @media (prefers-reduced-motion: no-preference) {
   /* Page to page: the sidebar and toolbar stay put, the selection glides to the new item,
@@ -288,45 +343,48 @@ a { transition: color 180ms ease; }
   .sidebar { view-transition-name: sidebar; }
   .topbar { view-transition-name: toolbar; }
   .nav-item.active { view-transition-name: nav-selection; }
-  ::view-transition-group(nav-selection) { animation-duration: 420ms; animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1); }
-  ::view-transition-old(nav-selection), ::view-transition-new(nav-selection) { height: 100%; animation-duration: 420ms; }
-  ::view-transition-old(root) { animation: vt-leave 180ms cubic-bezier(0.55, 0.055, 0.675, 0.19) both; }
-  ::view-transition-new(root) { animation: vt-arrive 360ms var(--ease) 60ms both; }
-  ::view-transition-group(sidebar), ::view-transition-group(toolbar) { animation: none; }
-  ::view-transition-old(sidebar), ::view-transition-new(sidebar),
-  ::view-transition-old(toolbar), ::view-transition-new(toolbar) { animation-duration: 200ms; }
+  ::view-transition-group(*) { animation-duration: var(--t-slow); animation-timing-function: var(--ease); }
+  ::view-transition-old(nav-selection), ::view-transition-new(nav-selection) {
+    height: 100%; animation-duration: var(--t-slow); animation-timing-function: var(--ease);
+  }
+  ::view-transition-old(root) { animation: vt-leave var(--t-fast) var(--ease) both; }
+  ::view-transition-new(root) { animation: vt-arrive var(--t-slow) var(--ease) both; }
+  /* The sidebar and toolbar are the same window on every page: swap them, don't fade two glass layers */
+  ::view-transition-group(sidebar), ::view-transition-group(toolbar),
+  ::view-transition-new(sidebar), ::view-transition-new(toolbar) { animation: none; }
+  ::view-transition-old(sidebar), ::view-transition-old(toolbar) { display: none; }
 
   /* Data that arrives after load settles in rather than popping */
   tbody tr, .empty-state, .js-plotly-plot {
-    transition: background-color 120ms var(--ease), opacity 280ms var(--ease);
+    transition: background-color var(--t-fast) var(--ease), opacity var(--t-mid) var(--ease);
     @starting-style { opacity: 0; }
   }
 
   /* Sheets and dialogs open from their centre, a little under full size */
-  .session-dialog { transform: scale(0.96); transition-duration: 260ms; }
+  .session-dialog { transform: scale(0.96); transition-duration: var(--t-mid); }
   dialog[open].session-dialog { transform: none; @starting-style { opacity: 0; transform: scale(0.96); } }
-  .notification-drawer, #notification-drawer { transition: transform 360ms cubic-bezier(0.32, 0.72, 0, 1); }
+  .notification-drawer, #notification-drawer { transition: transform var(--t-slow) var(--ease); }
 
   /* Disclosures open to their real height */
   :root { interpolate-size: allow-keywords; }
   details::details-content {
     block-size: 0; overflow-y: clip;
-    transition: block-size 320ms var(--ease), content-visibility 320ms allow-discrete;
+    transition: block-size var(--t-slow) var(--ease), content-visibility var(--t-slow) allow-discrete;
   }
   details[open]::details-content { block-size: auto; }
 }
 @keyframes vt-leave { to { opacity: 0; } }
-@keyframes vt-arrive { from { opacity: 0; transform: translateY(10px); } }
+@keyframes vt-arrive { from { opacity: 0; transform: translateY(6px); } }
 
-/* ── Reduced motion: the wallpaper stands still ── */
+/* ── Reduced motion: no pointer glow fading in and out ── */
 @media (prefers-reduced-motion: reduce) {
-  body::before, body::after { animation: none; }
-  .btn:active, .nav-item:active, .topbar-refresh:active, .drawer-tab-btn:active { transform: none; }
+  .btn::before, .nav-item::before { transition: none; }
 }
 
 /* No backdrop-filter: solid panels keep every figure readable */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .sidebar, .card, .kpi-grid, .table-wrap, .alert, .metric-sm, .abstract-card { background: #121316; }
+  .sidebar, .card, .kpi-grid > .kpi-card, .table-wrap, .alert, .metric-sm, .abstract-card { background: #121316; }
+  .session-dialog-card, .toast, .drawer-panel, .notification-drawer, #notification-drawer { background: #18191d; }
 }
 
 /* Count badges: white figures need a deeper red than the text red to stay readable */
@@ -336,4 +394,160 @@ a { transition: color 180ms ease; }
 @media (max-width: 768px) {
   .card-header { flex-wrap: wrap; row-gap: 8px; }
   .card-header > .card-title { flex: 1 1 100%; }
+}
+
+/* ── Sidebar: one width on every page. A short window scrolls it without a scrollbar
+      eating into the menu, and the engine status and dry-run notice sit at its foot. ── */
+.sidebar { scrollbar-width: none; overscroll-behavior: contain; }
+.sidebar::-webkit-scrollbar { display: none; }
+
+/* A compact select that sits in a page's action row beside buttons */
+select.month-select { width: auto; min-width: 150px; height: 32px; padding: 0 30px 0 12px; font-weight: 500; }
+
+/* Statement tables hold long labels and notes like "not enough history": let them wrap
+   inside their card instead of running past its edge */
+.statement-container td { white-space: normal; height: auto; padding-top: 10px; padding-bottom: 10px; line-height: 1.4; }
+.statement-container td.text-right { padding-left: 16px; }
+
+/* ── Sidebar rhythm: room between rows, one 4px step, labels that sit with their group ── */
+.sidebar { gap: 0; padding: 0 12px 14px; }
+.sidebar-header { padding: 20px 8px 6px; }
+.nav-label { margin: 18px 12px 8px; font-size: 11.5px; line-height: 14px; }
+.nav-item { height: 36px; gap: 12px; font-size: 14px; }
+.nav-item + .nav-item { margin-top: 4px; }
+body.sidebar-retracted .nav-item { padding: 0; }
+
+/* ── Engine status: three small tags at the sidebar's foot. The full sentence is in the tooltip. ── */
+.sidebar-status {
+  margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 14px 4px 0; border-top: 1px solid var(--rule);
+}
+.sidebar-status .status-pill {
+  height: 24px; min-height: 24px; padding: 0 9px 0 8px; gap: 6px;
+  border-radius: 999px; font-size: 11.5px; font-weight: 500; line-height: 1; color: var(--muted);
+  background: var(--glass-fill); box-shadow: inset 0 0 0 0.5px var(--glass-edge);
+  text-decoration: none; cursor: default;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.sidebar-status a.status-pill { cursor: pointer; }
+.sidebar-status .status-pill:hover, .sidebar-status .status-pill:focus-visible { background: var(--glass-fill-active); color: var(--text); }
+.sidebar-status .status-dot { width: 6px; height: 6px; }
+.status-ok .status-dot  { background: var(--positive); box-shadow: 0 0 6px rgba(62, 207, 142, 0.55); }
+.status-warn .status-dot { background: #e08a1e; box-shadow: 0 0 6px rgba(224, 138, 30, 0.5); }
+.status-err .status-dot { background: var(--negative); box-shadow: 0 0 6px rgba(255, 122, 122, 0.5); }
+.status-dry .status-dot { background: var(--warning); box-shadow: 0 0 6px rgba(245, 196, 81, 0.45); }
+body.sidebar-retracted .sidebar-status { flex-direction: column; align-items: center; padding-inline: 0; }
+body.sidebar-retracted .sidebar-status .status-pill { width: 24px; padding: 0; justify-content: center; }
+body.sidebar-retracted .sidebar-status .status-dot { display: block !important; }
+
+/* Tooltips are small glass labels too */
+.app-floating-tooltip {
+  border-radius: 8px; padding: 6px 10px;
+  background: rgba(30, 31, 37, 0.86); color: var(--text);
+  -webkit-backdrop-filter: var(--blur-strong); backdrop-filter: var(--blur-strong);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 8px 24px rgba(0, 0, 0, 0.45);
+  transition: opacity var(--t-fast) var(--ease), visibility var(--t-fast);
+}
+
+/* ════ Cirrel pass: the panel material, a sliding segmented thumb, live dots that breathe,
+        figures that flash when they change. The wallpaper stays ours. ════ */
+:root {
+  --surface: rgba(14, 18, 27, 0.5);
+  --radius: 22px;
+  --blur: blur(30px) saturate(1.5) brightness(0.7);
+  /* film grain: keeps big glass areas from reading as flat plastic */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* rim, a lit top edge, a soft inner glow under it, then the drop */
+  --edge: inset 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.2),
+          inset 0 18px 30px -24px rgba(255, 255, 255, 0.16);
+  --depth: 0 1px 2px rgba(0, 0, 0, 0.3), 0 20px 44px -22px rgba(0, 0, 0, 0.75);
+}
+.sidebar, .card, .table-wrap, .alert, .banner, .abstract-card, .bottom-nav, .alert-card {
+  background: var(--grain), var(--sheen), var(--surface);
+  box-shadow: var(--edge), var(--depth);
+}
+.sidebar { border: 0; border-radius: 26px; }
+.card .table-wrap, .card .card, .card .alert, .abstract-card .card { background: var(--raised); box-shadow: none; }
+
+/* KPI strip: one panel, figures split by hairlines (Cirrel's figure row) */
+.kpi-grid {
+  gap: 0; border-radius: var(--radius); overflow: hidden;
+  background: var(--grain), var(--sheen), var(--surface);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  box-shadow: var(--edge), var(--depth);
+}
+.kpi-grid > .kpi-card {
+  background: transparent; box-shadow: none; border-radius: 0; padding: 18px 20px;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.kpi-grid > .kpi-card + .kpi-card { border-left: 1px solid var(--rule); }
+.kpi-value { font-size: 26px; line-height: 32px; letter-spacing: -0.025em; }
+.kpi-delta.pos, .kpi-delta.neg {
+  display: inline-flex; align-items: center; width: fit-content; padding: 1px 7px; border-radius: 6px; font-weight: 600;
+}
+.kpi-delta.pos { background: var(--pill-positive-bg); color: var(--pill-positive-ink); }
+.kpi-delta.neg { background: var(--pill-negative-bg); color: var(--pill-negative-ink); }
+@media (max-width: 768px) {
+  .kpi-grid > .kpi-card + .kpi-card { border-left: 0; }
+  .kpi-grid > .kpi-card:nth-child(n + 3) { border-top: 1px solid var(--rule); }
+  .kpi-grid > .kpi-card:nth-child(2n) { border-left: 1px solid var(--rule); }
+  .kpi-value { font-size: 20px; line-height: 26px; }
+}
+
+/* A figure that changes flashes the accent, then settles */
+@keyframes figure-flash { from { color: var(--hue); } }
+.is-flash { animation: figure-flash 1s var(--ease); }
+
+/* Primary: a lit gradient with a coloured shadow beneath it */
+.btn-primary, .btn-success {
+  background: linear-gradient(180deg, #3a73d8, #2756b0);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), 0 0 0 0.5px rgba(255, 255, 255, 0.1),
+              0 10px 22px -10px rgba(58, 115, 216, 0.6);
+  transition: background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-mid) var(--ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover, .btn-success:hover { background: linear-gradient(180deg, #4a82e4, #2f62c2); }
+}
+.btn-primary:active, .btn-success:active { background: linear-gradient(180deg, #2f63c4, #224c9e); }
+
+/* Toolbar: round glass icon buttons */
+.topbar-bell-btn, .topbar-refresh {
+  border: 0; border-radius: 999px; background: var(--glass-fill);
+  box-shadow: inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: background-color var(--t-fast) var(--ease);
+}
+.topbar-bell-btn { width: 36px; height: 36px; }
+.topbar-bell-btn:hover, .topbar-refresh:hover { background: var(--glass-fill-active); }
+
+/* Segmented control: one glass thumb slides between options (session.js places it) */
+.segmented { position: relative; isolation: isolate; }
+.seg-thumb {
+  position: absolute; top: 3px; bottom: 3px; left: 0; z-index: 0; pointer-events: none;
+  border-radius: 999px; opacity: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: transform var(--t-slow) var(--ease), width var(--t-slow) var(--ease), opacity var(--t-fast) var(--ease);
+}
+.segmented.has-thumb .btn, .segmented.has-thumb .btn:hover,
+.segmented.has-thumb .btn.btn-primary, .segmented.has-thumb .btn[aria-pressed="true"] {
+  position: relative; z-index: 1; background: transparent; box-shadow: none;
+}
+
+/* Rows: the hover is a rounded lozenge, not a stripe */
+table { border-collapse: separate; border-spacing: 0; }
+tbody tr:hover td:first-child { border-radius: 12px 0 0 12px; }
+tbody tr:hover td:last-child { border-radius: 0 12px 12px 0; }
+
+/* Live status dots breathe */
+.status-dot { position: relative; }
+.status-ok .status-dot::after {
+  content: ""; position: absolute; inset: -3px; border-radius: 50%;
+  background: var(--positive); opacity: 0.25;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes breathe { 0%, 100% { opacity: 0.08; transform: scale(0.8); } 50% { opacity: 0.4; transform: scale(1.15); } }
+  .status-ok .status-dot::after { animation: breathe 2.4s ease-in-out infinite; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .kpi-grid { background: #121316; }
 }

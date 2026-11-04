@@ -206,8 +206,12 @@
           }
         }
       } else {
-        // Verification failed
-        const msg = data.error?.message || "Invalid Master Key or PIN. Access denied.";
+        // Only a 401/403 from the API means the key is wrong; anything else (404, 502, a page
+        // with no API behind it) means the server was not reached, so say that instead.
+        const rejected = res.status === 401 || res.status === 403;
+        const msg = rejected
+          ? data.error?.message || "That key or PIN is not right. Check it and try again."
+          : `Couldn't reach the PortfolioIQ API (HTTP ${res.status}). Start it with "docker compose up -d", then try again.`;
         if (errorEl) {
           errorEl.textContent = msg;
           errorEl.style.display = "block";
@@ -314,6 +318,80 @@
       }
     },
   };
+
+  // Glass controls: the soft light inside a button or nav item follows the pointer (glass.css reads --lg-x/--lg-y)
+  if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    let frame = 0;
+    document.addEventListener("pointermove", (event) => {
+      const el = event.target instanceof Element ? event.target.closest(".btn, .nav-item") : null;
+      if (!el || frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const box = el.getBoundingClientRect();
+        el.style.setProperty("--lg-x", `${event.clientX - box.left}px`);
+        el.style.setProperty("--lg-y", `${event.clientY - box.top}px`);
+      });
+    }, { passive: true });
+  }
+
+  const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Segmented controls: one thumb slides to whichever option is pressed
+  function initSegmented() {
+    document.querySelectorAll(".segmented").forEach((group) => {
+      const thumb = document.createElement("span");
+      thumb.className = "seg-thumb";
+      thumb.setAttribute("aria-hidden", "true");
+      group.prepend(thumb);
+      group.classList.add("has-thumb");
+      const place = () => {
+        const on = group.querySelector('[aria-pressed="true"]');
+        thumb.style.opacity = on ? "1" : "0";
+        if (!on) return;
+        thumb.style.width = `${on.offsetWidth}px`;
+        thumb.style.transform = `translateX(${on.offsetLeft}px)`;
+      };
+      place();
+      new MutationObserver(place).observe(group, { subtree: true, attributes: true, attributeFilter: ["aria-pressed"] });
+      window.addEventListener("resize", place, { passive: true });
+    });
+  }
+
+  // A figure that changes after load flashes once, so the eye catches what moved
+  function initFigureFlash() {
+    if (calm) return;
+    new MutationObserver((changes) => {
+      for (const c of changes) {
+        const el = (c.target.nodeType === 1 ? c.target : c.target.parentElement)?.closest(".kpi-value");
+        if (!el) continue;
+        el.classList.remove("is-flash");
+        void el.offsetWidth; // restart the animation
+        el.classList.add("is-flash");
+      }
+    }).observe(document.body, { subtree: true, childList: true, characterData: true });
+  }
+
+  // The primary button leans a few pixels toward the pointer
+  function initMagnetic() {
+    if (calm || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    const MAX = 4;
+    document.addEventListener("pointermove", (e) => {
+      const btn = e.target instanceof Element ? e.target.closest(".btn-primary:not(.range-btn)") : null;
+      if (!btn) return;
+      const box = btn.getBoundingClientRect();
+      const dx = ((e.clientX - box.left) / box.width - 0.5) * 2 * MAX;
+      const dy = ((e.clientY - box.top) / box.height - 0.5) * 2 * (MAX / 2);
+      btn.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
+    }, { passive: true });
+    document.addEventListener("pointerout", (e) => {
+      const btn = e.target instanceof Element ? e.target.closest(".btn-primary") : null;
+      if (btn && !btn.contains(e.relatedTarget)) btn.style.transform = "";
+    }, { passive: true });
+  }
+
+  function initMotion() { initSegmented(); initFigureFlash(); initMagnetic(); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initMotion);
+  else initMotion();
 
   // Run on DOM ready
   if (document.readyState === "loading") {

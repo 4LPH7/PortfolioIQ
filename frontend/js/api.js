@@ -3,13 +3,18 @@
  * Thin wrapper around fetch() that talks to the local Flask backend.
  */
 
-// The wallpaper lights carry on from where they were on the last page instead of restarting.
-// Each runs alternate, so its full cycle is twice its duration (48s and 56s in glass.css).
-(() => {
-  const t = Date.now() / 1000;
-  document.documentElement.style.setProperty("--drift-a", `${-(t % 96)}s`);
-  document.documentElement.style.setProperty("--drift-b", `${-(t % 112)}s`);
-})();
+// Plotly loads with defer so a 3 MB library never holds up the first paint of a page.
+// A chart drawn before it arrives is queued and drawn once it has (deferred scripts run before DOMContentLoaded).
+if (!window.Plotly) {
+  const queued = [];
+  const later = (method) => (...args) => new Promise((resolve, reject) => queued.push({ method, args, resolve, reject }));
+  window.Plotly = { newPlot: later("newPlot"), react: later("react") };
+  document.addEventListener("DOMContentLoaded", () => {
+    for (const { method, args, resolve, reject } of queued.splice(0)) {
+      Promise.resolve().then(() => window.Plotly[method](...args)).then(resolve, reject);
+    }
+  });
+}
 
 function getApiBase() {
   if (window.location.protocol === "file:") {
@@ -266,28 +271,31 @@ function errBox(msg) {
 
 // ── Sidebar status ─────────────────────────────────────────────
 
+// A sidebar status is a dot and a short tag; the full sentence lives in its tooltip
+function setStatusPill(id, state, tag, detail) {
+  const pill = document.getElementById(id);
+  if (!pill) return;
+  pill.className = `status-pill status-${state}`;
+  pill.innerHTML = `<span class="status-dot"></span><span class="status-tag"></span>`;
+  pill.querySelector(".status-tag").textContent = tag;
+  pill.dataset.tip = detail;
+  pill.setAttribute("aria-label", detail);
+}
+
 async function loadSidebarStatus() {
   try {
-    const r = await apiGet("/api/market/status");
-    const mkt = r.data;
-    const pill = document.getElementById("market-status");
-    if (pill) {
-      const isOpen = mkt.is_open;
-      pill.className = `status-pill ${isOpen ? "status-ok" : "status-warn"}`;
-      pill.innerHTML = `<div class="status-dot"></div><span>${mkt.status_text}</span>`;
-    }
-  } catch { /* offline */ }
+    const mkt = (await apiGet("/api/market/status")).data;
+    const label = String(mkt.status_text || (mkt.is_open ? "open" : "closed")).toLowerCase().replace(/_/g, "-");
+    setStatusPill("market-status", mkt.is_open ? "ok" : "warn", mkt.is_open ? "Open" : "Closed", `Market ${label}`);
+  } catch {
+    setStatusPill("market-status", "err", "Market", "Market status unavailable");
+  }
 
   try {
     const h = await apiGet("/api/health");
-    const pill = document.getElementById("db-status");
-    if (pill) {
-      pill.className = `status-pill ${h.db ? "status-ok" : "status-err"}`;
-      pill.innerHTML = `<div class="status-dot"></div><span>${h.db ? "Database OK" : "DB Offline"}</span>`;
-    }
+    setStatusPill("db-status", h.db ? "ok" : "err", "DB", h.db ? "Database connected" : "Database offline");
   } catch {
-    const pill = document.getElementById("db-status");
-    if (pill) { pill.className = "status-pill status-err"; pill.innerHTML = `<div class="status-dot"></div><span>Backend offline</span>`; }
+    setStatusPill("db-status", "err", "Offline", "Backend offline: start it with docker compose up -d");
   }
 }
 

@@ -103,7 +103,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: flex; align-items: center; gap: 10px;
   height: 32px; padding: 0 8px; border-radius: 8px;
   color: var(--muted); font-size: var(--fs-body);
-  transition: background-color var(--t-fast) ease, color var(--t-fast) ease;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .nav-item:hover { background: var(--raised); color: var(--text); }
 .nav-item.active { background: var(--active); color: var(--text); }
@@ -116,7 +116,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: flex; align-items: center; gap: 8px;
   min-height: 28px; padding: 0 8px; border-radius: 8px;
   font-size: 13px; color: var(--muted);
-  transition: background-color var(--t-fast) ease, color var(--t-fast) ease;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .status-pill:hover { background: var(--raised); color: var(--text); }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--faint); }
@@ -128,7 +128,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: none; align-items: center; justify-content: center;
   width: 36px; height: 36px; border-radius: var(--radius-sm);
   border: 1px solid transparent; background: transparent; color: var(--text); cursor: pointer;
-  transition: background-color var(--t-fast) ease;
+  transition: background-color var(--t-fast) var(--ease);
 }
 .sidebar-retract-btn:hover, .sidebar-toggle-btn:hover { background: var(--raised); }
 .sidebar-backdrop { display: none; position: fixed; inset: 0; z-index: 998; background: rgba(10, 10, 10, 0.32); }
@@ -159,7 +159,7 @@ body.sidebar-retracted .nav-item { justify-content: center; }
   height: 32px; padding: 0 10px; border-radius: var(--radius-sm);
   border: 1px solid var(--control); background: var(--surface);
   font-size: 13px; font-weight: 500; color: var(--text); cursor: pointer;
-  transition: background-color var(--t-fast) ease;
+  transition: background-color var(--t-fast) var(--ease);
 }
 .topbar-refresh:hover { background: var(--raised); }
 .topbar-refresh .material-symbols-outlined { font-size: 16px; }
@@ -307,7 +307,7 @@ table:has(tbody td.td-mono:nth-child(12)) thead th:nth-child(12) { text-align: r
   height: var(--control-height); padding: 0 14px; border-radius: var(--radius-sm);
   border: 1px solid var(--control); background: var(--surface); color: var(--text);
   font-size: var(--fs-body); font-weight: 500; white-space: nowrap; cursor: pointer; user-select: none;
-  transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease, transform 120ms var(--ease);
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), transform 120ms var(--ease);
 }
 .btn:hover { background: var(--raised); }
 .btn:active { transform: translateY(1px); }
@@ -329,7 +329,7 @@ table:has(tbody td.td-mono:nth-child(12)) thead th:nth-child(12) { text-align: r
   display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px;
   border: 1px solid transparent; background: var(--pill-neutral-bg); color: var(--pill-neutral-ink);
   font-size: var(--fs-small); font-weight: 500; cursor: pointer;
-  transition: background-color var(--t-fast) ease;
+  transition: background-color var(--t-fast) var(--ease);
 }
 .chip-btn:hover { background: var(--active); }
 .range-btn.active, .chip-btn.active, .range-btn.selected { background: var(--primary); color: var(--primary-ink); }
@@ -343,7 +343,7 @@ input[type="date"], input[type="email"], textarea, .form-control {
   border: 1px solid var(--control); border-radius: var(--radius-sm);
   background: var(--surface); color: var(--text); font-size: var(--fs-body);
   appearance: none; outline: none;
-  transition: border-color var(--t-fast) ease, box-shadow var(--t-fast) ease;
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 select {
   padding-right: 32px;
@@ -353,7 +353,7 @@ select {
 select:focus, input:focus, textarea:focus, .form-control:focus { border-color: var(--hue); box-shadow: 0 0 0 3px rgba(29, 95, 191, 0.15); }
 ::placeholder { color: var(--faint); }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--text); width: 16px; height: 16px; }
-.switch { appearance: none; -webkit-appearance: none; width: 32px; height: 20px; flex: none; border-radius: 999px; background: var(--control); position: relative; cursor: pointer; transition: background-color var(--t-mid) ease; }
+.switch { appearance: none; -webkit-appearance: none; width: 32px; height: 20px; flex: none; border-radius: 999px; background: var(--control); position: relative; cursor: pointer; transition: background-color var(--t-mid) var(--ease); }
 .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #ffffff; transition: transform var(--t-mid) var(--ease); }
 .switch:checked { background: var(--text); }
 .switch:checked::after { transform: translateX(12px); }
@@ -368,7 +368,7 @@ tr.row-selected td { background: var(--active); }
 .abs-tab-btn {
   position: relative; padding: 10px 0; border: 0; background: none; cursor: pointer;
   color: var(--muted); font-size: var(--fs-body); font-weight: 500; white-space: nowrap;
-  transition: color var(--t-fast) ease;
+  transition: color var(--t-fast) var(--ease);
 }
 .abs-tab-btn:hover { color: var(--text); }
 .abs-tab-btn.active { color: var(--text); }
@@ -573,7 +573,7 @@ dialog[open].session-dialog::backdrop {
   position: relative; display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; border-radius: var(--radius-sm);
   border: 1px solid transparent; background: transparent; color: var(--text); cursor: pointer;
-  transition: background-color var(--t-fast) ease;
+  transition: background-color var(--t-fast) var(--ease);
 }
 .topbar-bell-btn:hover { background: var(--active); }
 .bell-badge {
@@ -602,7 +602,7 @@ dialog[open].session-dialog::backdrop {
 .drawer-tab-btn {
   height: 28px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent;
   color: var(--muted); font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer;
-  transition: background-color var(--t-fast) ease, color var(--t-fast) ease;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .drawer-tab-btn:hover { color: var(--text); }
 .drawer-tab-btn.active { background: var(--active); color: var(--text); }

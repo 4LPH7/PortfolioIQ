@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
+  <script defer src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,300,0,0&display=block"/>
   <link rel="stylesheet" href="css/main.css"/>
   <link rel="stylesheet" href="css/glass.css"/>
 </head>
@@ -29,20 +29,15 @@
   <a class="nav-item" href="rebalance.html" data-tooltip="Rebalance"><span class="material-symbols-outlined nav-icon">balance</span> <span>Rebalance</span></a>
   <a class="nav-item" href="tax.html" data-tooltip="Tax Guard"><span class="material-symbols-outlined nav-icon">shield</span> <span>Tax Guard</span></a>
   <a class="nav-item" href="audit.html" data-tooltip="Audit Log"><span class="material-symbols-outlined nav-icon">receipt_long</span> <span>Audit Log</span></a>
-  <a class="nav-item active" href="timeline.html" data-tooltip="Portfolio Timeline"><span class="material-symbols-outlined nav-icon">timeline</span> <span>Portfolio Timeline</span></a>
+  <a class="nav-item active" href="timeline.html" aria-current="page" data-tooltip="Portfolio Timeline"><span class="material-symbols-outlined nav-icon">timeline</span> <span>Portfolio Timeline</span></a>
   <a class="nav-item" href="report.html" data-tooltip="Monthly Statement"><span class="material-symbols-outlined nav-icon">description</span> <span>Monthly Statement</span></a>
-<a class="nav-item" href="settings.html" data-tooltip="Settings"><span class="material-symbols-outlined nav-icon">settings</span> <span>Settings</span></a>
+  <a class="nav-item" href="settings.html" data-tooltip="Settings"><span class="material-symbols-outlined nav-icon">settings</span> <span>Settings</span></a>
 
-  <hr class="sidebar-divider"/>
-  <div class="nav-label">Engine Status</div>
-  <a href="status.html" id="market-status" class="status-pill status-warn" title="View Market Status">
-    <div class="status-dot"></div><span>Loading…</span>
-  </a>
-  <a href="status.html" id="db-status" class="status-pill status-warn" title="View Database Status">
-    <div class="status-dot"></div><span>Checking…</span>
-  </a>
-  <hr class="sidebar-divider"/>
-  <div class="dry-run-notice"><div class="dry-run-dot"></div>Dry run: orders are simulated</div>
+  <div class="sidebar-status" role="group" aria-label="Engine status">
+    <a href="status.html" id="market-status" class="status-pill status-warn" data-tip="Checking the market" aria-label="Checking the market"><span class="status-dot"></span><span class="status-tag">Market</span></a>
+    <a href="status.html" id="db-status" class="status-pill status-warn" data-tip="Checking the database" aria-label="Checking the database"><span class="status-dot"></span><span class="status-tag">DB</span></a>
+    <span class="status-pill status-dry" tabindex="0" data-tip="Dry run: orders are simulated, nothing reaches the broker" aria-label="Dry run: orders are simulated"><span class="status-dot"></span><span class="status-tag">Dry run</span></span>
+  </div>
 </nav>
 
 <!-- ── Top Bar ─────────────────────────────────────────────── -->
